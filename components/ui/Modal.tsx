@@ -120,21 +120,29 @@ export function Modal({ open, onClose, confirmClose, onConfirmClose, children }:
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Trap focus within modal
+  const focusableSelectors =
+    'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
+  // Initial focus — depends only on `open` so it fires exactly once when the
+  // modal opens, and never again on re-renders. If this shared the same effect
+  // as the keydown listener (which depends on onClose/onConfirmClose), every
+  // onChange in a child input would cause a re-render → new onClose ref →
+  // effect re-run → first?.focus() → focus stolen from the input being typed in.
   useEffect(() => {
     if (!open) return;
-
     const dialog = dialogRef.current;
     if (!dialog) return;
+    const focusable = dialog.querySelectorAll<HTMLElement>(focusableSelectors);
+    focusable[0]?.focus();
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const focusableSelectors =
-      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
-
-    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelectors));
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-
-    first?.focus();
+  // Keyboard handler — Escape closes, Tab wraps at the boundary.
+  // Queries focusable elements fresh on each Tab so dynamic content
+  // (e.g. error messages that add new elements) is handled correctly.
+  useEffect(() => {
+    if (!open) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -147,18 +155,21 @@ export function Modal({ open, onClose, confirmClose, onConfirmClose, children }:
       }
 
       if (e.key === 'Tab') {
+        const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelectors));
         if (focusable.length === 0) { e.preventDefault(); return; }
+        const first = focusable[0];
+        const last  = focusable[focusable.length - 1];
         if (e.shiftKey) {
           if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
         } else {
-          if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+          if (document.activeElement === last)  { e.preventDefault(); first?.focus(); }
         }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose, confirmClose, onConfirmClose]);
+  }, [open, onClose, confirmClose, onConfirmClose]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lock body scroll while open
   useEffect(() => {
