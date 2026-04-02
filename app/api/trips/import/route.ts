@@ -90,8 +90,14 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'No readable text found in the file.' }, { status: 422 });
   }
 
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return Response.json({ error: 'ANTHROPIC_API_KEY is not set.' }, { status: 500 });
+  }
 
+  const anthropic = new Anthropic({ apiKey });
+
+  let rawText: string | undefined;
   try {
     const stream = anthropic.messages.stream({
       model: 'claude-sonnet-4-6',
@@ -106,28 +112,38 @@ export async function POST(request: Request): Promise<Response> {
     });
 
     const message = await stream.finalMessage();
+    console.log('[import] Claude response:', JSON.stringify(message, null, 2));
 
     const textBlock = message.content.find((b) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') {
-      return Response.json({ error: 'No response from AI.' }, { status: 500 });
+      return Response.json(
+        { error: `No text block in Claude response. stop_reason: ${message.stop_reason}, content types: ${message.content.map((b) => b.type).join(', ')}` },
+        { status: 500 },
+      );
     }
 
+    rawText = textBlock.text;
+
     // Strip any accidental markdown code fences
-    const raw = textBlock.text
+    const stripped = rawText
       .replace(/^```(?:json)?\s*/i, '')
       .replace(/\s*```\s*$/i, '')
       .trim();
 
     let parsed: unknown;
     try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return Response.json({ error: 'AI returned invalid JSON.', raw }, { status: 500 });
+      parsed = JSON.parse(stripped);
+    } catch (parseErr) {
+      return Response.json(
+        { error: `Claude returned invalid JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`, raw: rawText },
+        { status: 500 },
+      );
     }
 
     return Response.json({ ok: true, data: parsed });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'AI call failed.';
-    return Response.json({ error: msg }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[import] Claude API error:', err);
+    return Response.json({ error: msg, raw: rawText }, { status: 500 });
   }
 }
