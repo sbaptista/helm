@@ -1,17 +1,17 @@
 import { AuthShell } from '@/components/auth/AuthShell';
-import { LoginForm } from './LoginForm';
+import { CreateAccountForm } from './CreateAccountForm';
 
-export default async function LoginPage({
+export default async function CreateAccountPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
-  const hasError = params.error === 'true';
+  const email = typeof params.email === 'string' ? params.email : '';
 
   return (
     <AuthShell>
-      <LoginForm initialError={hasError} />
+      <CreateAccountForm email={email} />
     </AuthShell>
   );
 }
