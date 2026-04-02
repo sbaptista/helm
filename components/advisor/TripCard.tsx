@@ -83,7 +83,7 @@ export function TripCard({ trip, onEdit }: TripCardProps) {
             marginBottom: '10px',
           }}
         >
-          {trip.name}
+          {trip.title}
         </h3>
 
         {/* Destination */}
@@ -144,7 +144,7 @@ export function TripCard({ trip, onEdit }: TripCardProps) {
           </Button>
 
           <button
-            aria-label={`Edit ${trip.name}`}
+            aria-label={`Edit ${trip.title}`}
             onClick={() => onEdit?.(trip)}
             style={{
               display: 'flex',

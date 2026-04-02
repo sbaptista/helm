@@ -20,7 +20,7 @@ async function fetchTrips(userId: string): Promise<Trip[]> {
   // Fetch trip details
   const { data: tripRows, error: tripsError } = await supabase
     .from('trips')
-    .select('id, name, destination, departure_date, return_date, status, created_at')
+    .select('id, title, destination, departure_date, return_date, status, created_at')
     .in('id', tripIds)
     .order('created_at', { ascending: false });
 
@@ -42,7 +42,7 @@ async function fetchTrips(userId: string): Promise<Trip[]> {
 
   return tripRows.map((t) => ({
     id:             t.id as string,
-    name:           t.name as string,
+    title:          t.title as string,
     destination:    t.destination as string,
     departure_date: t.departure_date as string,
     return_date:    t.return_date as string,

@@ -2,7 +2,7 @@ export type TripStatus = 'active' | 'draft' | 'upcoming' | 'archived';
 
 export interface Trip {
   id: string;
-  name: string;
+  title: string;
   destination: string;
   departure_date: string;
   return_date: string;

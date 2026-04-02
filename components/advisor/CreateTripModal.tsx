@@ -16,7 +16,7 @@ interface CreateTripModalProps {
 }
 
 interface FormValues {
-  name: string;
+  title: string;
   destination: string;
   departure_date: string;
   return_date: string;
@@ -24,14 +24,14 @@ interface FormValues {
 }
 
 interface FormErrors {
-  name?: string;
+  title?: string;
   destination?: string;
   departure_date?: string;
   return_date?: string;
 }
 
 const EMPTY_FORM: FormValues = {
-  name: '',
+  title: '',
   destination: '',
   departure_date: '',
   return_date: '',
@@ -70,7 +70,7 @@ export function CreateTripModal({ open, onClose, onSuccess }: CreateTripModalPro
   const validate = (): boolean => {
     const next: FormErrors = {};
 
-    if (!values.name.trim())        next.name        = 'Trip name is required.';
+    if (!values.title.trim())        next.title        = 'Trip name is required.';
     if (!values.destination.trim()) next.destination = 'Destination is required.';
     if (!values.departure_date)     next.departure_date = 'Departure date is required.';
     if (!values.return_date)        next.return_date    = 'Return date is required.';
@@ -108,7 +108,7 @@ export function CreateTripModal({ open, onClose, onSuccess }: CreateTripModalPro
       const { data: trip, error: tripError } = await supabase
         .from('trips')
         .insert({
-          name:           values.name.trim(),
+          title:          values.title.trim(),
           destination:    values.destination.trim(),
           departure_date: values.departure_date,
           return_date:    values.return_date,
@@ -163,16 +163,16 @@ export function CreateTripModal({ open, onClose, onSuccess }: CreateTripModalPro
         </div>
       )}
 
-      <FormField label="Trip Name" required error={errors.name} htmlFor="trip-name">
+      <FormField label="Trip Name" required error={errors.title} htmlFor="trip-title">
         <input
-          id="trip-name"
+          id="trip-title"
           type="text"
           placeholder="e.g. Canadian Rockies Adventure"
-          value={values.name}
-          onChange={set('name')}
+          value={values.title}
+          onChange={set('title')}
           autoComplete="off"
-          style={focus.isFocused('name') ? inputFocusStyle(!!errors.name) : inputStyle(!!errors.name)}
-          {...focus.bind('name')}
+          style={focus.isFocused('title') ? inputFocusStyle(!!errors.title) : inputStyle(!!errors.title)}
+          {...focus.bind('title')}
         />
       </FormField>
 
