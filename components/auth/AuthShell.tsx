@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { VERSION } from '@/lib/version';
 
 interface AuthShellProps {
   children: React.ReactNode;
@@ -123,6 +124,25 @@ export function AuthShell({ children }: AuthShellProps) {
               pointerEvents: 'none',
             }}
           />
+
+          {/* Version string */}
+          <span
+            style={{
+              position: 'absolute',
+              bottom: '16px',
+              left: 0,
+              right: 0,
+              textAlign: 'center',
+              fontSize: '11px',
+              fontFamily: "'Lato', sans-serif",
+              color: 'rgba(255,255,255,0.3)',
+              letterSpacing: '0.04em',
+              zIndex: 2,
+              pointerEvents: 'none',
+            }}
+          >
+            v{VERSION.version}
+          </span>
         </div>
 
         {/* Right: form panel */}

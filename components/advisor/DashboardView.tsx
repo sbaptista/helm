@@ -6,6 +6,7 @@ import { ToastProvider } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { TripCard } from '@/components/advisor/TripCard';
 import { CreateTripModal } from '@/components/advisor/CreateTripModal';
+import { VERSION } from '@/lib/version';
 import type { Trip, TripStatus } from '@/types/trips';
 
 type FilterValue = 'all' | TripStatus;
@@ -384,6 +385,27 @@ export function DashboardView({ trips, userEmail, fetchError }: DashboardViewPro
             </div>
           )}
         </main>
+
+        {/* Version footer */}
+        <footer
+          style={{
+            textAlign: 'center',
+            paddingBottom: `calc(24px + var(--sab))`,
+            paddingTop: '8px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '11px',
+              fontFamily: "'Lato', sans-serif",
+              color: 'var(--text3)',
+              opacity: 0.5,
+              letterSpacing: '0.04em',
+            }}
+          >
+            v{VERSION.version}
+          </span>
+        </footer>
 
         {/* Mobile FAB — visible only <768px */}
         <button
