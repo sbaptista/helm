@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 
 interface CheckEmailBody {
   email?: unknown;
@@ -17,7 +17,12 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Email is required' }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  // Service role client — bypasses RLS so the lookup works for unauthenticated requests.
+  // This route is server-only and returns only a boolean; no user data is exposed.
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+  );
   const { data, error } = await supabase
     .from('users')
     .select('id')
