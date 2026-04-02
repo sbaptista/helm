@@ -103,20 +103,17 @@ export function CreateAccountForm({ email }: CreateAccountFormProps) {
     try {
       const supabase = createClient();
 
-      // Insert user record
-      const { error: insertError } = await supabase.from('users').insert({
-        email,
-        first_name: values.firstName.trim(),
-        last_name:  values.lastName.trim(),
-      });
-
-      if (insertError) throw new Error(insertError.message);
-
-      // Send magic link
+      // Pass profile data as OTP metadata — the callback route will insert
+      // the users row server-side after the session is established, so that
+      // auth.uid() = id holds and the INSERT policy can be satisfied there.
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            first_name: values.firstName.trim(),
+            last_name:  values.lastName.trim(),
+          },
         },
       });
 
