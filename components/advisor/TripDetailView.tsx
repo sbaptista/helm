@@ -48,6 +48,7 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importPhase, setImportPhase] = useState<'idle' | 'reading' | 'mapping' | 'error'>('idle');
   const [importError, setImportError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportClose = () => {
@@ -73,8 +74,19 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
       const res = await fetch('/api/trips/import', { method: 'POST', body: form });
       clearTimeout(phaseTimer);
 
-      const json = await res.json().catch(() => ({ error: 'Unexpected response.' }));
-      if (!res.ok || !json.ok) throw new Error(json.error ?? 'Import failed.');
+      let json: Record<string, unknown> = {};
+      try {
+        json = await res.json();
+      } catch {
+        throw new Error(`Server returned an unparseable response (HTTP ${res.status}).`);
+      }
+      if (!res.ok || !json.ok) {
+        throw new Error(
+          typeof json.error === 'string' && json.error
+            ? json.error
+            : `Import failed (HTTP ${res.status}).`,
+        );
+      }
 
       sessionStorage.setItem(
         'helm_import_preview',
@@ -350,8 +362,18 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
           {importPhase === 'idle' ? (
             /* Drop zone */
             <div
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+              onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragOver(false);
+                const f = e.dataTransfer.files?.[0] ?? null;
+                if (f) { setSelectedFile(f); setImportPhase('idle'); setImportError(null); }
+              }}
               style={{
-                border: `2px dashed ${selectedFile ? 'var(--gold)' : 'var(--border)'}`,
+                border: `2px dashed ${isDragOver ? 'var(--gold)' : selectedFile ? 'var(--gold)' : 'var(--border)'}`,
                 borderRadius: 'var(--r-xl)',
                 padding: '40px 32px',
                 display: 'flex',
@@ -359,8 +381,8 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
                 alignItems: 'center',
                 gap: '12px',
                 textAlign: 'center',
-                background: 'var(--bg)',
-                transition: 'border-color var(--transition)',
+                background: isDragOver ? 'rgba(180,130,30,0.04)' : 'var(--bg)',
+                transition: 'border-color var(--transition), background var(--transition)',
               }}
             >
               <svg
@@ -369,14 +391,18 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
                 viewBox="0 0 40 40"
                 fill="none"
                 aria-hidden="true"
-                style={{ color: selectedFile ? 'var(--gold)' : 'var(--slate)', opacity: 0.7, flexShrink: 0 }}
+                style={{ color: isDragOver || selectedFile ? 'var(--gold)' : 'var(--slate)', opacity: 0.7, flexShrink: 0 }}
               >
                 <rect x="8" y="4" width="22" height="28" rx="3" stroke="currentColor" strokeWidth="1.75" />
                 <path d="M24 4v8h6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M13 18h14M13 23h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
 
-              {selectedFile ? (
+              {isDragOver ? (
+                <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', fontWeight: 600, color: 'var(--gold-text)', lineHeight: 1.2 }}>
+                  Release to import
+                </p>
+              ) : selectedFile ? (
                 <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', fontWeight: 700, color: 'var(--navy)' }}>
                   {selectedFile.name}
                 </p>
