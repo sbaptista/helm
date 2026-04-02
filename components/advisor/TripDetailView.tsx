@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { VERSION } from '@/lib/version';
+import { Button } from '@/components/ui/Button';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
 import type { Trip } from '@/types/trips';
 
 const TABS = [
@@ -42,6 +44,7 @@ interface TripDetailViewProps {
 export function TripDetailView({ trip }: TripDetailViewProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('Itinerary');
+  const [importOpen, setImportOpen] = useState(false);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -147,45 +150,59 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
             padding: '40px 0 32px',
             borderBottom: '1px solid var(--border2)',
             marginBottom: '0',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: '24px',
           }}
         >
-          <h1
-            style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: '40px',
-              fontWeight: 600,
-              color: 'var(--navy)',
-              lineHeight: 1.15,
-              marginBottom: '8px',
-            }}
-          >
-            {trip.title}
-          </h1>
+          {/* Left: title + meta */}
+          <div>
+            <h1
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: '40px',
+                fontWeight: 600,
+                color: 'var(--navy)',
+                lineHeight: 1.15,
+                marginBottom: '8px',
+              }}
+            >
+              {trip.title}
+            </h1>
 
-          <p
-            style={{
-              fontSize: '16px',
-              color: 'var(--text2)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              marginBottom: '10px',
-            }}
-          >
-            <span aria-hidden="true" style={{ fontSize: '14px' }}>📍</span>
-            {trip.destination}
-          </p>
+            <p
+              style={{
+                fontSize: '16px',
+                color: 'var(--text2)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                marginBottom: '10px',
+              }}
+            >
+              <span aria-hidden="true" style={{ fontSize: '14px' }}>📍</span>
+              {trip.destination}
+            </p>
 
-          <p
-            style={{
-              fontSize: '15px',
-              color: 'var(--gold-text)',
-              fontWeight: 700,
-              fontFamily: "'Lato', sans-serif",
-            }}
-          >
-            {formatDateRange(trip.departure_date, trip.return_date)}
-          </p>
+            <p
+              style={{
+                fontSize: '15px',
+                color: 'var(--gold-text)',
+                fontWeight: 700,
+                fontFamily: "'Lato', sans-serif",
+              }}
+            >
+              {formatDateRange(trip.departure_date, trip.return_date)}
+            </p>
+          </div>
+
+          {/* Right: actions */}
+          <div style={{ flexShrink: 0, paddingTop: '6px' }}>
+            <Button variant="primary" onClick={() => setImportOpen(true)}>
+              Import Document
+            </Button>
+          </div>
         </div>
 
         {/* Tab row */}
@@ -268,6 +285,89 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
           </p>
         </div>
       </main>
+
+      {/* Import Document modal */}
+      <Modal open={importOpen} onClose={() => setImportOpen(false)}>
+        <ModalHeader title="Import Trip Document" onClose={() => setImportOpen(false)} />
+        <ModalBody>
+          {/* Drop zone */}
+          <div
+            style={{
+              border: '2px dashed var(--border)',
+              borderRadius: 'var(--r-xl)',
+              padding: '48px 32px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px',
+              textAlign: 'center',
+              background: 'var(--bg)',
+            }}
+          >
+            {/* Document icon */}
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 40 40"
+              fill="none"
+              aria-hidden="true"
+              style={{ color: 'var(--slate)', opacity: 0.6, flexShrink: 0 }}
+            >
+              <rect x="8" y="4" width="22" height="28" rx="3" stroke="currentColor" strokeWidth="1.75" />
+              <path d="M24 4v8h6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M13 18h14M13 23h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+
+            <p
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: '20px',
+                fontWeight: 600,
+                color: 'var(--navy)',
+                lineHeight: 1.2,
+              }}
+            >
+              Drop your document here
+            </p>
+
+            <p
+              style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: '13px',
+                color: 'var(--text3)',
+                lineHeight: 1.5,
+              }}
+            >
+              PDF, Word, or text files
+            </p>
+
+            <button
+              type="button"
+              style={{
+                marginTop: '4px',
+                background: 'none',
+                border: 'none',
+                padding: '4px 0',
+                fontFamily: "'Lato', sans-serif",
+                fontSize: '14px',
+                fontWeight: 700,
+                color: 'var(--gold-text)',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                textUnderlineOffset: '2px',
+                minHeight: '44px',
+              }}
+            >
+              Choose file
+            </button>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setImportOpen(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       {/* Version footer */}
       <footer
