@@ -225,6 +225,8 @@ export function LoginForm({ initialError }: LoginFormProps) {
           id="login-email"
           type="email"
           autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
           inputMode="email"
           placeholder="you@example.com"
           value={email}

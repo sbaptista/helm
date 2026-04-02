@@ -12,7 +12,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const email = typeof body.email === 'string' ? body.email.trim() : null;
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : null;
   if (!email) {
     return Response.json({ error: 'Email is required' }, { status: 400 });
   }
