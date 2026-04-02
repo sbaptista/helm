@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { VERSION } from '@/lib/version';
 import { Button } from '@/components/ui/Button';
@@ -45,6 +45,49 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('Itinerary');
   const [importOpen, setImportOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [importPhase, setImportPhase] = useState<'idle' | 'reading' | 'mapping' | 'error'>('idle');
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportClose = () => {
+    if (importPhase === 'reading' || importPhase === 'mapping') return;
+    setImportOpen(false);
+    setSelectedFile(null);
+    setImportPhase('idle');
+    setImportError(null);
+  };
+
+  const handleImport = async () => {
+    if (!selectedFile) return;
+    setImportPhase('reading');
+    setImportError(null);
+
+    const phaseTimer = setTimeout(() => setImportPhase('mapping'), 2000);
+
+    try {
+      const form = new FormData();
+      form.append('file', selectedFile);
+      form.append('tripId', trip.id);
+
+      const res = await fetch('/api/trips/import', { method: 'POST', body: form });
+      clearTimeout(phaseTimer);
+
+      const json = await res.json().catch(() => ({ error: 'Unexpected response.' }));
+      if (!res.ok || !json.ok) throw new Error(json.error ?? 'Import failed.');
+
+      sessionStorage.setItem(
+        'helm_import_preview',
+        JSON.stringify({ tripId: trip.id, tripTitle: trip.title, result: json.data }),
+      );
+
+      router.push(`/advisor/trips/${trip.id}/import/review`);
+    } catch (err) {
+      clearTimeout(phaseTimer);
+      setImportPhase('error');
+      setImportError(err instanceof Error ? err.message : 'Something went wrong.');
+    }
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -287,85 +330,154 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
       </main>
 
       {/* Import Document modal */}
-      <Modal open={importOpen} onClose={() => setImportOpen(false)}>
-        <ModalHeader title="Import Trip Document" onClose={() => setImportOpen(false)} />
+      <Modal open={importOpen} onClose={handleImportClose}>
+        <ModalHeader title="Import Trip Document" onClose={handleImportClose} />
         <ModalBody>
-          {/* Drop zone */}
-          <div
-            style={{
-              border: '2px dashed var(--border)',
-              borderRadius: 'var(--r-xl)',
-              padding: '48px 32px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '12px',
-              textAlign: 'center',
-              background: 'var(--bg)',
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.docx,.txt,.md,.json"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const f = e.target.files?.[0] ?? null;
+              setSelectedFile(f);
+              setImportPhase('idle');
+              setImportError(null);
             }}
-          >
-            {/* Document icon */}
-            <svg
-              width="40"
-              height="40"
-              viewBox="0 0 40 40"
-              fill="none"
-              aria-hidden="true"
-              style={{ color: 'var(--slate)', opacity: 0.6, flexShrink: 0 }}
-            >
-              <rect x="8" y="4" width="22" height="28" rx="3" stroke="currentColor" strokeWidth="1.75" />
-              <path d="M24 4v8h6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M13 18h14M13 23h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+          />
 
-            <p
+          {importPhase === 'idle' ? (
+            /* Drop zone */
+            <div
               style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: '20px',
-                fontWeight: 600,
-                color: 'var(--navy)',
-                lineHeight: 1.2,
+                border: `2px dashed ${selectedFile ? 'var(--gold)' : 'var(--border)'}`,
+                borderRadius: 'var(--r-xl)',
+                padding: '40px 32px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px',
+                textAlign: 'center',
+                background: 'var(--bg)',
+                transition: 'border-color var(--transition)',
               }}
             >
-              Drop your document here
-            </p>
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 40 40"
+                fill="none"
+                aria-hidden="true"
+                style={{ color: selectedFile ? 'var(--gold)' : 'var(--slate)', opacity: 0.7, flexShrink: 0 }}
+              >
+                <rect x="8" y="4" width="22" height="28" rx="3" stroke="currentColor" strokeWidth="1.75" />
+                <path d="M24 4v8h6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M13 18h14M13 23h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
 
-            <p
+              {selectedFile ? (
+                <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', fontWeight: 700, color: 'var(--navy)' }}>
+                  {selectedFile.name}
+                </p>
+              ) : (
+                <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.2 }}>
+                  Drop your document here
+                </p>
+              )}
+
+              <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5 }}>
+                PDF, Word, or text files
+              </p>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  marginTop: '4px',
+                  background: 'none',
+                  border: 'none',
+                  padding: '4px 0',
+                  fontFamily: "'Lato', sans-serif",
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  color: 'var(--gold-text)',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '2px',
+                  minHeight: '44px',
+                }}
+              >
+                {selectedFile ? 'Choose a different file' : 'Choose file'}
+              </button>
+            </div>
+          ) : importPhase === 'error' ? (
+            /* Error state */
+            <div
               style={{
+                padding: '12px 16px',
+                background: 'rgba(139,32,32,0.06)',
+                border: '1px solid rgba(139,32,32,0.2)',
+                borderRadius: 'var(--r)',
+                fontSize: '14px',
+                color: 'var(--red)',
                 fontFamily: "'Lato', sans-serif",
-                fontSize: '13px',
-                color: 'var(--text3)',
                 lineHeight: 1.5,
               }}
             >
-              PDF, Word, or text files
-            </p>
-
-            <button
-              type="button"
+              {importError}
+            </div>
+          ) : (
+            /* Processing state */
+            <div
               style={{
-                marginTop: '4px',
-                background: 'none',
-                border: 'none',
-                padding: '4px 0',
-                fontFamily: "'Lato', sans-serif",
-                fontSize: '14px',
-                fontWeight: 700,
-                color: 'var(--gold-text)',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                textUnderlineOffset: '2px',
-                minHeight: '44px',
+                padding: '48px 32px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px',
+                textAlign: 'center',
               }}
             >
-              Choose file
-            </button>
-          </div>
+              <style>{`@keyframes helm-spin { to { transform: rotate(360deg) } }`}</style>
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 32 32"
+                fill="none"
+                aria-hidden="true"
+                style={{ animation: 'helm-spin 0.8s linear infinite', flexShrink: 0 }}
+              >
+                <circle cx="16" cy="16" r="13" stroke="var(--border)" strokeWidth="2.5" />
+                <path d="M16 3a13 13 0 0 1 13 13" stroke="var(--gold)" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+              <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text2)', fontWeight: 600 }}>
+                {importPhase === 'reading' ? 'Reading your document…' : 'Mapping with AI…'}
+              </p>
+              <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)' }}>
+                This may take a moment.
+              </p>
+            </div>
+          )}
         </ModalBody>
         <ModalFooter>
-          <Button variant="ghost" onClick={() => setImportOpen(false)}>
+          <Button
+            variant="ghost"
+            onClick={handleImportClose}
+            disabled={importPhase === 'reading' || importPhase === 'mapping'}
+          >
             Cancel
           </Button>
+          {importPhase === 'error' && (
+            <Button variant="ghost" onClick={() => { setImportPhase('idle'); setImportError(null); }}>
+              Try Again
+            </Button>
+          )}
+          {importPhase === 'idle' && selectedFile && (
+            <Button variant="primary" onClick={handleImport}>
+              Import
+            </Button>
+          )}
         </ModalFooter>
       </Modal>
 
