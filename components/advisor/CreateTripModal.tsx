@@ -114,6 +114,7 @@ export function CreateTripModal({ open, onClose, onSuccess }: CreateTripModalPro
           return_date:    values.return_date,
           description:    values.description.trim() || null,
           status:         'draft',
+          created_by:     user.id,
         })
         .select('id')
         .single();
