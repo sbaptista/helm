@@ -633,6 +633,7 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
           variant="primary"
           onClick={handleConfirm}
           loading={confirming}
+          disabled={!!confirmSuccess}
           style={{ minWidth: '200px' }}
         >
           {unresolvedCount > 0

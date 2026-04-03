@@ -54,11 +54,7 @@ export function TripDetailView({ trip, hasImport = false }: TripDetailViewProps)
   const [importDone, setImportDone] = useState(hasImport);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!importDone && sessionStorage.getItem(`helm_import_done_${trip.id}`)) setImportDone(true);
-  }, [trip.id]);
-
-  const handleImportClose = () => {
+const handleImportClose = () => {
     if (importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing') return;
     setImportOpen(false);
     setSelectedFile(null);
