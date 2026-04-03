@@ -190,13 +190,12 @@ export async function POST(request: Request): Promise<Response> {
     const rows = result.transportation.map((t) => ({
       trip_id:            tripId,
       type:               (t.type as string)               ?? null,
-      description:        (t.description as string)        ?? null,
       origin:              (t.departure_location as string) ?? null,
       destination:         (t.arrival_location as string)   ?? null,
       departure_time:      (t.departure_time as string)     ?? null,
       arrival_time:        (t.arrival_time as string)       ?? null,
       confirmation_number: (t.confirmation_code as string)  ?? null,
-      notes:              (t.notes as string)              ?? null,
+      notes:               (t.description as string)        ?? null,
     }));
     const { error } = await supabase.from('transportation').insert(rows);
     if (error) return fail(`transportation: ${error.message}`);

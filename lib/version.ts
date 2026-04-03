@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0013",
-  label: "Fix hotels: remove location field, use address and city"
+  version: "00.01.0014",
+  label: "Fix transportation: description → notes"
 };
