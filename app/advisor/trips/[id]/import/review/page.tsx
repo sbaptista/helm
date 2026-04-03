@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ToastProvider, useToast } from '@/components/ui/Toast';
+import { ToastProvider } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { VERSION } from '@/lib/version';
 import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
+import { createClient } from '@/lib/supabase/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -355,7 +356,6 @@ function ErrorPanel({ message, onDismiss }: { message: string; onDismiss: () => 
 
 function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayload }) {
   const router = useRouter();
-  const toast  = useToast();
 
   const { result } = payload;
   const flags       = result.flags ?? [];
@@ -384,8 +384,16 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
   // Which flag card has the edit input open
   const [editOpenIndex, setEditOpenIndex] = useState<number | null>(null);
 
+  const [userId, setUserId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [confirmSuccess, setConfirmSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id ?? null);
+    });
+  }, []);
 
   // Unresolved = still 'pending'
   const unresolvedCount = flags.filter((_, i) => flagStates[i] === 'pending').length;
@@ -452,7 +460,7 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
       const res = await fetch('/api/trips/import/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tripId, result: effectiveResult, flagResolutions }),
+        body: JSON.stringify({ tripId, userId, result: effectiveResult, flagResolutions }),
       });
 
       let json: Record<string, unknown> = {};
@@ -469,9 +477,8 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
       sessionStorage.removeItem('helm_import_preview');
 
       const totalSections = typeof json.totalSections === 'number' ? json.totalSections : '?';
-      toast.success(`Import complete — ${totalSections} section${totalSections === 1 ? '' : 's'} imported.`);
-
-      setTimeout(() => router.push(`/advisor/trips/${tripId}`), 900);
+      setConfirming(false);
+      setConfirmSuccess(`Import complete — ${totalSections} section${totalSections === 1 ? '' : 's'} imported.`);
     } catch (err) {
       setConfirming(false);
       setConfirmError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
@@ -564,6 +571,33 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
                 {item}
               </p>
             ))}
+          </div>
+        )}
+
+        {/* Inline success panel */}
+        {confirmSuccess && (
+          <div style={{ border: '1px solid rgba(13,30,53,0.25)', borderRadius: 'var(--r-xl)', background: 'rgba(13,30,53,0.04)', padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <div style={{ flexShrink: 0, marginTop: '1px' }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="8" r="7" stroke="var(--navy)" strokeWidth="1.5" />
+                <path d="M5 8l2 2 4-4" stroke="var(--navy)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--navy)', flex: 1, margin: 0, lineHeight: 1.5 }}>
+              {confirmSuccess}
+            </p>
+            <button
+              type="button"
+              onClick={() => setConfirmSuccess(null)}
+              aria-label="Dismiss"
+              style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--navy)', opacity: 0.6, padding: '0', lineHeight: 1, marginTop: '1px', transition: 'opacity var(--transition)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
         )}
 
