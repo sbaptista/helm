@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0008",
-  label: "Fix restaurants column mapping, add checklist_items insert block"
+  version: "00.01.0009",
+  label: "Fix itinerary_rows type→category, fix Edit field pre-fill"
 };

@@ -366,9 +366,20 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
   const [flagStates, setFlagStates] = useState<Record<number, FlagState>>(() =>
     Object.fromEntries(flags.map((_, i) => [i, 'pending' as FlagState])),
   );
-  // Edited values: default to suggestion (if any), otherwise empty string
+  // Edited values: default to the current field value, otherwise empty string
   const [flagEdits, setFlagEdits] = useState<Record<number, string>>(() =>
-    Object.fromEntries(flags.map((f, i) => [i, f.suggestion ?? ''])),
+    Object.fromEntries(flags.map((f, i) => {
+      const ref = tryParseFieldRef(f.field);
+      if (ref) {
+        const arr = result[ref.section as keyof ImportResult];
+        if (Array.isArray(arr) && ref.index < arr.length) {
+          const fieldName = f.field.replace(/^\w+\[\d+\]\.?/, '');
+          const val = fieldName ? (arr[ref.index] as Record<string, unknown>)[fieldName] : null;
+          if (val != null) return [i, String(val)];
+        }
+      }
+      return [i, ''];
+    })),
   );
   // Which flag card has the edit input open
   const [editOpenIndex, setEditOpenIndex] = useState<number | null>(null);

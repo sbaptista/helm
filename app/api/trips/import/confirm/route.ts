@@ -119,7 +119,7 @@ export async function POST(request: Request): Promise<Response> {
       title:       (row.title as string)       ?? null,
       start_time:  (row.time as string)        ?? null,
       description: (row.description as string) ?? null,
-      type:        (row.type as string)        ?? null,
+      category:    (row.type as string)        ?? null,
       sort_order:  i,
     }));
 
