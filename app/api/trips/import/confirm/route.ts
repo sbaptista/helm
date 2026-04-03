@@ -32,6 +32,12 @@ interface ConfirmBody {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function toTimestamp(date: string | null | undefined, time: string | null | undefined): string | null {
+  if (!date || !time) return null;
+  const t = time.split(':').length === 2 ? `${time}:00` : time;
+  return `${date}T${t}`;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function logError(
   supabase: any,
@@ -88,16 +94,22 @@ export async function POST(request: Request): Promise<Response> {
   // ── itinerary_days ───────────────────────────────────────────────────────────
   // Insert days first and capture returned IDs so itinerary_rows can reference
   // day_id (the real FK) rather than day_number.
-  const dayNumberToId: Record<number, string> = {};
+  const dayNumberToId:   Record<number, string> = {};
+  const dayNumberToDate: Record<number, string> = {};
 
   if (result.itinerary_days?.length) {
-    const dayRows = result.itinerary_days.map((day, i) => ({
-      trip_id:    tripId,
-      day_number: (day.day_number as number) ?? i + 1,
-      day_date:   (day.date as string)       ?? null,
-      title:      (day.title as string)      ?? null,
-      sort_order: i,
-    }));
+    const dayRows = result.itinerary_days.map((day, i) => {
+      const dayNum  = (day.day_number as number) ?? i + 1;
+      const dayDate = (day.date as string) ?? null;
+      if (dayDate) dayNumberToDate[dayNum] = dayDate;
+      return {
+        trip_id:    tripId,
+        day_number: dayNum,
+        day_date:   dayDate,
+        title:      (day.title as string) ?? null,
+        sort_order: i,
+      };
+    });
 
     const { data: insertedDays, error: daysErr } = await supabase
       .from('itinerary_days')
@@ -114,14 +126,19 @@ export async function POST(request: Request): Promise<Response> {
 
   // ── itinerary_rows ───────────────────────────────────────────────────────────
   if (result.itinerary_rows?.length) {
-    const rowRows = result.itinerary_rows.map((row, i) => ({
-      day_id:      dayNumberToId[row.day_number as number] ?? null,
-      title:       (row.title as string)       ?? null,
-      start_time:  (row.time as string)        ?? null,
-      description: (row.description as string) ?? null,
-      category:    (row.type as string)        ?? null,
-      sort_order:  i,
-    }));
+    const rowRows = result.itinerary_rows.map((row, i) => {
+      const dayNum  = row.day_number as number;
+      const dayDate = dayNumberToDate[dayNum] ?? null;
+      return {
+        day_id:      dayNumberToId[dayNum] ?? null,
+        title:       (row.title as string)       ?? null,
+        start_time:  toTimestamp(dayDate, row.time as string),
+        end_time:    toTimestamp(dayDate, row.end_time as string),
+        description: (row.description as string) ?? null,
+        category:    (row.type as string)        ?? null,
+        sort_order:  i,
+      };
+    });
 
     const { error: rowsErr } = await supabase.from('itinerary_rows').insert(rowRows);
     if (rowsErr) {
