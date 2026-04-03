@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0011",
-  label: "Fix itinerary_rows missing trip_id"
+  version: "00.01.0012",
+  label: "Fix all section column mismatches: flights, hotels, transportation, packing, key_info"
 };

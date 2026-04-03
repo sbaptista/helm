@@ -26,6 +26,7 @@ interface FlagResolution {
 
 interface ConfirmBody {
   tripId:          string;
+  userId:          string;
   result:          ImportResult;
   flagResolutions: FlagResolution[];
 }
@@ -67,7 +68,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { tripId, result, flagResolutions } = body;
+  const { tripId, userId, result, flagResolutions } = body;
 
   if (!tripId || typeof tripId !== 'string') {
     return Response.json({ error: 'tripId is required.' }, { status: 400 });
@@ -152,14 +153,14 @@ export async function POST(request: Request): Promise<Response> {
   if (result.flights?.length) {
     const rows = result.flights.map((f) => ({
       trip_id:           tripId,
-      flight_number:     (f.flight_number as string)     ?? null,
-      airline:           (f.airline as string)           ?? null,
-      departure_airport: (f.departure_airport as string) ?? null,
-      arrival_airport:   (f.arrival_airport as string)   ?? null,
-      departure_time:    (f.departure_time as string)    ?? null,
-      arrival_time:      (f.arrival_time as string)      ?? null,
-      confirmation_code: (f.confirmation_code as string) ?? null,
-      notes:             (f.notes as string)             ?? null,
+      flight_number:        (f.flight_number as string)     ?? null,
+      airline:              (f.airline as string)           ?? null,
+      origin_airport:       (f.departure_airport as string) ?? null,
+      destination_airport:  (f.arrival_airport as string)   ?? null,
+      departure_time:       (f.departure_time as string)    ?? null,
+      arrival_time:         (f.arrival_time as string)      ?? null,
+      confirmation_number:  (f.confirmation_code as string) ?? null,
+      notes:                (f.notes as string)             ?? null,
     }));
     const { error } = await supabase.from('flights').insert(rows);
     if (error) return fail(`flights: ${error.message}`);
@@ -174,10 +175,10 @@ export async function POST(request: Request): Promise<Response> {
       location:          (h.location as string)          ?? null,
       check_in_date:     (h.check_in_date as string)     ?? null,
       check_out_date:    (h.check_out_date as string)    ?? null,
-      confirmation_code: (h.confirmation_code as string) ?? null,
-      address:           (h.address as string)           ?? null,
-      phone:             (h.phone as string)             ?? null,
-      notes:             (h.notes as string)             ?? null,
+      confirmation_number: (h.confirmation_code as string) ?? null,
+      address:             (h.address as string)           ?? null,
+      phone:               (h.phone as string)             ?? null,
+      notes:               (h.notes as string)             ?? null,
     }));
     const { error } = await supabase.from('hotels').insert(rows);
     if (error) return fail(`hotels: ${error.message}`);
@@ -190,11 +191,11 @@ export async function POST(request: Request): Promise<Response> {
       trip_id:            tripId,
       type:               (t.type as string)               ?? null,
       description:        (t.description as string)        ?? null,
-      departure_location: (t.departure_location as string) ?? null,
-      arrival_location:   (t.arrival_location as string)   ?? null,
-      departure_time:     (t.departure_time as string)     ?? null,
-      arrival_time:       (t.arrival_time as string)       ?? null,
-      confirmation_code:  (t.confirmation_code as string)  ?? null,
+      origin:              (t.departure_location as string) ?? null,
+      destination:         (t.arrival_location as string)   ?? null,
+      departure_time:      (t.departure_time as string)     ?? null,
+      arrival_time:        (t.arrival_time as string)       ?? null,
+      confirmation_number: (t.confirmation_code as string)  ?? null,
       notes:              (t.notes as string)              ?? null,
     }));
     const { error } = await supabase.from('transportation').insert(rows);
@@ -228,7 +229,7 @@ export async function POST(request: Request): Promise<Response> {
       label:     (k.label as string)      ?? null,
       value:     (k.value as string)      ?? null,
       url:       (k.url as string)        ?? null,
-      is_urgent: (k.is_urgent as boolean) ?? false,
+      flag:      (k.is_urgent as boolean) ?? false,
     }));
     const { error } = await supabase.from('key_info').insert(rows);
     if (error) return fail(`key_info: ${error.message}`);
@@ -237,10 +238,13 @@ export async function POST(request: Request): Promise<Response> {
 
   // ── packing_items ────────────────────────────────────────────────────────────
   if (result.packing_items?.length) {
-    const rows = result.packing_items.map((p) => ({
-      trip_id:  tripId,
-      name:     (p.name as string)     ?? null,
-      category: (p.category as string) ?? null,
+    const rows = result.packing_items.map((p, i) => ({
+      trip_id:    tripId,
+      user_id:    userId ?? null,
+      category:   (p.category as string) ?? null,
+      label:      (p.name as string)     ?? null,
+      packed:     false,
+      sort_order: i,
     }));
     const { error } = await supabase.from('packing_items').insert(rows);
     if (error) return fail(`packing_items: ${error.message}`);
