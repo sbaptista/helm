@@ -94,7 +94,7 @@ export async function POST(request: Request): Promise<Response> {
     const dayRows = result.itinerary_days.map((day, i) => ({
       trip_id:    tripId,
       day_number: (day.day_number as number) ?? i + 1,
-      date:       (day.date as string)       ?? null,
+      day_date:   (day.date as string)       ?? null,
       title:      (day.title as string)      ?? null,
       sort_order: i,
     }));
