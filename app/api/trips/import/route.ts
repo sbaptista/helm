@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+export const runtime = 'edge';
 export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `You are a travel itinerary parser for Helm, a travel advisor platform.
@@ -97,53 +98,39 @@ export async function POST(request: Request): Promise<Response> {
 
   const anthropic = new Anthropic({ apiKey });
 
-  let rawText: string | undefined;
-  try {
-    const stream = anthropic.messages.stream({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8192,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Parse this travel document:\n\n${extractedText.slice(0, 80000)}`,
-        },
-      ],
-    });
+  const responseStream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      try {
+        const stream = anthropic.messages.stream({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 8192,
+          system: SYSTEM_PROMPT,
+          messages: [
+            {
+              role: 'user',
+              content: `Parse this travel document:\n\n${extractedText.slice(0, 80000)}`,
+            },
+          ],
+        });
 
-    const message = await stream.finalMessage();
-    console.log('[import] Claude response:', JSON.stringify(message, null, 2));
+        stream.on('text', (text) => {
+          controller.enqueue(encoder.encode(text));
+        });
 
-    const textBlock = message.content.find((b) => b.type === 'text');
-    if (!textBlock || textBlock.type !== 'text') {
-      return Response.json(
-        { error: `No text block in Claude response. stop_reason: ${message.stop_reason}, content types: ${message.content.map((b) => b.type).join(', ')}` },
-        { status: 500 },
-      );
-    }
+        const message = await stream.finalMessage();
+        console.log('[import] Claude stop_reason:', message.stop_reason, 'content types:', message.content.map((b) => b.type).join(', '));
 
-    rawText = textBlock.text;
+        controller.close();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[import] Claude API error:', err);
+        controller.error(new Error(msg));
+      }
+    },
+  });
 
-    // Strip any accidental markdown code fences
-    const stripped = rawText
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/\s*```\s*$/i, '')
-      .trim();
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(stripped);
-    } catch (parseErr) {
-      return Response.json(
-        { error: `Claude returned invalid JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`, raw: rawText },
-        { status: 500 },
-      );
-    }
-
-    return Response.json({ ok: true, data: parsed });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[import] Claude API error:', err);
-    return Response.json({ error: msg, raw: rawText }, { status: 500 });
-  }
+  return new Response(responseStream, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
 }

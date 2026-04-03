@@ -74,23 +74,48 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
       const res = await fetch('/api/trips/import', { method: 'POST', body: form });
       clearTimeout(phaseTimer);
 
-      let json: Record<string, unknown> = {};
-      try {
-        json = await res.json();
-      } catch {
-        throw new Error(`Server returned an unparseable response (HTTP ${res.status}).`);
+      // Pre-streaming errors come back as JSON with a non-200 status.
+      if (!res.ok) {
+        let errorMsg = `Import failed (HTTP ${res.status}).`;
+        try {
+          const errJson = await res.json();
+          if (typeof errJson.error === 'string' && errJson.error) errorMsg = errJson.error;
+        } catch {}
+        throw new Error(errorMsg);
       }
-      if (!res.ok || !json.ok) {
+
+      // Read the streaming response body and accumulate chunks.
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('No response body from server.');
+
+      const decoder = new TextDecoder();
+      let accumulated = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+      }
+      accumulated += decoder.decode(); // flush remaining bytes
+
+      // Strip any accidental markdown code fences and parse.
+      const stripped = accumulated
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/i, '')
+        .trim();
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(stripped);
+      } catch (parseErr) {
         throw new Error(
-          typeof json.error === 'string' && json.error
-            ? json.error
-            : `Import failed (HTTP ${res.status}).`,
+          `AI returned invalid JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
         );
       }
 
       sessionStorage.setItem(
         'helm_import_preview',
-        JSON.stringify({ tripId: trip.id, tripTitle: trip.title, result: json.data }),
+        JSON.stringify({ tripId: trip.id, tripTitle: trip.title, result: parsed }),
       );
 
       router.push(`/advisor/trips/${trip.id}/import/review`);
