@@ -46,23 +46,26 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
   const [activeTab, setActiveTab] = useState<Tab>('Itinerary');
   const [importOpen, setImportOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [importPhase, setImportPhase] = useState<'idle' | 'reading' | 'mapping' | 'error'>('idle');
+  const [importPhase, setImportPhase] = useState<'idle' | 'reading' | 'mapping' | 'parsing' | 'error'>('idle');
   const [importError, setImportError] = useState<string | null>(null);
+  const [importProgress, setImportProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportClose = () => {
-    if (importPhase === 'reading' || importPhase === 'mapping') return;
+    if (importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing') return;
     setImportOpen(false);
     setSelectedFile(null);
     setImportPhase('idle');
     setImportError(null);
+    setImportProgress(0);
   };
 
   const handleImport = async () => {
     if (!selectedFile) return;
     setImportPhase('reading');
     setImportError(null);
+    setImportProgress(0);
 
     const phaseTimer = setTimeout(() => setImportPhase('mapping'), 2000);
 
@@ -94,9 +97,14 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
+        const chunk = decoder.decode(value, { stream: true });
+        accumulated += chunk;
+        setImportProgress(accumulated.length);
       }
       accumulated += decoder.decode(); // flush remaining bytes
+      setImportProgress(accumulated.length);
+
+      setImportPhase('parsing');
 
       // Strip any accidental markdown code fences and parse.
       const stripped = accumulated
@@ -503,7 +511,11 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
                 <path d="M16 3a13 13 0 0 1 13 13" stroke="var(--gold)" strokeWidth="2.5" strokeLinecap="round" />
               </svg>
               <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text2)', fontWeight: 600 }}>
-                {importPhase === 'reading' ? 'Reading your document…' : 'Mapping with AI…'}
+                {importPhase === 'reading'
+                  ? 'Reading your document…'
+                  : importPhase === 'parsing'
+                  ? 'Parsing response…'
+                  : `Receiving response… ${importProgress.toLocaleString()} chars`}
               </p>
               <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)' }}>
                 This may take a moment.
@@ -515,7 +527,7 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
           <Button
             variant="ghost"
             onClick={handleImportClose}
-            disabled={importPhase === 'reading' || importPhase === 'mapping'}
+            disabled={importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing'}
           >
             Cancel
           </Button>
