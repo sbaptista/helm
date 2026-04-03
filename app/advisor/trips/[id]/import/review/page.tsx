@@ -575,33 +575,6 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
           </div>
         )}
 
-        {/* Inline success panel */}
-        {confirmSuccess && (
-          <div style={{ border: '1px solid #6ee7b7', borderRadius: 'var(--r-xl)', background: '#d1fae5', padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-            <div style={{ flexShrink: 0, marginTop: '1px' }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <circle cx="8" cy="8" r="7" stroke="#065f46" strokeWidth="1.5" />
-                <path d="M5 8l2 2 4-4" stroke="#065f46" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: '#065f46', flex: 1, margin: 0, lineHeight: 1.5 }}>
-              {confirmSuccess}
-            </p>
-            <button
-              type="button"
-              onClick={() => setConfirmSuccess(null)}
-              aria-label="Dismiss"
-              style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', opacity: 0.6, padding: '0', lineHeight: 1, marginTop: '1px', transition: 'opacity var(--transition)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-              </svg>
-            </button>
-          </div>
-        )}
-
         {/* Inline error panel — rendered below the last card, above the sticky bar */}
         {confirmError && (
           <ErrorPanel
@@ -622,25 +595,52 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
             .helm-confirm-bar > * { flex: 1; }
           }
         `}</style>
-        <button
-          onClick={() => router.push(`/advisor/trips/${tripId}`)}
-          disabled={confirming}
-          style={{ background: 'none', border: 'none', fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', cursor: confirming ? 'not-allowed' : 'pointer', opacity: confirming ? 0.5 : 1, padding: '10px 0', textDecoration: 'underline', textUnderlineOffset: '2px', minHeight: '44px' }}
-        >
-          Cancel
-        </button>
-        <Button
-          variant="primary"
-          onClick={handleConfirm}
-          loading={confirming}
-          disabled={!!confirmSuccess}
-          style={{ minWidth: '200px' }}
-        >
-          {unresolvedCount > 0
-            ? `Confirm with ${unresolvedCount} unresolved ${unresolvedCount === 1 ? 'flag' : 'flags'}`
-            : 'Confirm Import'
-          }
-        </Button>
+        {confirmSuccess ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+            <div style={{ flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="8" r="7" stroke="#065f46" strokeWidth="1.5" />
+                <path d="M5 8l2 2 4-4" stroke="#065f46" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: '#065f46', flex: 1, margin: 0, lineHeight: 1.5 }}>
+              {confirmSuccess}
+            </p>
+            <button
+              type="button"
+              onClick={() => setConfirmSuccess(null)}
+              aria-label="Dismiss"
+              style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', opacity: 0.6, padding: '0', lineHeight: 1, transition: 'opacity var(--transition)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={() => router.push(`/advisor/trips/${tripId}`)}
+              disabled={confirming}
+              style={{ background: 'none', border: 'none', fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', cursor: confirming ? 'not-allowed' : 'pointer', opacity: confirming ? 0.5 : 1, padding: '10px 0', textDecoration: 'underline', textUnderlineOffset: '2px', minHeight: '44px' }}
+            >
+              Cancel
+            </button>
+            <Button
+              variant="primary"
+              onClick={handleConfirm}
+              loading={confirming}
+              style={{ minWidth: '200px' }}
+            >
+              {unresolvedCount > 0
+                ? `Confirm with ${unresolvedCount} unresolved ${unresolvedCount === 1 ? 'flag' : 'flags'}`
+                : 'Confirm Import'
+              }
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Version footer */}
