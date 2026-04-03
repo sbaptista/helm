@@ -171,12 +171,12 @@ export async function POST(request: Request): Promise<Response> {
   if (result.hotels?.length) {
     const rows = result.hotels.map((h) => ({
       trip_id:           tripId,
-      name:              (h.name as string)              ?? null,
-      location:          (h.location as string)          ?? null,
-      check_in_date:     (h.check_in_date as string)     ?? null,
-      check_out_date:    (h.check_out_date as string)    ?? null,
+      name:                (h.name as string)              ?? null,
+      address:             (h.address as string) ?? (h.location as string) ?? null,
+      city:                (h.city as string)              ?? null,
+      check_in_date:       (h.check_in_date as string)     ?? null,
+      check_out_date:      (h.check_out_date as string)    ?? null,
       confirmation_number: (h.confirmation_code as string) ?? null,
-      address:             (h.address as string)           ?? null,
       phone:               (h.phone as string)             ?? null,
       notes:               (h.notes as string)             ?? null,
     }));
