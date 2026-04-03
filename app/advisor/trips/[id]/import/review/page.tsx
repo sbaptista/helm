@@ -575,13 +575,6 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
           </div>
         )}
 
-        {/* Inline error panel — rendered below the last card, above the sticky bar */}
-        {confirmError && (
-          <ErrorPanel
-            message={confirmError}
-            onDismiss={() => setConfirmError(null)}
-          />
-        )}
       </main>
 
       {/* Sticky confirm bar */}
@@ -621,6 +614,32 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
           </div>
         ) : (
           <>
+            {confirmError && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                <div style={{ flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="7" stroke="var(--red)" strokeWidth="1.5" />
+                    <path d="M8 5v3.5" stroke="var(--red)" strokeWidth="1.5" strokeLinecap="round" />
+                    <circle cx="8" cy="11.25" r="0.75" fill="var(--red)" />
+                  </svg>
+                </div>
+                <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--red)', flex: 1, margin: 0, lineHeight: 1.5 }}>
+                  {confirmError}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setConfirmError(null)}
+                  aria-label="Dismiss error"
+                  style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', opacity: 0.6, padding: '0', lineHeight: 1, transition: 'opacity var(--transition)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+            )}
             <button
               onClick={() => router.push(`/advisor/trips/${tripId}`)}
               disabled={confirming}
