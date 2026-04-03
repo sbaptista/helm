@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0015",
-  label: "Fix restaurants: confirmation_code → confirmation_number"
+  version: "00.01.0016",
+  label: "Full confirm route schema audit — all sections corrected"
 };

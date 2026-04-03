@@ -207,7 +207,8 @@ export async function POST(request: Request): Promise<Response> {
     const rows = result.restaurants.map((r) => ({
       trip_id:           tripId,
       name:              (r.name as string)              ?? null,
-      location:          (r.location as string)          ?? null,
+      address:           (r.address as string) ?? (r.location as string) ?? null,
+      city:              (r.city as string)              ?? null,
       reservation_time:  (r.date as string) && (r.time as string)
                            ? `${r.date} ${r.time}`
                            : ((r.date as string) ?? (r.time as string) ?? null),
