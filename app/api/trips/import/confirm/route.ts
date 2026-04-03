@@ -130,6 +130,7 @@ export async function POST(request: Request): Promise<Response> {
       const dayNum  = row.day_number as number;
       const dayDate = dayNumberToDate[dayNum] ?? null;
       return {
+        trip_id:     tripId,
         day_id:      dayNumberToId[dayNum] ?? null,
         title:       (row.title as string)       ?? null,
         start_time:  toTimestamp(dayDate, row.time as string),
