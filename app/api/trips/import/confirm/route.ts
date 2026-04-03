@@ -256,7 +256,7 @@ export async function POST(request: Request): Promise<Response> {
     const rows = result.checklist_items.map((c, i) => ({
       trip_id:      tripId,
       owner_role:   'advisor',
-      label:        (c.label as string)        ?? null,
+      label:        (c.title as string)        ?? null,
       time_horizon: (c.time_horizon as string) ?? null,
       completed:    false,
       sort_order:   i,

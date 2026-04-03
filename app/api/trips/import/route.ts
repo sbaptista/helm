@@ -10,11 +10,11 @@ You will receive the text of a travel document. Your task is to map its contents
 The JSON object must have these top-level keys, each containing an array:
 
 - itinerary_days: { day_number, date, title, location, description }
-- itinerary_rows: { day_number, time, title, description, location, type } — type is one of: activity, meal, transport, accommodation, other
+- itinerary_rows: { day_number, time, end_time, title, description, location, type } — type is one of: activity, meal, transport, accommodation, other
 - flights: { flight_number, airline, departure_airport, arrival_airport, departure_time, arrival_time, confirmation_code, notes }
-- hotels: { name, location, check_in_date, check_out_date, confirmation_code, address, phone, notes }
+- hotels: { name, location, address, city, check_in_date, check_out_date, confirmation_code, phone, notes }
 - transportation: { type, description, departure_location, arrival_location, departure_time, arrival_time, confirmation_code, notes }
-- restaurants: { name, location, date, time, confirmation_code, type, notes } — type is one of: included, independent
+- restaurants: { name, location, address, city, date, time, confirmation_code, type, notes } — type is one of: included, independent
 - checklist_items: { title, category, time_horizon } — time_horizon is one of: before_trip, during_trip, after_trip
 - packing_items: { name, category, quantity }
 - key_info: { category, label, value, url, is_urgent }
