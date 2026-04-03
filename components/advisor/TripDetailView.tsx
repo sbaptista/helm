@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { VERSION } from '@/lib/version';
 import { Button } from '@/components/ui/Button';
@@ -50,7 +50,12 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
   const [importError, setImportError] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [importDone, setImportDone] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (sessionStorage.getItem(`helm_import_done_${trip.id}`)) setImportDone(true);
+  }, [trip.id]);
 
   const handleImportClose = () => {
     if (importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing') return;
@@ -287,8 +292,8 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
 
           {/* Right: actions */}
           <div style={{ flexShrink: 0, paddingTop: '6px' }}>
-            <Button variant="primary" onClick={() => setImportOpen(true)}>
-              Import Document
+            <Button variant="primary" onClick={() => setImportOpen(true)} disabled={importDone}>
+              {importDone ? 'Document Imported' : 'Import Document'}
             </Button>
           </div>
         </div>
