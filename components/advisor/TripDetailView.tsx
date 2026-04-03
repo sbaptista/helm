@@ -38,10 +38,11 @@ function formatDateRange(departure: string, returnDate: string): string {
 }
 
 interface TripDetailViewProps {
-  trip: Trip;
+  trip:      Trip;
+  hasImport?: boolean;
 }
 
-export function TripDetailView({ trip }: TripDetailViewProps) {
+export function TripDetailView({ trip, hasImport = false }: TripDetailViewProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('Itinerary');
   const [importOpen, setImportOpen] = useState(false);
@@ -50,11 +51,11 @@ export function TripDetailView({ trip }: TripDetailViewProps) {
   const [importError, setImportError] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [importDone, setImportDone] = useState(false);
+  const [importDone, setImportDone] = useState(hasImport);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (sessionStorage.getItem(`helm_import_done_${trip.id}`)) setImportDone(true);
+    if (!importDone && sessionStorage.getItem(`helm_import_done_${trip.id}`)) setImportDone(true);
   }, [trip.id]);
 
   const handleImportClose = () => {

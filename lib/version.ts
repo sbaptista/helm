@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0019",
-  label: "Green success message, disable import button after confirm"
+  version: "00.01.0020",
+  label: "Fix success message contrast, disable import button after confirm"
 };

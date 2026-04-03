@@ -580,18 +580,18 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
           <div style={{ border: '1px solid var(--green)', borderRadius: 'var(--r-xl)', background: 'var(--green2)', padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
             <div style={{ flexShrink: 0, marginTop: '1px' }}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <circle cx="8" cy="8" r="7" stroke="var(--green)" strokeWidth="1.5" />
-                <path d="M5 8l2 2 4-4" stroke="var(--green)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="8" cy="8" r="7" stroke="var(--cream)" strokeWidth="1.5" />
+                <path d="M5 8l2 2 4-4" stroke="var(--cream)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--green)', flex: 1, margin: 0, lineHeight: 1.5 }}>
+            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--cream)', flex: 1, margin: 0, lineHeight: 1.5 }}>
               {confirmSuccess}
             </p>
             <button
               type="button"
               onClick={() => setConfirmSuccess(null)}
               aria-label="Dismiss"
-              style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', opacity: 0.6, padding: '0', lineHeight: 1, marginTop: '1px', transition: 'opacity var(--transition)' }}
+              style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--cream)', opacity: 0.6, padding: '0', lineHeight: 1, marginTop: '1px', transition: 'opacity var(--transition)' }}
               onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
               onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
             >

@@ -27,6 +27,13 @@ export default async function TripDetailPage({
     .eq('id', id)
     .single();
 
+  const { data: importJob } = await supabase
+    .from('import_jobs')
+    .select('id')
+    .eq('trip_id', id)
+    .eq('status', 'completed')
+    .maybeSingle();
+
   if (!row) {
     return (
       <div
@@ -57,5 +64,5 @@ export default async function TripDetailPage({
     traveler_count: 0,
   };
 
-  return <TripDetailView trip={trip} />;
+  return <TripDetailView trip={trip} hasImport={!!importJob} />;
 }
