@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
@@ -35,20 +35,24 @@ interface PreviewPayload {
   result:    ImportResult;
 }
 
-type FlagState = 'pending' | 'dismissed' | 'deleted';
+// 'fixed'  = applied AI suggestion
+// 'edited' = advisor edited the value manually
+// 'keep'   = keep as-is, acknowledged
+// 'deleted'= record removed
+type FlagState = 'pending' | 'fixed' | 'edited' | 'keep' | 'deleted';
 
 // ─── Section config ───────────────────────────────────────────────────────────
 
 const SECTIONS: { key: keyof Omit<ImportResult, 'unmapped' | 'flags'>; label: string }[] = [
-  { key: 'itinerary_days',  label: 'Itinerary Days'   },
-  { key: 'itinerary_rows',  label: 'Itinerary Items'  },
-  { key: 'flights',         label: 'Flights'           },
-  { key: 'hotels',          label: 'Hotels'            },
-  { key: 'transportation',  label: 'Transportation'    },
-  { key: 'restaurants',     label: 'Restaurants'       },
-  { key: 'checklist_items', label: 'Checklist'         },
-  { key: 'packing_items',   label: 'Packing'           },
-  { key: 'key_info',        label: 'Key Info'          },
+  { key: 'itinerary_days',  label: 'Itinerary Days'  },
+  { key: 'itinerary_rows',  label: 'Itinerary Items' },
+  { key: 'flights',         label: 'Flights'          },
+  { key: 'hotels',          label: 'Hotels'           },
+  { key: 'transportation',  label: 'Transportation'   },
+  { key: 'restaurants',     label: 'Restaurants'      },
+  { key: 'checklist_items', label: 'Checklist'        },
+  { key: 'packing_items',   label: 'Packing'          },
+  { key: 'key_info',        label: 'Key Info'         },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -138,6 +142,208 @@ function SectionCard({ label, items }: { label: string; items: Record<string, un
   );
 }
 
+// Pill badge shown on a resolved flag
+function ResolutionBadge({ state }: { state: FlagState }) {
+  const map: Record<Exclude<FlagState, 'pending'>, { label: string; color: string; bg: string }> = {
+    fixed:   { label: 'Fixed',      color: 'var(--navy)',  bg: 'rgba(13,30,53,0.07)'      },
+    edited:  { label: 'Edited',     color: 'var(--navy)',  bg: 'rgba(13,30,53,0.07)'      },
+    keep:    { label: 'Keep as is', color: 'var(--text3)', bg: 'var(--bg3)'               },
+    deleted: { label: 'Deleted',    color: 'var(--red)',   bg: 'rgba(139,32,32,0.06)'     },
+  };
+  const cfg = map[state as Exclude<FlagState, 'pending'>];
+  if (!cfg) return null;
+  return (
+    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: cfg.color, background: cfg.bg, padding: '2px 7px', borderRadius: '8px' }}>
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── Flag card ────────────────────────────────────────────────────────────────
+
+interface FlagCardProps {
+  flag:        ImportFlag;
+  index:       number;
+  state:       FlagState;
+  editValue:   string;
+  onFix:       () => void;
+  onEdit:      (val: string) => void;
+  onSaveEdit:  () => void;
+  onKeep:      () => void;
+  onDelete:    () => void;
+  onUndo:      () => void;
+  editOpen:    boolean;
+  onOpenEdit:  () => void;
+  isLast:      boolean;
+}
+
+function FlagCard({
+  flag, index, state, editValue,
+  onFix, onEdit, onSaveEdit, onKeep, onDelete, onUndo,
+  editOpen, onOpenEdit, isLast,
+}: FlagCardProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [inputFocused, setInputFocused] = useState(false);
+  const isResolved = state !== 'pending';
+  const hasSuggestion = Boolean(flag.suggestion?.trim());
+
+  // Focus the input when edit panel opens
+  useEffect(() => {
+    if (editOpen && inputRef.current) inputRef.current.focus();
+  }, [editOpen]);
+
+  return (
+    <div
+      style={{
+        padding: '14px 0',
+        borderBottom: isLast ? 'none' : '1px solid rgba(180,130,30,0.15)',
+        opacity: isResolved ? 0.65 : 1,
+        transition: 'opacity var(--transition)',
+      }}
+    >
+      {/* Field label + resolution badge */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--navy)', margin: 0 }}>
+          {flag.field}
+        </p>
+        {isResolved && <ResolutionBadge state={state} />}
+      </div>
+
+      {/* Issue description */}
+      <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text2)', marginBottom: '10px' }}>
+        {flag.issue}
+      </p>
+
+      {/* Suggested fix callout */}
+      {hasSuggestion && !isResolved && (
+        <div style={{ background: 'rgba(180,130,30,0.08)', border: '1px solid rgba(180,130,30,0.2)', borderRadius: 'var(--r)', padding: '8px 12px', marginBottom: '12px' }}>
+          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--gold-text)', margin: 0 }}>
+            <strong>Suggested fix:</strong> {flag.suggestion}
+          </p>
+        </div>
+      )}
+
+      {/* Inline edit input — shown when Edit is active */}
+      {editOpen && !isResolved && (
+        <div style={{ marginBottom: '10px' }}>
+          <input
+            ref={inputRef}
+            type="text"
+            value={editValue}
+            onChange={(e) => onEdit(e.target.value)}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
+            style={inputFocused ? inputFocusStyle() : inputStyle()}
+            placeholder="Enter corrected value…"
+          />
+          <button
+            type="button"
+            onClick={onSaveEdit}
+            style={{ marginTop: '6px', fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', padding: '6px 14px', borderRadius: 'var(--r)', border: '1px solid var(--navy)', background: 'var(--navy)', color: 'var(--cream)', cursor: 'pointer', minHeight: '32px' }}
+          >
+            Save edit
+          </button>
+        </div>
+      )}
+
+      {/* Action buttons — only when pending */}
+      {!isResolved && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Primary row */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {hasSuggestion && (
+              <button
+                type="button"
+                onClick={onFix}
+                style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', padding: '6px 14px', borderRadius: 'var(--r)', border: '1px solid var(--navy)', background: 'var(--navy)', color: 'var(--cream)', cursor: 'pointer', minHeight: '36px', transition: 'opacity var(--transition)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+              >
+                Fix
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onOpenEdit}
+              style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', padding: '6px 14px', borderRadius: 'var(--r)', border: '1px solid var(--border2)', background: 'var(--bg2)', color: 'var(--text2)', cursor: 'pointer', minHeight: '36px', transition: 'background var(--transition), border-color var(--transition)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.borderColor = 'var(--border2)'; }}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={onKeep}
+              style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', padding: '6px 14px', borderRadius: 'var(--r)', border: '1px solid var(--border2)', background: 'var(--bg2)', color: 'var(--text2)', cursor: 'pointer', minHeight: '36px', transition: 'background var(--transition), border-color var(--transition)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.borderColor = 'var(--border2)'; }}
+            >
+              Keep as Is
+            </button>
+          </div>
+
+          {/* Danger row — Delete Record as ghost link */}
+          <div>
+            <button
+              type="button"
+              onClick={onDelete}
+              style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 400, padding: '2px 0', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', textDecoration: 'underline', textUnderlineOffset: '2px', opacity: 0.7, transition: 'opacity var(--transition)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+            >
+              Delete record
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Undo link for resolved flags */}
+      {isResolved && (
+        <button
+          type="button"
+          onClick={onUndo}
+          style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 400, padding: '2px 0', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', textDecoration: 'underline', textUnderlineOffset: '2px', opacity: 0.7, transition: 'opacity var(--transition)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+        >
+          Undo
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Inline error panel ───────────────────────────────────────────────────────
+
+function ErrorPanel({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <div style={{ border: '1px solid rgba(139,32,32,0.35)', borderRadius: 'var(--r-xl)', background: 'rgba(139,32,32,0.04)', padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+      <div style={{ flexShrink: 0, marginTop: '1px' }}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" stroke="var(--red)" strokeWidth="1.5" />
+          <path d="M8 5v3.5" stroke="var(--red)" strokeWidth="1.5" strokeLinecap="round" />
+          <circle cx="8" cy="11.25" r="0.75" fill="var(--red)" />
+        </svg>
+      </div>
+      <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--red)', flex: 1, margin: 0, lineHeight: 1.5 }}>
+        {message}
+      </p>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss error"
+        style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', opacity: 0.6, padding: '0', lineHeight: 1, marginTop: '1px', transition: 'opacity var(--transition)' }}
+        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 // ─── Inner page (needs toast context) ────────────────────────────────────────
 
 function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayload }) {
@@ -145,36 +351,85 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
   const toast  = useToast();
 
   const { result } = payload;
-  const flags = result.flags ?? [];
-  const hasFlags   = flags.length > 0;
+  const flags       = result.flags ?? [];
+  const hasFlags    = flags.length > 0;
   const hasUnmapped = (result.unmapped?.length ?? 0) > 0;
 
+  // Per-flag state
   const [flagStates, setFlagStates] = useState<Record<number, FlagState>>(() =>
     Object.fromEntries(flags.map((_, i) => [i, 'pending' as FlagState])),
   );
+  // Edited values: default to suggestion (if any), otherwise empty string
   const [flagEdits, setFlagEdits] = useState<Record<number, string>>(() =>
-    Object.fromEntries(flags.flatMap((f, i) => f.suggestion ? [[i, f.suggestion]] : [])),
+    Object.fromEntries(flags.map((f, i) => [i, f.suggestion ?? ''])),
   );
-  const [inputFocused, setInputFocused] = useState<number | null>(null);
-  const [confirming, setConfirming] = useState(false);
+  // Which flag card has the edit input open
+  const [editOpenIndex, setEditOpenIndex] = useState<number | null>(null);
 
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+
+  // Unresolved = still 'pending'
   const unresolvedCount = flags.filter((_, i) => flagStates[i] === 'pending').length;
 
-  const resolveFlag = (i: number, action: 'dismissed' | 'deleted') => {
-    setFlagStates((prev) => ({ ...prev, [i]: action }));
+  const setFlagState = (i: number, s: FlagState) =>
+    setFlagStates((prev) => ({ ...prev, [i]: s }));
+
+  const handleFix = (i: number) => {
+    setFlagState(i, 'fixed');
+    if (editOpenIndex === i) setEditOpenIndex(null);
+  };
+
+  const handleOpenEdit = (i: number) => {
+    setEditOpenIndex((prev) => (prev === i ? null : i));
+  };
+
+  const handleSaveEdit = (i: number) => {
+    setFlagState(i, 'edited');
+    setEditOpenIndex(null);
+  };
+
+  const handleKeep = (i: number) => {
+    setFlagState(i, 'keep');
+    if (editOpenIndex === i) setEditOpenIndex(null);
+  };
+
+  const handleDelete = (i: number) => {
+    setFlagState(i, 'deleted');
+    if (editOpenIndex === i) setEditOpenIndex(null);
+  };
+
+  const handleUndo = (i: number) => {
+    setFlagState(i, 'pending');
   };
 
   const handleConfirm = async () => {
     setConfirming(true);
+    setConfirmError(null);
     try {
       const effectiveResult = buildEffectiveResult(result, flagStates);
 
-      const flagResolutions = flags.map((flag, i) => ({
-        field:      flag.field,
-        issue:      flag.issue,
-        resolution: flagStates[i],
-        editedValue: flagEdits[i] ?? null,
-      }));
+      const flagResolutions = flags.map((flag, i) => {
+        const state = flagStates[i];
+        const originalValue = (() => {
+          const ref = tryParseFieldRef(flag.field);
+          if (!ref) return null;
+          const arr = result[ref.section as keyof ImportResult];
+          if (!Array.isArray(arr) || ref.index >= arr.length) return null;
+          const fieldName = flag.field.replace(/^\w+\[\d+\]\.?/, '');
+          return fieldName ? (arr[ref.index] as Record<string, unknown>)[fieldName] ?? null : null;
+        })();
+
+        return {
+          field:         flag.field,
+          issue:         flag.issue,
+          action:        state === 'pending' ? 'unresolved' : state,
+          originalValue: originalValue,
+          newValue:      state === 'fixed'  ? flag.suggestion
+                       : state === 'edited' ? (flagEdits[i] ?? null)
+                       : null,
+        };
+      });
 
       const res = await fetch('/api/trips/import/confirm', {
         method: 'POST',
@@ -198,11 +453,10 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
       const totalSections = typeof json.totalSections === 'number' ? json.totalSections : '?';
       toast.success(`Import complete — ${totalSections} section${totalSections === 1 ? '' : 's'} imported.`);
 
-      // Small delay so the toast is visible before navigation.
       setTimeout(() => router.push(`/advisor/trips/${tripId}`), 900);
     } catch (err) {
       setConfirming(false);
-      toast.error(err instanceof Error ? err.message : 'Something went wrong.');
+      setConfirmError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     }
   };
 
@@ -252,87 +506,27 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
         {hasFlags && (
           <div style={{ background: 'rgba(180,130,30,0.06)', border: '1px solid rgba(180,130,30,0.25)', borderRadius: 'var(--r-xl)', padding: '20px 24px' }}>
             <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--gold-text)', marginBottom: '14px' }}>
-              Needs Review — {unresolvedCount} of {flags.length} unresolved
+              Needs Review — {unresolvedCount > 0 ? `${unresolvedCount} of ${flags.length} unresolved` : `${flags.length} resolved`}
             </p>
 
-            {flags.map((flag, i) => {
-              const state = flagStates[i];
-              const isResolved = state !== 'pending';
-
-              return (
-                <div
-                  key={i}
-                  style={{
-                    padding: '14px 0',
-                    borderBottom: i < flags.length - 1 ? '1px solid rgba(180,130,30,0.15)' : 'none',
-                    opacity: isResolved ? 0.6 : 1,
-                    transition: 'opacity var(--transition)',
-                  }}
-                >
-                  {/* Field + resolution badge */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--navy)', margin: 0 }}>
-                      {flag.field}
-                    </p>
-                    {state === 'dismissed' && (
-                      <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text3)', background: 'var(--bg3)', padding: '2px 7px', borderRadius: '8px' }}>
-                        Dismissed
-                      </span>
-                    )}
-                    {state === 'deleted' && (
-                      <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--red)', background: 'rgba(139,32,32,0.06)', padding: '2px 7px', borderRadius: '8px' }}>
-                        Deleted
-                      </span>
-                    )}
-                  </div>
-
-                  <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text2)', marginBottom: flag.suggestion ? '10px' : '10px' }}>
-                    {flag.issue}
-                  </p>
-
-                  {/* Inline edit input — shown when there's a suggestion and flag is pending */}
-                  {flag.suggestion && !isResolved && (
-                    <div style={{ marginBottom: '12px' }}>
-                      <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: '6px' }}>
-                        Suggested correction
-                      </p>
-                      <input
-                        type="text"
-                        value={flagEdits[i] ?? flag.suggestion}
-                        onChange={(e) => setFlagEdits((prev) => ({ ...prev, [i]: e.target.value }))}
-                        onFocus={() => setInputFocused(i)}
-                        onBlur={() => setInputFocused(null)}
-                        style={inputFocused === i ? inputFocusStyle() : inputStyle()}
-                      />
-                    </div>
-                  )}
-
-                  {/* Action buttons — only when pending */}
-                  {!isResolved && (
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => resolveFlag(i, 'dismissed')}
-                        style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', padding: '6px 12px', borderRadius: 'var(--r)', border: '1px solid var(--border2)', background: 'var(--bg2)', color: 'var(--text2)', cursor: 'pointer', minHeight: '36px', transition: 'background var(--transition), border-color var(--transition)' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg2)'; e.currentTarget.style.borderColor = 'var(--border2)'; }}
-                      >
-                        Dismiss
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => resolveFlag(i, 'deleted')}
-                        style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', padding: '6px 12px', borderRadius: 'var(--r)', border: '1px solid rgba(139,32,32,0.2)', background: 'rgba(139,32,32,0.04)', color: 'var(--red)', cursor: 'pointer', minHeight: '36px', transition: 'background var(--transition), border-color var(--transition)' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(139,32,32,0.09)'; e.currentTarget.style.borderColor = 'rgba(139,32,32,0.35)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(139,32,32,0.04)'; e.currentTarget.style.borderColor = 'rgba(139,32,32,0.2)'; }}
-                      >
-                        Delete Record
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {flags.map((flag, i) => (
+              <FlagCard
+                key={i}
+                flag={flag}
+                index={i}
+                state={flagStates[i]}
+                editValue={flagEdits[i] ?? ''}
+                editOpen={editOpenIndex === i}
+                onFix={() => handleFix(i)}
+                onOpenEdit={() => handleOpenEdit(i)}
+                onEdit={(val) => setFlagEdits((prev) => ({ ...prev, [i]: val }))}
+                onSaveEdit={() => handleSaveEdit(i)}
+                onKeep={() => handleKeep(i)}
+                onDelete={() => handleDelete(i)}
+                onUndo={() => handleUndo(i)}
+                isLast={i === flags.length - 1}
+              />
+            ))}
           </div>
         )}
 
@@ -353,6 +547,14 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
               </p>
             ))}
           </div>
+        )}
+
+        {/* Inline error panel — rendered below the last card, above the sticky bar */}
+        {confirmError && (
+          <ErrorPanel
+            message={confirmError}
+            onDismiss={() => setConfirmError(null)}
+          />
         )}
       </main>
 

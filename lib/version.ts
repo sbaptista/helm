@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0004",
-  label: "Confirm Import — flag resolution, writes to database"
+  version: "00.01.0005",
+  label: "Import review: Fix / Edit / Keep as Is, persistent errors, flag audit log"
 };

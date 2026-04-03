@@ -16,10 +16,39 @@ interface ImportResult {
   flags:            unknown[];
 }
 
+interface FlagResolution {
+  field:         string;
+  issue:         string;
+  action:        string;  // 'fixed' | 'edited' | 'keep' | 'deleted' | 'unresolved'
+  originalValue: unknown;
+  newValue:      unknown;
+}
+
 interface ConfirmBody {
-  tripId:           string;
-  result:           ImportResult;
-  flagResolutions:  unknown;
+  tripId:          string;
+  result:          ImportResult;
+  flagResolutions: FlagResolution[];
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function logError(
+  supabase: any,
+  message: string,
+  context: string,
+  extra?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await supabase.from('error_log').insert({
+      severity: 'error',
+      context,
+      message,
+      extra: extra ?? null,
+    });
+  } catch {
+    // Best-effort — never throw from here.
+  }
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────
@@ -50,6 +79,12 @@ export async function POST(request: Request): Promise<Response> {
   const supabase = createClient(supabaseUrl, serviceKey);
   const counts: Record<string, number> = {};
 
+  // Helper: return an error response and best-effort log it.
+  const fail = async (message: string, status = 500): Promise<Response> => {
+    await logError(supabase, message, 'import_confirm', { tripId });
+    return Response.json({ error: message }, { status });
+  };
+
   // ── itinerary_days ───────────────────────────────────────────────────────────
   // Insert days first and capture returned IDs so itinerary_rows can reference
   // day_id (the real FK) rather than day_number.
@@ -70,7 +105,7 @@ export async function POST(request: Request): Promise<Response> {
       .select('id, day_number');
 
     if (daysErr) {
-      return Response.json({ error: `itinerary_days: ${daysErr.message}` }, { status: 500 });
+      return fail(`itinerary_days: ${daysErr.message}`);
     }
 
     counts.itinerary_days = dayRows.length;
@@ -90,7 +125,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const { error: rowsErr } = await supabase.from('itinerary_rows').insert(rowRows);
     if (rowsErr) {
-      return Response.json({ error: `itinerary_rows: ${rowsErr.message}` }, { status: 500 });
+      return fail(`itinerary_rows: ${rowsErr.message}`);
     }
     counts.itinerary_rows = rowRows.length;
   }
@@ -109,7 +144,7 @@ export async function POST(request: Request): Promise<Response> {
       notes:             (f.notes as string)             ?? null,
     }));
     const { error } = await supabase.from('flights').insert(rows);
-    if (error) return Response.json({ error: `flights: ${error.message}` }, { status: 500 });
+    if (error) return fail(`flights: ${error.message}`);
     counts.flights = rows.length;
   }
 
@@ -127,7 +162,7 @@ export async function POST(request: Request): Promise<Response> {
       notes:             (h.notes as string)             ?? null,
     }));
     const { error } = await supabase.from('hotels').insert(rows);
-    if (error) return Response.json({ error: `hotels: ${error.message}` }, { status: 500 });
+    if (error) return fail(`hotels: ${error.message}`);
     counts.hotels = rows.length;
   }
 
@@ -145,7 +180,7 @@ export async function POST(request: Request): Promise<Response> {
       notes:              (t.notes as string)              ?? null,
     }));
     const { error } = await supabase.from('transportation').insert(rows);
-    if (error) return Response.json({ error: `transportation: ${error.message}` }, { status: 500 });
+    if (error) return fail(`transportation: ${error.message}`);
     counts.transportation = rows.length;
   }
 
@@ -162,7 +197,7 @@ export async function POST(request: Request): Promise<Response> {
       notes:             (r.notes as string)             ?? null,
     }));
     const { error } = await supabase.from('restaurants').insert(rows);
-    if (error) return Response.json({ error: `restaurants: ${error.message}` }, { status: 500 });
+    if (error) return fail(`restaurants: ${error.message}`);
     counts.restaurants = rows.length;
   }
 
@@ -170,14 +205,14 @@ export async function POST(request: Request): Promise<Response> {
   if (result.key_info?.length) {
     const rows = result.key_info.map((k) => ({
       trip_id:   tripId,
-      category:  (k.category as string)  ?? null,
-      label:     (k.label as string)     ?? null,
-      value:     (k.value as string)     ?? null,
-      url:       (k.url as string)       ?? null,
+      category:  (k.category as string)   ?? null,
+      label:     (k.label as string)      ?? null,
+      value:     (k.value as string)      ?? null,
+      url:       (k.url as string)        ?? null,
       is_urgent: (k.is_urgent as boolean) ?? false,
     }));
     const { error } = await supabase.from('key_info').insert(rows);
-    if (error) return Response.json({ error: `key_info: ${error.message}` }, { status: 500 });
+    if (error) return fail(`key_info: ${error.message}`);
     counts.key_info = rows.length;
   }
 
@@ -189,16 +224,16 @@ export async function POST(request: Request): Promise<Response> {
       category: (p.category as string) ?? null,
     }));
     const { error } = await supabase.from('packing_items').insert(rows);
-    if (error) return Response.json({ error: `packing_items: ${error.message}` }, { status: 500 });
+    if (error) return fail(`packing_items: ${error.message}`);
     counts.packing_items = rows.length;
   }
 
   // ── import_jobs (best-effort — table may not exist yet) ──────────────────────
   try {
     await supabase.from('import_jobs').insert({
-      trip_id:        tripId,
-      status:         'completed',
-      section_counts: counts,
+      trip_id:          tripId,
+      status:           'completed',
+      section_counts:   counts,
       flag_resolutions: flagResolutions ?? null,
     });
   } catch {
