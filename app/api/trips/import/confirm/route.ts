@@ -190,8 +190,9 @@ export async function POST(request: Request): Promise<Response> {
       trip_id:           tripId,
       name:              (r.name as string)              ?? null,
       location:          (r.location as string)          ?? null,
-      date:              (r.date as string)              ?? null,
-      time:              (r.time as string)              ?? null,
+      reservation_time:  (r.date as string) && (r.time as string)
+                           ? `${r.date} ${r.time}`
+                           : ((r.date as string) ?? (r.time as string) ?? null),
       confirmation_code: (r.confirmation_code as string) ?? null,
       type:              (r.type as string)              ?? null,
       notes:             (r.notes as string)             ?? null,
@@ -226,6 +227,21 @@ export async function POST(request: Request): Promise<Response> {
     const { error } = await supabase.from('packing_items').insert(rows);
     if (error) return fail(`packing_items: ${error.message}`);
     counts.packing_items = rows.length;
+  }
+
+  // ── checklist_items ──────────────────────────────────────────────────────────
+  if (result.checklist_items?.length) {
+    const rows = result.checklist_items.map((c, i) => ({
+      trip_id:      tripId,
+      owner_role:   'advisor',
+      label:        (c.label as string)        ?? null,
+      time_horizon: (c.time_horizon as string) ?? null,
+      completed:    false,
+      sort_order:   i,
+    }));
+    const { error } = await supabase.from('checklist_items').insert(rows);
+    if (error) return fail(`checklist_items: ${error.message}`);
+    counts.checklist_items = rows.length;
   }
 
   // ── import_jobs (best-effort — table may not exist yet) ──────────────────────
