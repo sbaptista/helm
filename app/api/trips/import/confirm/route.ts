@@ -117,7 +117,7 @@ export async function POST(request: Request): Promise<Response> {
     const rowRows = result.itinerary_rows.map((row, i) => ({
       day_id:      dayNumberToId[row.day_number as number] ?? null,
       title:       (row.title as string)       ?? null,
-      time:        (row.time as string)        ?? null,
+      start_time:  (row.time as string)        ?? null,
       description: (row.description as string) ?? null,
       type:        (row.type as string)        ?? null,
       sort_order:  i,

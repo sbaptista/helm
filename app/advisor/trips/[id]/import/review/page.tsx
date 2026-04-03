@@ -57,6 +57,13 @@ const SECTIONS: { key: keyof Omit<ImportResult, 'unmapped' | 'flags'>; label: st
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const ADVISORY_WORDS = /\b(should|advisor|confirm|contact|verify|check|TBD|unknown)\b/i;
+
+function isConcreteValue(suggestion: string | undefined): boolean {
+  if (!suggestion?.trim()) return false;
+  return !ADVISORY_WORDS.test(suggestion);
+}
+
 function tryParseFieldRef(field: string): { section: string; index: number } | null {
   const match = field.match(/^(\w+)\[(\d+)\]/);
   if (!match) return null;
@@ -251,7 +258,7 @@ function FlagCard({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {/* Primary row */}
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {hasSuggestion && (
+            {hasSuggestion && isConcreteValue(flag.suggestion) && (
               <button
                 type="button"
                 onClick={onFix}
