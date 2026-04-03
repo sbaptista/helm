@@ -211,7 +211,7 @@ export async function POST(request: Request): Promise<Response> {
       reservation_time:  (r.date as string) && (r.time as string)
                            ? `${r.date} ${r.time}`
                            : ((r.date as string) ?? (r.time as string) ?? null),
-      confirmation_code: (r.confirmation_code as string) ?? null,
+      confirmation_number: (r.confirmation_code as string) ?? null,
       type:              (r.type as string)              ?? null,
       notes:             (r.notes as string)             ?? null,
     }));

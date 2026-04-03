@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0014",
-  label: "Fix transportation: description → notes"
+  version: "00.01.0015",
+  label: "Fix restaurants: confirmation_code → confirmation_number"
 };
