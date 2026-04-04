@@ -245,12 +245,10 @@ const handleImportClose = () => {
         URL.revokeObjectURL(url);
       }
 
-      if (clearAction === 'archive') {
-        setLocalTrip((t) => ({ ...t, status: 'archived' }));
-        setClearOpen(false);
-      } else {
-        router.push('/advisor/dashboard');
-      }
+      setImportDone(false);
+      setClearOpen(false);
+      setClearAction(null);
+      router.refresh();
     } catch (err) {
       setClearError(err instanceof Error ? err.message : 'Something went wrong.');
       setClearConfirming(false);

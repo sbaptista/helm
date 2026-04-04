@@ -54,11 +54,37 @@ export async function POST(
 
   // ── archive ────────────────────────────────────────────────────────────────
   if (action === 'archive') {
-    const { error } = await supabase
-      .from('trips')
-      .update({ status: 'archived' })
-      .eq('id', id);
-    if (error) return Response.json({ error: error.message }, { status: 500 });
+    // Fetch the completed import_job
+    const { data: job } = await supabase
+      .from('import_jobs')
+      .select('id, flag_resolutions, section_counts')
+      .eq('trip_id', id)
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (job) {
+      // Move payload to import_archive
+      await supabase.from('import_archive').insert({
+        import_job_id:    job.id,
+        trip_id:          id,
+        flag_resolutions: job.flag_resolutions ?? null,
+        section_counts:   job.section_counts ?? null,
+      });
+
+      // Mark import_job as archived and clear the heavy payload
+      await supabase
+        .from('import_jobs')
+        .update({ status: 'archived', flag_resolutions: null })
+        .eq('id', job.id);
+    }
+
+    // Delete all section data
+    for (const table of IMPORT_TABLES) {
+      await supabase.from(table).delete().eq('trip_id', id);
+    }
+
     return Response.json({ success: true });
   }
 

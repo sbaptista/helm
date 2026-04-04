@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0032",
-  label: "Edit Trip, Delete Trip, Clear Trip modals and API routes"
+  version: "00.01.0033",
+  label: "Fix clear/archive: write to import_archive, reset trip state correctly"
 };
