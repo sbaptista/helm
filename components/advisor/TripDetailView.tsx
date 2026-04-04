@@ -94,6 +94,8 @@ const handleImportClose = () => {
       const form = new FormData();
       form.append('file', selectedFile);
       form.append('tripId', trip.id);
+      form.append('departureDate', trip.departure_date ?? '');
+      form.append('returnDate', trip.return_date ?? '');
 
       const res = await fetch('/api/trips/import', { method: 'POST', body: form });
       clearTimeout(phaseTimer);

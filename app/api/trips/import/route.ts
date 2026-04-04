@@ -47,6 +47,8 @@ export async function POST(request: Request): Promise<Response> {
 
   const file = formData.get('file');
   const tripId = formData.get('tripId');
+  const departureDate = formData.get('departureDate');
+  const returnDate = formData.get('returnDate');
 
   if (!(file instanceof File)) {
     return Response.json({ error: 'No file provided.' }, { status: 400 });
@@ -120,7 +122,7 @@ export async function POST(request: Request): Promise<Response> {
           messages: [
             {
               role: 'user',
-              content: `Parse this travel document:\n\n${extractedText.slice(0, 80000)}`,
+              content: `Trip dates: departure ${departureDate ?? 'unknown'}, return ${returnDate ?? 'unknown'}.\n\nParse this travel document:\n\n${extractedText.slice(0, 80000)}`,
             },
           ],
         });
