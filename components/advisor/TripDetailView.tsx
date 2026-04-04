@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { VERSION } from '@/lib/version';
 import { Button } from '@/components/ui/Button';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
+import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import type { Trip } from '@/types/trips';
 
 const TABS = [
@@ -64,6 +65,8 @@ export function TripDetailView({
 }: TripDetailViewProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('Itinerary');
+
+  // Import modal
   const [importOpen, setImportOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importPhase, setImportPhase] = useState<'idle' | 'reading' | 'mapping' | 'parsing' | 'error'>('idle');
@@ -72,6 +75,29 @@ export function TripDetailView({
   const [isDragOver, setIsDragOver] = useState(false);
   const [importDone, setImportDone] = useState(hasImport);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Local trip state (updated optimistically on edit)
+  const [localTrip, setLocalTrip] = useState<Trip>(trip);
+
+  // Edit modal
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState(trip.title);
+  const [editDestination, setEditDestination] = useState(trip.destination);
+  const [editDepartureDate, setEditDepartureDate] = useState(trip.departure_date);
+  const [editReturnDate, setEditReturnDate] = useState(trip.return_date);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Delete modal
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Clear modal
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearAction, setClearAction] = useState<'archive' | 'download_clear' | 'discard' | null>(null);
+  const [clearConfirming, setClearConfirming] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
 
 const handleImportClose = () => {
     if (importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing') return;
@@ -154,6 +180,80 @@ const handleImportClose = () => {
       clearTimeout(phaseTimer);
       setImportPhase('error');
       setImportError(err instanceof Error ? err.message : 'Something went wrong.');
+    }
+  };
+
+  const handleEditSave = async () => {
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/trips/${localTrip.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle,
+          destination: editDestination,
+          departure_date: editDepartureDate,
+          return_date: editReturnDate,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to save.');
+      setLocalTrip(json.trip as Trip);
+      setEditOpen(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleteConfirming(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/trips/${localTrip.id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to delete.');
+      router.push('/advisor/dashboard');
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Something went wrong.');
+      setDeleteConfirming(false);
+    }
+  };
+
+  const handleClear = async () => {
+    if (!clearAction) return;
+    setClearConfirming(true);
+    setClearError(null);
+    try {
+      const res = await fetch(`/api/trips/${localTrip.id}/clear`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: clearAction }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to clear.');
+
+      if (clearAction === 'download_clear' && json.importJob) {
+        const blob = new Blob([JSON.stringify(json.importJob, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `import-${localTrip.id}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      if (clearAction === 'archive') {
+        setLocalTrip((t) => ({ ...t, status: 'archived' }));
+        setClearOpen(false);
+      } else {
+        router.push('/advisor/dashboard');
+      }
+    } catch (err) {
+      setClearError(err instanceof Error ? err.message : 'Something went wrong.');
+      setClearConfirming(false);
     }
   };
 
@@ -279,7 +379,7 @@ const handleImportClose = () => {
                 marginBottom: '8px',
               }}
             >
-              {trip.title}
+              {localTrip.title}
             </h1>
 
             <p
@@ -293,7 +393,7 @@ const handleImportClose = () => {
               }}
             >
               <span aria-hidden="true" style={{ fontSize: '14px' }}>📍</span>
-              {trip.destination}
+              {localTrip.destination}
             </p>
 
             <p
@@ -304,15 +404,80 @@ const handleImportClose = () => {
                 fontFamily: "'Lato', sans-serif",
               }}
             >
-              {formatDateRange(trip.departure_date, trip.return_date)}
+              {formatDateRange(localTrip.departure_date, localTrip.return_date)}
             </p>
+
+            <button
+              onClick={() => {
+                setEditTitle(localTrip.title);
+                setEditDestination(localTrip.destination);
+                setEditDepartureDate(localTrip.departure_date);
+                setEditReturnDate(localTrip.return_date);
+                setEditError(null);
+                setEditOpen(true);
+              }}
+              style={{
+                marginTop: '10px',
+                background: 'none',
+                border: 'none',
+                padding: '4px 0',
+                fontFamily: "'Lato', sans-serif",
+                fontSize: '13px',
+                fontWeight: 700,
+                color: 'var(--text3)',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                textUnderlineOffset: '2px',
+                minHeight: '44px',
+              }}
+            >
+              Edit trip
+            </button>
           </div>
 
           {/* Right: actions */}
-          <div style={{ flexShrink: 0, paddingTop: '6px' }}>
+          <div style={{ flexShrink: 0, paddingTop: '6px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
             <Button variant="primary" onClick={() => setImportOpen(true)} disabled={importDone}>
               {importDone ? 'Document Imported' : 'Import Document'}
             </Button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => { setClearAction(null); setClearError(null); setClearOpen(true); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '4px 8px',
+                  fontFamily: "'Lato', sans-serif",
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: 'var(--text3)',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '2px',
+                  minHeight: '44px',
+                }}
+              >
+                Clear trip data
+              </button>
+              <button
+                onClick={() => { setDeleteError(null); setDeleteOpen(true); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '4px 8px',
+                  fontFamily: "'Lato', sans-serif",
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: 'var(--red)',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '2px',
+                  minHeight: '44px',
+                }}
+              >
+                Delete trip
+              </button>
+            </div>
           </div>
         </div>
 
@@ -581,6 +746,143 @@ const handleImportClose = () => {
               Import
             </Button>
           )}
+        </ModalFooter>
+      </Modal>
+
+      {/* Edit Trip modal */}
+      <Modal open={editOpen} onClose={() => { if (!editSaving) setEditOpen(false); }}>
+        <ModalHeader title="Edit Trip" onClose={() => { if (!editSaving) setEditOpen(false); }} />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              Trip title
+              <input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                style={inputStyle()}
+                onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle())}
+                onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle())}
+                disabled={editSaving}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              Destination
+              <input
+                value={editDestination}
+                onChange={(e) => setEditDestination(e.target.value)}
+                style={inputStyle()}
+                onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle())}
+                onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle())}
+                disabled={editSaving}
+              />
+            </label>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Departure date
+                <input
+                  type="date"
+                  value={editDepartureDate}
+                  onChange={(e) => setEditDepartureDate(e.target.value)}
+                  style={inputStyle()}
+                  onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle())}
+                  onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle())}
+                  disabled={editSaving}
+                />
+              </label>
+              <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Return date
+                <input
+                  type="date"
+                  value={editReturnDate}
+                  onChange={(e) => setEditReturnDate(e.target.value)}
+                  style={inputStyle()}
+                  onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle())}
+                  onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle())}
+                  disabled={editSaving}
+                />
+              </label>
+            </div>
+            {editError && (
+              <p style={{ fontSize: '13px', color: 'var(--red)', fontFamily: "'Lato', sans-serif" }}>{editError}</p>
+            )}
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancel</Button>
+          <Button variant="primary" onClick={handleEditSave} disabled={editSaving || !editTitle.trim()}>
+            {editSaving ? 'Saving…' : 'Save'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Delete Trip modal */}
+      <Modal open={deleteOpen} onClose={() => { if (!deleteConfirming) setDeleteOpen(false); }}>
+        <ModalHeader title="Delete Trip" onClose={() => { if (!deleteConfirming) setDeleteOpen(false); }} />
+        <ModalBody>
+          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text)', lineHeight: 1.6 }}>
+            Are you sure you want to delete <strong>{localTrip.title}</strong>? This will permanently remove the trip and all associated data. This action cannot be undone.
+          </p>
+          {deleteError && (
+            <p style={{ marginTop: '12px', fontSize: '13px', color: 'var(--red)', fontFamily: "'Lato', sans-serif" }}>{deleteError}</p>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleteConfirming}>Cancel</Button>
+          <Button variant="danger" onClick={handleDelete} disabled={deleteConfirming}>
+            {deleteConfirming ? 'Deleting…' : 'Delete trip'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Clear Trip modal */}
+      <Modal open={clearOpen} onClose={() => { if (!clearConfirming) setClearOpen(false); }}>
+        <ModalHeader title="Clear Trip Data" onClose={() => { if (!clearConfirming) setClearOpen(false); }} />
+        <ModalBody>
+          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text2)', marginBottom: '16px', lineHeight: 1.6 }}>
+            Choose what to do with the imported trip data:
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {([
+              { value: 'archive', label: 'Archive trip', description: 'Mark the trip as archived and keep all data.' },
+              { value: 'download_clear', label: 'Download & clear', description: 'Download a JSON backup of the import, then delete all imported data.' },
+              { value: 'discard', label: 'Discard data', description: 'Permanently delete all imported data with no backup.' },
+            ] as const).map(({ value, label, description }) => (
+              <button
+                key={value}
+                onClick={() => setClearAction(value)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: '3px',
+                  padding: '14px 16px',
+                  borderRadius: 'var(--r)',
+                  border: `2px solid ${clearAction === value ? 'var(--navy)' : 'var(--border2)'}`,
+                  background: clearAction === value ? 'rgba(10,30,60,0.04)' : 'var(--bg)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'border-color var(--transition), background var(--transition)',
+                }}
+                disabled={clearConfirming}
+              >
+                <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', fontWeight: 700, color: 'var(--navy)' }}>{label}</span>
+                <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', lineHeight: 1.4 }}>{description}</span>
+              </button>
+            ))}
+          </div>
+          {clearError && (
+            <p style={{ marginTop: '12px', fontSize: '13px', color: 'var(--red)', fontFamily: "'Lato', sans-serif" }}>{clearError}</p>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setClearOpen(false)} disabled={clearConfirming}>Cancel</Button>
+          <Button
+            variant={clearAction === 'discard' ? 'danger' : 'primary'}
+            onClick={handleClear}
+            disabled={clearConfirming || !clearAction}
+          >
+            {clearConfirming ? 'Working…' : 'Confirm'}
+          </Button>
         </ModalFooter>
       </Modal>
 
