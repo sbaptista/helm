@@ -1,7 +1,14 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { TripDetailView } from '@/components/advisor/TripDetailView';
-import { ItinerarySection } from '@/components/sections/ItinerarySection';
+import { ItinerarySection }      from '@/components/sections/ItinerarySection';
+import { FlightsSection }        from '@/components/sections/FlightsSection';
+import { HotelsSection }         from '@/components/sections/HotelsSection';
+import { TransportationSection } from '@/components/sections/TransportationSection';
+import { RestaurantsSection }    from '@/components/sections/RestaurantsSection';
+import { ChecklistSection }      from '@/components/sections/ChecklistSection';
+import { PackingSection }        from '@/components/sections/PackingSection';
+import { KeyInfoSection }        from '@/components/sections/KeyInfoSection';
 import type { Trip, TripStatus } from '@/types/trips';
 
 export default async function TripDetailPage({
@@ -69,7 +76,14 @@ export default async function TripDetailPage({
     <TripDetailView
       trip={trip}
       hasImport={!!importJob}
-      itineraryContent={<ItinerarySection tripId={id} />}
+      itineraryContent={<ItinerarySection      tripId={id} />}
+      flightsContent={<FlightsSection          tripId={id} />}
+      hotelsContent={<HotelsSection            tripId={id} />}
+      transportationContent={<TransportationSection tripId={id} />}
+      restaurantsContent={<RestaurantsSection  tripId={id} />}
+      checklistContent={<ChecklistSection      tripId={id} />}
+      packingContent={<PackingSection          tripId={id} />}
+      keyInfoContent={<KeyInfoSection          tripId={id} />}
     />
   );
 }

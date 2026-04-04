@@ -38,12 +38,30 @@ function formatDateRange(departure: string, returnDate: string): string {
 }
 
 interface TripDetailViewProps {
-  trip:              Trip;
-  hasImport?:        boolean;
-  itineraryContent?: React.ReactNode;
+  trip:                   Trip;
+  hasImport?:             boolean;
+  itineraryContent?:      React.ReactNode;
+  flightsContent?:        React.ReactNode;
+  hotelsContent?:         React.ReactNode;
+  transportationContent?: React.ReactNode;
+  restaurantsContent?:    React.ReactNode;
+  checklistContent?:      React.ReactNode;
+  packingContent?:        React.ReactNode;
+  keyInfoContent?:        React.ReactNode;
 }
 
-export function TripDetailView({ trip, hasImport = false, itineraryContent }: TripDetailViewProps) {
+export function TripDetailView({
+  trip,
+  hasImport = false,
+  itineraryContent,
+  flightsContent,
+  hotelsContent,
+  transportationContent,
+  restaurantsContent,
+  checklistContent,
+  packingContent,
+  keyInfoContent,
+}: TripDetailViewProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('Itinerary');
   const [importOpen, setImportOpen] = useState(false);
@@ -343,44 +361,55 @@ const handleImportClose = () => {
         </div>
 
         {/* Tab content */}
-        {activeTab === 'Itinerary' ? (
-          <div style={{ paddingTop: '32px' }}>
-            {itineraryContent}
-          </div>
-        ) : (
-          <div
-            style={{
-              paddingTop: '48px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '12px',
-              textAlign: 'center',
-              minHeight: '240px',
-            }}
-          >
-            <p
+        {(() => {
+          const tabContents: Partial<Record<Tab, React.ReactNode>> = {
+            Itinerary:      itineraryContent,
+            Flights:        flightsContent,
+            Hotels:         hotelsContent,
+            Transportation: transportationContent,
+            Restaurants:    restaurantsContent,
+            Checklist:      checklistContent,
+            Packing:        packingContent,
+            'Key Info':     keyInfoContent,
+          };
+          const content = tabContents[activeTab];
+          return content ? (
+            <div style={{ paddingTop: '32px' }}>{content}</div>
+          ) : (
+            <div
               style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: '24px',
-                fontWeight: 400,
-                color: 'var(--navy)',
-                opacity: 0.5,
+                paddingTop: '48px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px',
+                textAlign: 'center',
+                minHeight: '240px',
               }}
             >
-              {activeTab}
-            </p>
-            <p
-              style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: '14px',
-                color: 'var(--text3)',
-              }}
-            >
-              Coming soon
-            </p>
-          </div>
-        )}
+              <p
+                style={{
+                  fontFamily: "'Cormorant Garamond', serif",
+                  fontSize: '24px',
+                  fontWeight: 400,
+                  color: 'var(--navy)',
+                  opacity: 0.5,
+                }}
+              >
+                {activeTab}
+              </p>
+              <p
+                style={{
+                  fontFamily: "'Lato', sans-serif",
+                  fontSize: '14px',
+                  color: 'var(--text3)',
+                }}
+              >
+                Coming soon
+              </p>
+            </div>
+          );
+        })()}
       </main>
 
       {/* Import Document modal */}
