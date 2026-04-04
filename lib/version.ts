@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0025",
-  label: "Itinerary section — async server component"
+  version: "00.01.0026",
+  label: "Fix ItinerarySection: use service role client to bypass RLS"
 };

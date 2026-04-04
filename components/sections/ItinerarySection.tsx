@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { Badge } from '@/components/ui/Badge';
 
 interface Day {
@@ -46,7 +46,10 @@ function categoryColor(cat: string): { bg: string; text: string; border: string 
 }
 
 export async function ItinerarySection({ tripId }: { tripId: string }) {
-  const supabase = await createClient();
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!
+  );
 
   const [{ data: days }, { data: rows }] = await Promise.all([
     supabase
