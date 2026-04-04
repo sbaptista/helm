@@ -62,15 +62,9 @@ async function logError(
   supabase: any,
   message: string,
   context: string,
-  extra?: Record<string, unknown>,
 ): Promise<void> {
   try {
-    await supabase.from('error_log').insert({
-      severity: 'error',
-      context,
-      message,
-      extra: extra ?? null,
-    });
+    await supabase.from('error_log').insert({ severity: 'error', context, message });
   } catch {
     // Best-effort — never throw from here.
   }
@@ -106,7 +100,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Helper: return an error response and best-effort log it.
   const fail = async (message: string, status = 500): Promise<Response> => {
-    await logError(supabase, message, 'import_confirm', { tripId });
+    await logError(supabase, message, 'import_confirm');
     return Response.json({ error: message }, { status });
   };
 

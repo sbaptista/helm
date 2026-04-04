@@ -5,7 +5,7 @@ export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `You are a travel itinerary parser for Helm, a travel advisor platform.
 
-You will receive the text of a travel document. Your task is to map its contents to the Helm schema and return ONLY a valid JSON object — no explanation, no markdown, no code fences.
+You will receive the text of a travel document and the trip's departure and return dates. Your task is to map its contents to the Helm schema and return ONLY a valid JSON object — no explanation, no markdown, no code fences.
 
 The JSON object must have these top-level keys, each containing an array:
 
@@ -19,11 +19,22 @@ The JSON object must have these top-level keys, each containing an array:
 - packing_items: { name, category, quantity }
 - key_info: { category, label, value, url, is_urgent }
 - unmapped: array of strings — any data found that does not fit the sections above
-- flags: array of { field, issue, suggestion } — items that need advisor review
+- flags: array of flag objects — items that need advisor review
 
-Rules:
-- Use null for missing optional fields, never omit required keys.
-- Dates should be ISO 8601 (YYYY-MM-DD). Times should be HH:MM (24h).
+Flag rules:
+- Every flag MUST include: field (dot-notation path, e.g. "transportation.departure_time") and issue (plain English description of the problem).
+- Include proposed ONLY when you have a specific replacement value. proposed must be the corrected value itself — not advice, not a suggestion, not a question.
+- Omit proposed entirely when you do not have a concrete correction. Never include proposed with explanatory text.
+
+Example flag with proposed value:
+{ "field": "transportation.departure_time", "issue": "Time extracted as September but trip departs October 3", "proposed": "2026-10-03T08:00:00" }
+
+Example flag without proposed value:
+{ "field": "flights.confirmation_code", "issue": "Confirmation code not found in document" }
+
+Date and time rules:
+- Use the trip departure and return dates provided in the user message to anchor any ambiguous or missing dates. Do not guess months or years.
+- Dates must be ISO 8601 (YYYY-MM-DD). Times must be HH:MM (24h).
 - Return ONLY the JSON object. No other text.`;
 
 export async function POST(request: Request): Promise<Response> {
