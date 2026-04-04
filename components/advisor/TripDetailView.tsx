@@ -38,11 +38,12 @@ function formatDateRange(departure: string, returnDate: string): string {
 }
 
 interface TripDetailViewProps {
-  trip:      Trip;
-  hasImport?: boolean;
+  trip:              Trip;
+  hasImport?:        boolean;
+  itineraryContent?: React.ReactNode;
 }
 
-export function TripDetailView({ trip, hasImport = false }: TripDetailViewProps) {
+export function TripDetailView({ trip, hasImport = false, itineraryContent }: TripDetailViewProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('Itinerary');
   const [importOpen, setImportOpen] = useState(false);
@@ -342,38 +343,44 @@ const handleImportClose = () => {
         </div>
 
         {/* Tab content */}
-        <div
-          style={{
-            paddingTop: '48px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '12px',
-            textAlign: 'center',
-            minHeight: '240px',
-          }}
-        >
-          <p
+        {activeTab === 'Itinerary' ? (
+          <div style={{ paddingTop: '32px' }}>
+            {itineraryContent}
+          </div>
+        ) : (
+          <div
             style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: '24px',
-              fontWeight: 400,
-              color: 'var(--navy)',
-              opacity: 0.5,
+              paddingTop: '48px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px',
+              textAlign: 'center',
+              minHeight: '240px',
             }}
           >
-            {activeTab}
-          </p>
-          <p
-            style={{
-              fontFamily: "'Lato', sans-serif",
-              fontSize: '14px',
-              color: 'var(--text3)',
-            }}
-          >
-            Coming soon
-          </p>
-        </div>
+            <p
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: '24px',
+                fontWeight: 400,
+                color: 'var(--navy)',
+                opacity: 0.5,
+              }}
+            >
+              {activeTab}
+            </p>
+            <p
+              style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: '14px',
+                color: 'var(--text3)',
+              }}
+            >
+              Coming soon
+            </p>
+          </div>
+        )}
       </main>
 
       {/* Import Document modal */}

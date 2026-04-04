@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { TripDetailView } from '@/components/advisor/TripDetailView';
+import { ItinerarySection } from '@/components/sections/ItinerarySection';
 import type { Trip, TripStatus } from '@/types/trips';
 
 export default async function TripDetailPage({
@@ -64,5 +65,11 @@ export default async function TripDetailPage({
     traveler_count: 0,
   };
 
-  return <TripDetailView trip={trip} hasImport={!!importJob} />;
+  return (
+    <TripDetailView
+      trip={trip}
+      hasImport={!!importJob}
+      itineraryContent={<ItinerarySection tripId={id} />}
+    />
+  );
 }
