@@ -35,7 +35,25 @@ interface ConfirmBody {
 
 function toTimestamp(date: string | null | undefined, time: string | null | undefined): string | null {
   if (!date || !time) return null;
-  const t = time.split(':').length === 2 ? `${time}:00` : time;
+  let t = time.trim();
+
+  // Handle 12-hour format: "8:00 AM", "11:50 PM", "8:00:00 AM"
+  const ampm = t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (ampm) {
+    let hours = parseInt(ampm[1], 10);
+    const minutes = ampm[2];
+    const seconds = ampm[3] ?? '00';
+    const period = ampm[4].toUpperCase();
+    if (period === 'AM' && hours === 12) hours = 0;
+    if (period === 'PM' && hours !== 12) hours += 12;
+    t = `${String(hours).padStart(2, '0')}:${minutes}:${seconds}`;
+  } else {
+    // Handle 24-hour format: "8:00", "08:00", "08:00:00"
+    const parts = t.split(':');
+    if (parts.length === 2) t = `${parts[0].padStart(2, '0')}:${parts[1]}:00`;
+    else if (parts.length === 3) t = `${parts[0].padStart(2, '0')}:${parts[1]}:${parts[2]}`;
+  }
+
   return `${date}T${t}`;
 }
 
@@ -209,9 +227,7 @@ export async function POST(request: Request): Promise<Response> {
       name:              (r.name as string)              ?? null,
       address:           (r.address as string) ?? (r.location as string) ?? null,
       city:              (r.city as string)              ?? null,
-      reservation_time:  (r.date as string) && (r.time as string)
-                           ? `${r.date} ${r.time}`
-                           : ((r.date as string) ?? (r.time as string) ?? null),
+      reservation_time:  toTimestamp(r.date as string, r.time as string),
       confirmation_number: (r.confirmation_code as string) ?? null,
       type:              (r.type as string)              ?? null,
       notes:             (r.notes as string)             ?? null,
