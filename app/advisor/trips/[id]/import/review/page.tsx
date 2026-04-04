@@ -11,9 +11,9 @@ import { createClient } from '@/lib/supabase/client';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ImportFlag {
-  field:      string;
-  issue:      string;
-  suggestion: string;
+  field:     string;
+  issue:     string;
+  proposed?: string;
 }
 
 interface ImportResult {
@@ -36,7 +36,7 @@ interface PreviewPayload {
   result:    ImportResult;
 }
 
-// 'fixed'  = applied AI suggestion
+// 'fixed'  = applied AI proposed value
 // 'edited' = advisor edited the value manually
 // 'keep'   = keep as-is, acknowledged
 // 'deleted'= record removed
@@ -58,17 +58,86 @@ const SECTIONS: { key: keyof Omit<ImportResult, 'unmapped' | 'flags'>; label: st
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const ADVISORY_WORDS = /\b(should|advisor|confirm|contact|verify|check|TBD|unknown)\b/i;
-
-function isConcreteValue(suggestion: string | undefined): boolean {
-  if (!suggestion?.trim()) return false;
-  return !ADVISORY_WORDS.test(suggestion);
-}
-
 function tryParseFieldRef(field: string): { section: string; index: number } | null {
   const match = field.match(/^(\w+)\[(\d+)\]/);
   if (!match) return null;
   return { section: match[1], index: parseInt(match[2], 10) };
+}
+
+type FieldType = 'text' | 'date' | 'time' | 'timestamptz' | { type: 'enum'; options: string[] };
+
+const FIELD_TYPES: Record<string, Record<string, FieldType>> = {
+  itinerary_days: {
+    date: 'date', title: 'text', location: 'text', description: 'text',
+  },
+  itinerary_rows: {
+    time: 'timestamptz', end_time: 'timestamptz', title: 'text',
+    description: 'text', location: 'text',
+    type: { type: 'enum', options: ['activity', 'meal', 'transport', 'accommodation', 'other'] },
+  },
+  flights: {
+    flight_number: 'text', airline: 'text', departure_airport: 'text',
+    arrival_airport: 'text', departure_time: 'timestamptz', arrival_time: 'timestamptz',
+    confirmation_code: 'text', notes: 'text',
+  },
+  hotels: {
+    name: 'text', location: 'text', address: 'text', city: 'text',
+    check_in_date: 'date', check_out_date: 'date',
+    confirmation_code: 'text', phone: 'text', notes: 'text',
+  },
+  transportation: {
+    type: 'text', description: 'text', departure_location: 'text',
+    arrival_location: 'text', departure_time: 'timestamptz', arrival_time: 'timestamptz',
+    confirmation_code: 'text', notes: 'text',
+  },
+  restaurants: {
+    name: 'text', location: 'text', address: 'text', city: 'text',
+    date: 'date', time: 'time', confirmation_code: 'text',
+    type: { type: 'enum', options: ['included', 'independent'] },
+    notes: 'text',
+  },
+  checklist_items: {
+    title: 'text', category: 'text',
+    time_horizon: { type: 'enum', options: ['before_trip', 'during_trip', 'after_trip'] },
+  },
+  packing_items: { name: 'text', category: 'text' },
+  key_info: { category: 'text', label: 'text', value: 'text', url: 'text' },
+};
+
+function getFieldType(field: string): FieldType {
+  const sectionMatch = field.match(/^(\w+)/);
+  const fieldMatch   = field.match(/\.(\w+)$/);
+  if (!sectionMatch || !fieldMatch) return 'text';
+  return FIELD_TYPES[sectionMatch[1]]?.[fieldMatch[1]] ?? 'text';
+}
+
+function formatFieldValue(value: string, fieldType: FieldType): string {
+  if (!value) return value;
+  try {
+    if (fieldType === 'timestamptz') {
+      const d = new Date(value);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+          + ' at '
+          + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      }
+    }
+    if (fieldType === 'date') {
+      const d = new Date(value + 'T00:00:00');
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      }
+    }
+    if (fieldType === 'time') {
+      const [h, m] = value.split(':').map(Number);
+      const d = new Date(); d.setHours(h, m);
+      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+    if (typeof fieldType === 'object' && fieldType.type === 'enum') {
+      return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+  } catch {}
+  return value;
 }
 
 function buildEffectiveResult(
@@ -167,6 +236,104 @@ function ResolutionBadge({ state }: { state: FlagState }) {
   );
 }
 
+// ─── Field-aware input ────────────────────────────────────────────────────────
+
+function FieldAwareInput({
+  fieldType,
+  value,
+  onChange,
+}: {
+  fieldType: FieldType;
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const [inputFocused, setInputFocused] = useState(false);
+  const baseStyle = inputFocused ? inputFocusStyle() : inputStyle();
+
+  if (typeof fieldType === 'object' && fieldType.type === 'enum') {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setInputFocused(true)}
+        onBlur={() => setInputFocused(false)}
+        style={{ ...baseStyle, cursor: 'pointer' }}
+      >
+        <option value="">Select…</option>
+        {fieldType.options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  if (fieldType === 'timestamptz') {
+    const [datePart, timePart] = value.includes('T')
+      ? [value.split('T')[0], value.split('T')[1]?.slice(0, 5) ?? '']
+      : [value, ''];
+    return (
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <input
+          type="date"
+          value={datePart}
+          onChange={(e) => onChange(`${e.target.value}T${timePart || '00:00'}:00`)}
+          onFocus={() => setInputFocused(true)}
+          onBlur={() => setInputFocused(false)}
+          style={{ ...baseStyle, flex: 1 }}
+        />
+        <input
+          type="time"
+          value={timePart}
+          onChange={(e) => onChange(`${datePart || ''}T${e.target.value}:00`)}
+          onFocus={() => setInputFocused(true)}
+          onBlur={() => setInputFocused(false)}
+          style={{ ...baseStyle, flex: 1 }}
+        />
+      </div>
+    );
+  }
+
+  if (fieldType === 'date') {
+    return (
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setInputFocused(true)}
+        onBlur={() => setInputFocused(false)}
+        style={baseStyle}
+      />
+    );
+  }
+
+  if (fieldType === 'time') {
+    return (
+      <input
+        type="time"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setInputFocused(true)}
+        onBlur={() => setInputFocused(false)}
+        style={baseStyle}
+      />
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={() => setInputFocused(true)}
+      onBlur={() => setInputFocused(false)}
+      style={baseStyle}
+      placeholder="Enter corrected value…"
+    />
+  );
+}
+
 // ─── Flag card ────────────────────────────────────────────────────────────────
 
 interface FlagCardProps {
@@ -190,15 +357,9 @@ function FlagCard({
   onFix, onEdit, onSaveEdit, onKeep, onDelete, onUndo,
   editOpen, onOpenEdit, isLast,
 }: FlagCardProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [inputFocused, setInputFocused] = useState(false);
-  const isResolved = state !== 'pending';
-  const hasSuggestion = Boolean(flag.suggestion?.trim());
-
-  // Focus the input when edit panel opens
-  useEffect(() => {
-    if (editOpen && inputRef.current) inputRef.current.focus();
-  }, [editOpen]);
+  const isResolved  = state !== 'pending';
+  const hasProposed = Boolean(flag.proposed?.trim());
+  const fieldType   = getFieldType(flag.field);
 
   return (
     <div
@@ -222,11 +383,11 @@ function FlagCard({
         {flag.issue}
       </p>
 
-      {/* Suggested fix callout */}
-      {hasSuggestion && !isResolved && (
+      {/* Proposed fix callout */}
+      {hasProposed && !isResolved && (
         <div style={{ background: 'rgba(180,130,30,0.08)', border: '1px solid rgba(180,130,30,0.2)', borderRadius: 'var(--r)', padding: '8px 12px', marginBottom: '12px' }}>
           <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--gold-text)', margin: 0 }}>
-            <strong>Suggested fix:</strong> {flag.suggestion}
+            <strong>Proposed fix:</strong> {formatFieldValue(flag.proposed!, fieldType)}
           </p>
         </div>
       )}
@@ -234,15 +395,10 @@ function FlagCard({
       {/* Inline edit input — shown when Edit is active */}
       {editOpen && !isResolved && (
         <div style={{ marginBottom: '10px' }}>
-          <input
-            ref={inputRef}
-            type="text"
+          <FieldAwareInput
+            fieldType={fieldType}
             value={editValue}
-            onChange={(e) => onEdit(e.target.value)}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setInputFocused(false)}
-            style={inputFocused ? inputFocusStyle() : inputStyle()}
-            placeholder="Enter corrected value…"
+            onChange={onEdit}
           />
           <button
             type="button"
@@ -259,7 +415,7 @@ function FlagCard({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {/* Primary row */}
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {hasSuggestion && isConcreteValue(flag.suggestion) && (
+            {hasProposed && (
               <button
                 type="button"
                 onClick={onFix}
@@ -451,7 +607,7 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
           issue:         flag.issue,
           action:        state === 'pending' ? 'unresolved' : state,
           originalValue: originalValue,
-          newValue:      state === 'fixed'  ? flag.suggestion
+          newValue:      state === 'fixed'  ? flag.proposed
                        : state === 'edited' ? (flagEdits[i] ?? null)
                        : null,
         };
@@ -592,18 +748,18 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
             <div style={{ flexShrink: 0 }}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <circle cx="8" cy="8" r="7" stroke="#065f46" strokeWidth="1.5" />
-                <path d="M5 8l2 2 4-4" stroke="#065f46" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="8" cy="8" r="7" stroke="var(--green)" strokeWidth="1.5" />
+                <path d="M5 8l2 2 4-4" stroke="var(--green)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: '#065f46', flex: 1, margin: 0, lineHeight: 1.5 }}>
+            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--green)', flex: 1, margin: 0, lineHeight: 1.5 }}>
               {confirmSuccess}
             </p>
             <button
               type="button"
               onClick={() => setConfirmSuccess(null)}
               aria-label="Dismiss"
-              style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', opacity: 0.6, padding: '0', lineHeight: 1, transition: 'opacity var(--transition)' }}
+              style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', opacity: 0.6, padding: '0', lineHeight: 1, transition: 'opacity var(--transition)' }}
               onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
               onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
             >

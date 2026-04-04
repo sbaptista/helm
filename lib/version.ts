@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0030",
-  label: "Phase 1: inject trip dates into import prompt"
+  version: "00.01.0031",
+  label: "Phase 2: field-type-aware Fix/Edit UI, wire proposed flag contract"
 };
