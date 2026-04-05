@@ -69,7 +69,7 @@ export function TripDetailView({
   // Import modal
   const [importOpen, setImportOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [importPhase, setImportPhase] = useState<'idle' | 'reading' | 'mapping' | 'parsing' | 'error'>('idle');
+  const [importPhase, setImportPhase] = useState<'idle' | 'reading' | 'mapping' | 'parsing' | 'navigating' | 'error'>('idle');
   const [importError, setImportError] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -98,9 +98,10 @@ export function TripDetailView({
   const [clearAction, setClearAction] = useState<'archive' | 'download_clear' | 'discard' | null>(null);
   const [clearConfirming, setClearConfirming] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
+  const [clearSuccess, setClearSuccess] = useState(false);
 
 const handleImportClose = () => {
-    if (importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing') return;
+    if (importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing' || importPhase === 'navigating') return;
     setImportOpen(false);
     setSelectedFile(null);
     setImportPhase('idle');
@@ -176,6 +177,7 @@ const handleImportClose = () => {
       );
 
       router.push(`/advisor/trips/${trip.id}/import/review`);
+      setImportPhase('navigating');
     } catch (err) {
       clearTimeout(phaseTimer);
       setImportPhase('error');
@@ -246,8 +248,11 @@ const handleImportClose = () => {
       }
 
       setImportDone(false);
-      setClearOpen(false);
       setClearAction(null);
+      setClearConfirming(false);
+      setClearOpen(false);
+      setClearSuccess(true);
+      setTimeout(() => setClearSuccess(false), 4000);
       router.refresh();
     } catch (err) {
       setClearError(err instanceof Error ? err.message : 'Something went wrong.');
@@ -412,7 +417,7 @@ const handleImportClose = () => {
             <Button variant="primary" onClick={() => setImportOpen(true)} disabled={importDone}>
               {importDone ? 'Document Imported' : 'Import Document'}
             </Button>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <button
                 type="button"
                 onClick={() => {
@@ -483,6 +488,27 @@ const handleImportClose = () => {
             </div>
           </div>
         </div>
+
+        {clearSuccess && (
+          <div style={{
+            position: 'fixed',
+            bottom: 'calc(24px + var(--sab))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--green)',
+            color: 'var(--cream)',
+            fontFamily: "'Lato', sans-serif",
+            fontSize: '13px',
+            fontWeight: 600,
+            padding: '12px 24px',
+            borderRadius: 'var(--r-xl)',
+            boxShadow: 'var(--shadow-lg)',
+            zIndex: 200,
+            whiteSpace: 'nowrap',
+          }}>
+            Trip data cleared successfully.
+          </div>
+        )}
 
         {/* Tab row */}
         <div
@@ -723,6 +749,8 @@ const handleImportClose = () => {
                   ? 'Reading your document…'
                   : importPhase === 'parsing'
                   ? 'Parsing response…'
+                  : importPhase === 'navigating'
+                  ? 'Preparing review…'
                   : `Receiving response… ${importProgress.toLocaleString()} chars`}
               </p>
               <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)' }}>
@@ -735,7 +763,7 @@ const handleImportClose = () => {
           <Button
             variant="ghost"
             onClick={handleImportClose}
-            disabled={importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing'}
+            disabled={importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing' || importPhase === 'navigating'}
           >
             Cancel
           </Button>
