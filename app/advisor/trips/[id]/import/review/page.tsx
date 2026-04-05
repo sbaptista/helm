@@ -814,6 +814,11 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
 
             {/* ── Flags card ────────────────────────────────────────────────── */}
             {hasFlags && (
+              <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--text3)', margin: 0 }}>
+                AI flag analysis may vary between imports of the same document. Review all flags carefully.
+              </p>
+            )}
+            {hasFlags && (
               <div style={{ background: 'rgba(180,130,30,0.06)', border: '1px solid rgba(180,130,30,0.25)', borderRadius: 'var(--r-xl)', padding: '20px 24px' }}>
                 <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--gold-text)', marginBottom: '14px' }}>
                   Needs Review — {unresolvedCount > 0 ? `${unresolvedCount} of ${flags.length} unresolved` : `${flags.length} resolved`}

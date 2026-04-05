@@ -149,26 +149,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         aria-atomic="false"
         style={{
           position: 'fixed',
-          /* Desktop/tablet: top-right */
-          top: `calc(20px + var(--sat))`,
-          right: '20px',
-          /* Mobile (<768px): top-center */
+          bottom: 'calc(24px + var(--sab))',
+          left: '50%',
+          transform: 'translateX(-50%)',
           zIndex: 999,
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
+          alignItems: 'center',
           pointerEvents: 'none',
         }}
       >
-        <style>{`
-          @media (max-width: 767px) {
-            .helm-toast-container {
-              right: 50% !important;
-              transform: translateX(50%);
-            }
-          }
-        `}</style>
-        <div className="helm-toast-container" style={{ display: 'contents' }}>
+        <div style={{ display: 'contents' }}>
           {toasts.map((t) => (
             <ToastItem key={t.id} item={t} onDismiss={dismiss} />
           ))}
