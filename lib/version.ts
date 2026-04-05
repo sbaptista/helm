@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0038",
-  label: "fix: inconsistency warning on review screen, toast bottom-center"
+  version: "00.01.0039",
+  label: "feat: import re-enable with confirmation, progress meter"
 };

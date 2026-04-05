@@ -68,10 +68,12 @@ export function TripDetailView({
 
   // Import modal
   const [importOpen, setImportOpen] = useState(false);
+  const [reimportConfirmOpen, setReimportConfirmOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importPhase, setImportPhase] = useState<'idle' | 'reading' | 'mapping' | 'parsing' | 'navigating' | 'error'>('idle');
   const [importError, setImportError] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState(0);
+  const [totalChars, setTotalChars] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
   const [importDone, setImportDone] = useState(() => {
     if (hasImport) return true;
@@ -120,8 +122,17 @@ const handleImportClose = () => {
     setImportPhase('reading');
     setImportError(null);
     setImportProgress(0);
+    setTotalChars(0);
 
-    const phaseTimer = setTimeout(() => setImportPhase('mapping'), 2000);
+    // Pre-calculate character count for progress bar
+    let chars = 0;
+    try {
+      const text = await selectedFile.text();
+      chars = text.length;
+    } catch {
+      chars = selectedFile.size;
+    }
+    setTotalChars(chars);
 
     try {
       const form = new FormData();
@@ -131,7 +142,6 @@ const handleImportClose = () => {
       form.append('returnDate', trip.return_date ?? '');
 
       const res = await fetch('/api/trips/import', { method: 'POST', body: form });
-      clearTimeout(phaseTimer);
 
       // Pre-streaming errors come back as JSON with a non-200 status.
       if (!res.ok) {
@@ -149,10 +159,15 @@ const handleImportClose = () => {
 
       const decoder = new TextDecoder();
       let accumulated = '';
+      let firstChunk = true;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (firstChunk) {
+          setImportPhase('mapping');
+          firstChunk = false;
+        }
         const chunk = decoder.decode(value, { stream: true });
         accumulated += chunk;
         setImportProgress(accumulated.length);
@@ -185,7 +200,6 @@ const handleImportClose = () => {
       setImportPhase('navigating');
       router.push(`/advisor/trips/${trip.id}/import/review`);
     } catch (err) {
-      clearTimeout(phaseTimer);
       setImportPhase('error');
       setImportError(err instanceof Error ? err.message : 'Something went wrong.');
     }
@@ -420,8 +434,18 @@ const handleImportClose = () => {
 
           {/* Right: actions */}
           <div style={{ flexShrink: 0, paddingTop: '6px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
-            <Button variant="primary" onClick={() => setImportOpen(true)} disabled={importDone}>
-              {importDone ? 'Document Imported' : 'Import Document'}
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (importDone) {
+                  setReimportConfirmOpen(true);
+                } else {
+                  setImportOpen(true);
+                }
+              }}
+              disabled={importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing' || importPhase === 'navigating'}
+            >
+              Import Document
             </Button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <button
@@ -728,39 +752,30 @@ const handleImportClose = () => {
             </div>
           ) : (
             /* Processing state */
-            <div
-              style={{
-                padding: '48px 32px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '16px',
-                textAlign: 'center',
-              }}
-            >
-              <style>{`@keyframes helm-spin { to { transform: rotate(360deg) } }`}</style>
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 32 32"
-                fill="none"
-                aria-hidden="true"
-                style={{ animation: 'helm-spin 0.8s linear infinite', flexShrink: 0 }}
-              >
-                <circle cx="16" cy="16" r="13" stroke="var(--border)" strokeWidth="2.5" />
-                <path d="M16 3a13 13 0 0 1 13 13" stroke="var(--gold)" strokeWidth="2.5" strokeLinecap="round" />
-              </svg>
-              <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text2)', fontWeight: 600 }}>
+            <div style={{ padding: '32px 32px 40px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Progress bar — visible once streaming begins */}
+              {(importProgress > 0 || importPhase === 'parsing' || importPhase === 'navigating') && (
+                <div style={{ width: '100%', height: '8px', background: 'var(--bg3)', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      background: 'var(--gold)',
+                      borderRadius: '4px',
+                      width: `${Math.min(totalChars > 0 ? (importProgress / totalChars) * 100 : 100, 100)}%`,
+                      transition: 'width 0.2s ease',
+                    }}
+                  />
+                </div>
+              )}
+              {/* Status text */}
+              <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text2)', margin: 0 }}>
                 {importPhase === 'reading'
-                  ? 'Reading your document…'
+                  ? 'Reading document…'
                   : importPhase === 'parsing'
-                  ? 'Parsing response…'
+                  ? 'Finalizing…'
                   : importPhase === 'navigating'
-                  ? 'Preparing review…'
-                  : `Receiving response… ${importProgress.toLocaleString()} chars`}
-              </p>
-              <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)' }}>
-                This may take a moment.
+                  ? 'Analysis complete'
+                  : `Analyzing… ${importProgress.toLocaleString()} characters processed`}
               </p>
             </div>
           )}
@@ -783,6 +798,30 @@ const handleImportClose = () => {
               Import
             </Button>
           )}
+        </ModalFooter>
+      </Modal>
+
+      {/* Re-import confirmation modal */}
+      <Modal open={reimportConfirmOpen} onClose={() => setReimportConfirmOpen(false)}>
+        <ModalHeader title="Re-import Document" onClose={() => setReimportConfirmOpen(false)} />
+        <ModalBody>
+          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text)', lineHeight: 1.6 }}>
+            Importing a new document will replace your existing import data. Continue?
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setReimportConfirmOpen(false)}>Cancel</Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              sessionStorage.removeItem(`helm_import_done_${trip.id}`);
+              setImportDone(false);
+              setReimportConfirmOpen(false);
+              setImportOpen(true);
+            }}
+          >
+            Continue
+          </Button>
         </ModalFooter>
       </Modal>
 
