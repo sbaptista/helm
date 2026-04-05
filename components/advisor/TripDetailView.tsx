@@ -113,7 +113,6 @@ function TripDetailViewInner({
   const [clearSuccess, setClearSuccess] = useState(false);
 
 const handleImportClose = () => {
-    if (importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing' || importPhase === 'navigating') return;
     if (importPhase !== 'idle') toast.show('Import cancelled', 'neutral');
     setImportOpen(false);
     setSelectedFile(null);
@@ -795,7 +794,6 @@ const handleImportClose = () => {
           <Button
             variant="ghost"
             onClick={handleImportClose}
-            disabled={importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing' || importPhase === 'navigating'}
           >
             Cancel
           </Button>

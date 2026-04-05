@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { TripDetailView } from '@/components/advisor/TripDetailView';
 import { ItinerarySection }      from '@/components/sections/ItinerarySection';
 import { FlightsSection }        from '@/components/sections/FlightsSection';
@@ -42,11 +43,21 @@ export default async function TripDetailPage({
     .eq('status', 'completed')
     .maybeSingle();
 
-  const { count: sectionCount } = await supabase
-    .from('itinerary_days')
-    .select('id', { count: 'exact', head: true })
-    .eq('trip_id', id)
-    .is('deleted_at', null);
+  const serviceClient = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+  );
+
+  const sectionChecks = await Promise.all([
+    serviceClient.from('flights').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
+    serviceClient.from('hotels').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
+    serviceClient.from('transportation').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
+    serviceClient.from('restaurants').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
+    serviceClient.from('itinerary_rows').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
+    serviceClient.from('checklist_items').select('id', { count: 'exact', head: true }).eq('trip_id', id),
+    serviceClient.from('packing_items').select('id', { count: 'exact', head: true }).eq('trip_id', id),
+    serviceClient.from('key_info').select('id', { count: 'exact', head: true }).eq('trip_id', id),
+  ]);
 
   if (!row) {
     return (
@@ -82,7 +93,7 @@ export default async function TripDetailPage({
     <TripDetailView
       trip={trip}
       hasImport={!!importJob}
-      hasSectionData={(sectionCount ?? 0) > 0}
+      hasSectionData={sectionChecks.some((r) => (r.count ?? 0) > 0)}
       itineraryContent={<ItinerarySection      tripId={id} />}
       flightsContent={<FlightsSection          tripId={id} />}
       hotelsContent={<HotelsSection            tripId={id} />}
