@@ -1,0 +1,83 @@
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createAuthClient } from '@/lib/supabase/server';
+
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) throw new Error('Supabase credentials not configured.');
+  return createClient(url, key);
+}
+
+// ─── GET /api/trips/[id]/flights ─────────────────────────────────────────────
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  const { id } = await params;
+
+  let supabase;
+  try { supabase = getServiceClient(); } catch (e) {
+    return Response.json({ error: (e as Error).message }, { status: 500 });
+  }
+
+  const { data: flights, error } = await supabase
+    .from('flights')
+    .select('id, flight_number, airline, origin_airport, destination_airport, departure_time, arrival_time, cabin_class, confirmation_number, notes')
+    .eq('trip_id', id)
+    .is('deleted_at', null)
+    .order('departure_time');
+
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json({ flights: flights ?? [] });
+}
+
+// ─── POST /api/trips/[id]/flights ────────────────────────────────────────────
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  const { id } = await params;
+
+  // Auth
+  const authClient = await createAuthClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 });
+
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: 'Invalid request body.' }, { status: 400 });
+  }
+
+  let supabase;
+  try { supabase = getServiceClient(); } catch (e) {
+    return Response.json({ error: (e as Error).message }, { status: 500 });
+  }
+
+  // Validate trip access
+  const { data: member } = await supabase
+    .from('trip_members')
+    .select('id')
+    .eq('trip_id', id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (!member) return Response.json({ error: 'Access denied.' }, { status: 403 });
+
+  const allowed = [
+    'flight_number', 'airline', 'origin_airport', 'destination_airport',
+    'departure_time', 'arrival_time', 'cabin_class', 'confirmation_number', 'notes',
+  ];
+  const record: Record<string, unknown> = { trip_id: id };
+  for (const key of allowed) {
+    if (key in body) record[key] = body[key];
+  }
+
+  const { data: flight, error } = await supabase
+    .from('flights').insert(record).select().single();
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+
+  return Response.json({ flight }, { status: 201 });
+}
