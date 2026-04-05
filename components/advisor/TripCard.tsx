@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -9,7 +9,6 @@ import type { Trip, TripStatus } from '@/types/trips';
 
 interface TripCardProps {
   trip: Trip;
-  onEdit?: (trip: Trip) => void;
 }
 
 function formatDateRange(departure: string, returnDate: string): string {
@@ -40,8 +39,9 @@ const STATUS_LABELS: Record<TripStatus, string> = {
   archived: 'Archived',
 };
 
-export function TripCard({ trip, onEdit }: TripCardProps) {
+export function TripCard({ trip }: TripCardProps) {
   const router = useRouter();
+  const [hovered, setHovered] = useState(false);
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't navigate if clicking a button
@@ -54,7 +54,17 @@ export function TripCard({ trip, onEdit }: TripCardProps) {
     <Card
       hover
       onClick={handleCardClick}
-      style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: 0,
+        overflow: 'hidden',
+        borderLeft: hovered ? '3px solid var(--gold)' : '3px solid transparent',
+        transition: 'border-color var(--transition)',
+      }}
     >
       {/* Gold accent bar — bleeds to card edges */}
       <div
@@ -133,7 +143,6 @@ export function TripCard({ trip, onEdit }: TripCardProps) {
             paddingTop: '16px',
             borderTop: '1px solid var(--border2)',
           }}
-          onClick={(e) => e.stopPropagation()}
         >
           <Button
             variant="ghost"
@@ -142,48 +151,6 @@ export function TripCard({ trip, onEdit }: TripCardProps) {
           >
             View Trip
           </Button>
-
-          <button
-            aria-label={`Edit ${trip.title}`}
-            onClick={() => onEdit?.(trip)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '44px',
-              height: '44px',
-              background: 'transparent',
-              border: '1px solid transparent',
-              borderRadius: 'var(--r)',
-              cursor: 'pointer',
-              color: 'var(--slate)',
-              transition: 'background var(--transition), color var(--transition), border-color var(--transition)',
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget;
-              el.style.background = 'var(--bg3)';
-              el.style.color = 'var(--navy)';
-              el.style.borderColor = 'var(--border2)';
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget;
-              el.style.background = 'transparent';
-              el.style.color = 'var(--slate)';
-              el.style.borderColor = 'transparent';
-            }}
-          >
-            {/* Pencil icon */}
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M11.5 2.5a1.5 1.5 0 0 1 2.121 2.121l-8.5 8.5-2.829.707.707-2.828 8.5-8.5z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
         </div>
       </div>
     </Card>

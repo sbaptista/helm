@@ -405,72 +405,77 @@ const handleImportClose = () => {
               {formatDateRange(localTrip.departure_date, localTrip.return_date)}
             </p>
 
-            <button
-              onClick={() => {
-                setEditTitle(localTrip.title);
-                setEditDestination(localTrip.destination);
-                setEditDepartureDate(localTrip.departure_date);
-                setEditReturnDate(localTrip.return_date);
-                setEditError(null);
-                setEditOpen(true);
-              }}
-              style={{
-                marginTop: '10px',
-                background: 'none',
-                border: 'none',
-                padding: '4px 0',
-                fontFamily: "'Lato', sans-serif",
-                fontSize: '13px',
-                fontWeight: 700,
-                color: 'var(--text3)',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                textUnderlineOffset: '2px',
-                minHeight: '44px',
-              }}
-            >
-              Edit trip
-            </button>
           </div>
 
           {/* Right: actions */}
-          <div style={{ flexShrink: 0, paddingTop: '6px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
+          <div style={{ flexShrink: 0, paddingTop: '6px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
             <Button variant="primary" onClick={() => setImportOpen(true)} disabled={importDone}>
               {importDone ? 'Document Imported' : 'Import Document'}
             </Button>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
               <button
+                type="button"
+                onClick={() => {
+                  setEditTitle(localTrip.title);
+                  setEditDestination(localTrip.destination ?? '');
+                  setEditDepartureDate(localTrip.departure_date ?? '');
+                  setEditReturnDate(localTrip.return_date ?? '');
+                  setEditError(null);
+                  setEditOpen(true);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: "'Lato', sans-serif",
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--text3)',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '2px',
+                  padding: '6px 0',
+                  minHeight: '44px',
+                  textAlign: 'right',
+                }}
+              >
+                Edit trip
+              </button>
+              <button
+                type="button"
                 onClick={() => { setClearAction(null); setClearError(null); setClearOpen(true); }}
                 style={{
                   background: 'none',
                   border: 'none',
-                  padding: '4px 8px',
-                  fontFamily: "'Lato', sans-serif",
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  color: 'var(--text3)',
                   cursor: 'pointer',
+                  fontFamily: "'Lato', sans-serif",
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--text3)',
                   textDecoration: 'underline',
                   textUnderlineOffset: '2px',
+                  padding: '6px 0',
                   minHeight: '44px',
+                  textAlign: 'right',
                 }}
               >
                 Clear trip data
               </button>
               <button
+                type="button"
                 onClick={() => { setDeleteError(null); setDeleteOpen(true); }}
                 style={{
                   background: 'none',
                   border: 'none',
-                  padding: '4px 8px',
-                  fontFamily: "'Lato', sans-serif",
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  color: 'var(--red)',
                   cursor: 'pointer',
+                  fontFamily: "'Lato', sans-serif",
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--red)',
                   textDecoration: 'underline',
                   textUnderlineOffset: '2px',
+                  padding: '6px 0',
                   minHeight: '44px',
+                  textAlign: 'right',
                 }}
               >
                 Delete trip
