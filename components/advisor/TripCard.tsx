@@ -51,11 +51,13 @@ export function TripCard({ trip }: TripCardProps) {
   };
 
   return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
     <Card
       hover
       onClick={handleCardClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       style={{
         cursor: 'pointer',
         display: 'flex',
@@ -154,5 +156,6 @@ export function TripCard({ trip }: TripCardProps) {
         </div>
       </div>
     </Card>
+    </div>
   );
 }
