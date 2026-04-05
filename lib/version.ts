@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0035",
-  label: "UX: inline secondary actions, navigating phase, clear confirmation toast"
+  version: "00.01.0036",
+  label: "UX: cancel edit, back to trip, fix spinner order, prevent duplicate import"
 };

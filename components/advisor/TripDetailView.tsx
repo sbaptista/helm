@@ -73,7 +73,13 @@ export function TripDetailView({
   const [importError, setImportError] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [importDone, setImportDone] = useState(hasImport);
+  const [importDone, setImportDone] = useState(() => {
+    if (hasImport) return true;
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(`helm_import_done_${trip.id}`) === '1';
+    }
+    return false;
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Local trip state (updated optimistically on edit)
@@ -176,8 +182,8 @@ const handleImportClose = () => {
         JSON.stringify({ tripId: trip.id, tripTitle: trip.title, result: parsed }),
       );
 
-      router.push(`/advisor/trips/${trip.id}/import/review`);
       setImportPhase('navigating');
+      router.push(`/advisor/trips/${trip.id}/import/review`);
     } catch (err) {
       clearTimeout(phaseTimer);
       setImportPhase('error');
@@ -680,7 +686,7 @@ const handleImportClose = () => {
               )}
 
               <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5 }}>
-                PDF, Word, or text files
+                PDF, Word, text, or JSON files
               </p>
 
               <button

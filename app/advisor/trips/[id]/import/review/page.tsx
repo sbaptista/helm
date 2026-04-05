@@ -337,24 +337,25 @@ function FieldAwareInput({
 // ─── Flag card ────────────────────────────────────────────────────────────────
 
 interface FlagCardProps {
-  flag:        ImportFlag;
-  index:       number;
-  state:       FlagState;
-  editValue:   string;
-  onFix:       () => void;
-  onEdit:      (val: string) => void;
-  onSaveEdit:  () => void;
-  onKeep:      () => void;
-  onDelete:    () => void;
-  onUndo:      () => void;
-  editOpen:    boolean;
-  onOpenEdit:  () => void;
-  isLast:      boolean;
+  flag:         ImportFlag;
+  index:        number;
+  state:        FlagState;
+  editValue:    string;
+  onFix:        () => void;
+  onEdit:       (val: string) => void;
+  onSaveEdit:   () => void;
+  onCancelEdit: () => void;
+  onKeep:       () => void;
+  onDelete:     () => void;
+  onUndo:       () => void;
+  editOpen:     boolean;
+  onOpenEdit:   () => void;
+  isLast:       boolean;
 }
 
 function FlagCard({
   flag, index, state, editValue,
-  onFix, onEdit, onSaveEdit, onKeep, onDelete, onUndo,
+  onFix, onEdit, onSaveEdit, onCancelEdit, onKeep, onDelete, onUndo,
   editOpen, onOpenEdit, isLast,
 }: FlagCardProps) {
   const isResolved  = state !== 'pending';
@@ -406,6 +407,26 @@ function FlagCard({
             style={{ marginTop: '6px', fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', padding: '6px 14px', borderRadius: 'var(--r)', border: '1px solid var(--navy)', background: 'var(--navy)', color: 'var(--cream)', cursor: 'pointer', minHeight: '32px' }}
           >
             Save edit
+          </button>
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            style={{
+              marginTop: '4px',
+              marginLeft: '8px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: "'Lato', sans-serif",
+              fontSize: '12px',
+              color: 'var(--text3)',
+              textDecoration: 'underline',
+              textUnderlineOffset: '2px',
+              padding: '4px 0',
+              minHeight: '32px',
+            }}
+          >
+            Cancel
           </button>
         </div>
       )}
@@ -703,6 +724,7 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
                 onOpenEdit={() => handleOpenEdit(i)}
                 onEdit={(val) => setFlagEdits((prev) => ({ ...prev, [i]: val }))}
                 onSaveEdit={() => handleSaveEdit(i)}
+                onCancelEdit={() => setEditOpenIndex(null)}
                 onKeep={() => handleKeep(i)}
                 onDelete={() => handleDelete(i)}
                 onUndo={() => handleUndo(i)}
@@ -757,15 +779,23 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
             </p>
             <button
               type="button"
-              onClick={() => setConfirmSuccess(null)}
-              aria-label="Dismiss"
-              style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', opacity: 0.6, padding: '0', lineHeight: 1, transition: 'opacity var(--transition)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
+              onClick={() => router.push(`/advisor/trips/${tripId}`)}
+              style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: '13px',
+                fontWeight: 700,
+                color: 'var(--navy)',
+                background: 'none',
+                border: '1px solid var(--navy)',
+                borderRadius: 'var(--r)',
+                padding: '8px 16px',
+                cursor: 'pointer',
+                minHeight: '36px',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-              </svg>
+              Back to Trip
             </button>
           </div>
         ) : (
