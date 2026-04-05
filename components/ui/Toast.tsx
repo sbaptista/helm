@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
-type ToastVariant = 'success' | 'error';
+type ToastVariant = 'success' | 'error' | 'neutral';
 
 interface ToastItem {
   id: string;
@@ -14,6 +14,7 @@ interface ToastContextValue {
   show: (message: string, variant?: ToastVariant) => void;
   success: (message: string) => void;
   error: (message: string) => void;
+  neutral: (message: string) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -29,6 +30,11 @@ const VARIANT_STYLES: Record<ToastVariant, { bg: string; color: string; border: 
     color: '#ffffff',
     border: 'rgba(255,255,255,0.15)',
   },
+  neutral: {
+    bg: 'var(--bg3)',
+    color: 'var(--text)',
+    border: 'var(--border2)',
+  },
 };
 
 const VARIANT_ICONS: Record<ToastVariant, React.ReactNode> = {
@@ -42,6 +48,13 @@ const VARIANT_ICONS: Record<ToastVariant, React.ReactNode> = {
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
       <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.4" strokeWidth="1.5" />
       <path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  ),
+  neutral: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.4" strokeWidth="1.5" />
+      <path d="M8 7v4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      <circle cx="8" cy="5" r="0.875" fill="currentColor" />
     </svg>
   ),
 };
@@ -139,9 +152,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const success = useCallback((message: string) => show(message, 'success'), [show]);
   const error   = useCallback((message: string) => show(message, 'error'),   [show]);
+  const neutral = useCallback((message: string) => show(message, 'neutral'), [show]);
 
   return (
-    <ToastContext.Provider value={{ show, success, error }}>
+    <ToastContext.Provider value={{ show, success, error, neutral }}>
       {children}
       {/* Toast container */}
       <div

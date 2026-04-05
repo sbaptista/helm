@@ -42,6 +42,12 @@ export default async function TripDetailPage({
     .eq('status', 'completed')
     .maybeSingle();
 
+  const { count: sectionCount } = await supabase
+    .from('itinerary_days')
+    .select('id', { count: 'exact', head: true })
+    .eq('trip_id', id)
+    .is('deleted_at', null);
+
   if (!row) {
     return (
       <div
@@ -76,6 +82,7 @@ export default async function TripDetailPage({
     <TripDetailView
       trip={trip}
       hasImport={!!importJob}
+      hasSectionData={(sectionCount ?? 0) > 0}
       itineraryContent={<ItinerarySection      tripId={id} />}
       flightsContent={<FlightsSection          tripId={id} />}
       hotelsContent={<HotelsSection            tripId={id} />}

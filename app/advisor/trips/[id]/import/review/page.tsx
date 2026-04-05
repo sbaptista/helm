@@ -337,30 +337,36 @@ function FieldAwareInput({
 // ─── Flag card ────────────────────────────────────────────────────────────────
 
 interface FlagCardProps {
-  flag:         ImportFlag;
-  index:        number;
-  state:        FlagState;
-  editValue:    string;
-  onFix:        () => void;
-  onEdit:       (val: string) => void;
-  onSaveEdit:   () => void;
-  onCancelEdit: () => void;
-  onKeep:       () => void;
-  onDelete:     () => void;
-  onUndo:       () => void;
-  editOpen:     boolean;
-  onOpenEdit:   () => void;
-  isLast:       boolean;
+  flag:           ImportFlag;
+  index:          number;
+  state:          FlagState;
+  editValue:      string;
+  onFix:          () => void;
+  onEdit:         (val: string) => void;
+  onSaveEdit:     () => void;
+  onCancelEdit:   () => void;
+  onKeep:         () => void;
+  onDelete:       () => void;
+  onUndo:         () => void;
+  editOpen:       boolean;
+  onOpenEdit:     () => void;
+  isLast:         boolean;
+  noteMode:       boolean;
+  onToggleNote:   () => void;
+  noteValue:      string;
+  onNoteChange:   (val: string) => void;
 }
 
 function FlagCard({
   flag, index, state, editValue,
   onFix, onEdit, onSaveEdit, onCancelEdit, onKeep, onDelete, onUndo,
   editOpen, onOpenEdit, isLast,
+  noteMode, onToggleNote, noteValue, onNoteChange,
 }: FlagCardProps) {
   const isResolved  = state !== 'pending';
   const hasProposed = Boolean(flag.proposed?.trim());
   const fieldType   = getFieldType(flag.field);
+  const [noteFocused, setNoteFocused] = useState(false);
 
   return (
     <div
@@ -396,11 +402,36 @@ function FlagCard({
       {/* Inline edit input — shown when Edit is active */}
       {editOpen && !isResolved && (
         <div style={{ marginBottom: '10px' }}>
-          <FieldAwareInput
-            fieldType={fieldType}
-            value={editValue}
-            onChange={onEdit}
-          />
+          {noteMode ? (
+            <textarea
+              value={noteValue}
+              onChange={(e) => onNoteChange(e.target.value)}
+              onFocus={() => setNoteFocused(true)}
+              onBlur={() => setNoteFocused(false)}
+              placeholder="Add your note here…"
+              style={{
+                ...(noteFocused ? inputFocusStyle() : inputStyle()),
+                minHeight: '80px',
+                resize: 'vertical',
+                fontFamily: "'Lato', sans-serif",
+              }}
+            />
+          ) : (
+            <FieldAwareInput
+              fieldType={fieldType}
+              value={editValue}
+              onChange={onEdit}
+            />
+          )}
+          {!hasProposed && (
+            <button
+              type="button"
+              onClick={onToggleNote}
+              style={{ display: 'block', marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--gold-text)', textDecoration: 'underline', textUnderlineOffset: '2px', padding: '2px 0' }}
+            >
+              {noteMode ? 'Correct the value instead' : 'This is an advisory flag — add a note instead'}
+            </button>
+          )}
           <button
             type="button"
             onClick={onSaveEdit}
@@ -560,6 +591,10 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
   );
   // Which flag card has the edit input open
   const [editOpenIndex, setEditOpenIndex] = useState<number | null>(null);
+  // Advisory notes per flag (for flags without proposed value)
+  const [flagNotes, setFlagNotes] = useState<Record<number, string>>({});
+  // Whether each flag's edit panel is in note mode
+  const [noteModeFlags, setNoteModeFlags] = useState<Record<number, boolean>>({});
 
   const [userId, setUserId] = useState<string | null>(null);
   const toast = useToast();
@@ -631,8 +666,9 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
           action:        state === 'pending' ? 'unresolved' : state,
           originalValue: originalValue,
           newValue:      state === 'fixed'  ? flag.proposed
-                       : state === 'edited' ? (flagEdits[i] ?? null)
+                       : state === 'edited' && !noteModeFlags[i] ? (flagEdits[i] ?? null)
                        : null,
+          notes:         flagNotes[i]?.trim() || null,
         };
       });
 
@@ -792,6 +828,11 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
                           <span style={{ color: 'var(--text3)' }}>Value: </span>{finalValue}
                         </p>
                       ) : null}
+                      {flagNotes[i]?.trim() && (
+                        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--text2)', margin: '3px 0 0', fontStyle: 'italic' }}>
+                          <span style={{ color: 'var(--text3)', fontStyle: 'normal' }}>Note: </span>{flagNotes[i].trim()}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -841,6 +882,10 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
                     onDelete={() => handleDelete(i)}
                     onUndo={() => handleUndo(i)}
                     isLast={i === flags.length - 1}
+                    noteMode={noteModeFlags[i] ?? false}
+                    onToggleNote={() => setNoteModeFlags((prev) => ({ ...prev, [i]: !prev[i] }))}
+                    noteValue={flagNotes[i] ?? ''}
+                    onNoteChange={(val) => setFlagNotes((prev) => ({ ...prev, [i]: val }))}
                   />
                 ))}
               </div>

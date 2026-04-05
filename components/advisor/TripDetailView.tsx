@@ -6,6 +6,7 @@ import { VERSION } from '@/lib/version';
 import { Button } from '@/components/ui/Button';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
 import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
+import { ToastProvider, useToast } from '@/components/ui/Toast';
 import type { Trip } from '@/types/trips';
 
 const TABS = [
@@ -41,6 +42,7 @@ function formatDateRange(departure: string, returnDate: string): string {
 interface TripDetailViewProps {
   trip:                   Trip;
   hasImport?:             boolean;
+  hasSectionData?:        boolean;
   itineraryContent?:      React.ReactNode;
   flightsContent?:        React.ReactNode;
   hotelsContent?:         React.ReactNode;
@@ -51,9 +53,10 @@ interface TripDetailViewProps {
   keyInfoContent?:        React.ReactNode;
 }
 
-export function TripDetailView({
+function TripDetailViewInner({
   trip,
   hasImport = false,
+  hasSectionData = false,
   itineraryContent,
   flightsContent,
   hotelsContent,
@@ -64,6 +67,7 @@ export function TripDetailView({
   keyInfoContent,
 }: TripDetailViewProps) {
   const router = useRouter();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('Itinerary');
 
   // Import modal
@@ -110,6 +114,7 @@ export function TripDetailView({
 
 const handleImportClose = () => {
     if (importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing' || importPhase === 'navigating') return;
+    if (importPhase !== 'idle') toast.show('Import cancelled', 'neutral');
     setImportOpen(false);
     setSelectedFile(null);
     setImportPhase('idle');
@@ -376,6 +381,7 @@ const handleImportClose = () => {
         <style>{`
           @media (max-width: 1023px) { .helm-detail-main { padding-left: 24px !important; padding-right: 24px !important; } }
           @media (max-width: 767px)  { .helm-detail-main { padding-left: 16px !important; padding-right: 16px !important; } }
+          @keyframes helm-progress-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
         `}</style>
 
         {/* Trip hero */}
@@ -437,7 +443,7 @@ const handleImportClose = () => {
             <Button
               variant="primary"
               onClick={() => {
-                if (importDone) {
+                if (importDone && hasSectionData) {
                   setReimportConfirmOpen(true);
                 } else {
                   setImportOpen(true);
@@ -754,19 +760,24 @@ const handleImportClose = () => {
             /* Processing state */
             <div style={{ padding: '32px 32px 40px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {/* Progress bar — visible once streaming begins */}
-              {(importProgress > 0 || importPhase === 'parsing' || importPhase === 'navigating') && (
-                <div style={{ width: '100%', height: '8px', background: 'var(--bg3)', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      height: '100%',
-                      background: 'var(--gold)',
-                      borderRadius: '4px',
-                      width: `${Math.min(totalChars > 0 ? (importProgress / totalChars) * 100 : 100, 100)}%`,
-                      transition: 'width 0.2s ease',
-                    }}
-                  />
-                </div>
-              )}
+              {(importProgress > 0 || importPhase === 'parsing' || importPhase === 'navigating') && (() => {
+                const isPulsing = importPhase === 'parsing' || importPhase === 'navigating' ||
+                  (totalChars > 0 && importProgress >= totalChars * 0.95);
+                return (
+                  <div style={{ width: '100%', height: '8px', background: 'var(--bg3)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        background: 'var(--gold)',
+                        borderRadius: '4px',
+                        width: isPulsing ? '100%' : `${Math.min(totalChars > 0 ? (importProgress / totalChars) * 100 : 100, 100)}%`,
+                        transition: isPulsing ? 'none' : 'width 0.2s ease',
+                        animation: isPulsing ? 'helm-progress-pulse 2s ease-in-out infinite' : 'none',
+                      }}
+                    />
+                  </div>
+                );
+              })()}
               {/* Status text */}
               <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text2)', margin: 0 }}>
                 {importPhase === 'reading'
@@ -806,7 +817,7 @@ const handleImportClose = () => {
         <ModalHeader title="Re-import Document" onClose={() => setReimportConfirmOpen(false)} />
         <ModalBody>
           <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text)', lineHeight: 1.6 }}>
-            Importing a new document will replace your existing import data. Continue?
+            Importing a new document may add to or overwrite existing trip data. Continue?
           </p>
         </ModalBody>
         <ModalFooter>
@@ -984,5 +995,13 @@ const handleImportClose = () => {
       </footer>
 
     </div>
+  );
+}
+
+export function TripDetailView(props: TripDetailViewProps) {
+  return (
+    <ToastProvider>
+      <TripDetailViewInner {...props} />
+    </ToastProvider>
   );
 }
