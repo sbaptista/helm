@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ToastProvider } from '@/components/ui/Toast';
+import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { VERSION } from '@/lib/version';
 import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
@@ -562,9 +562,11 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
   const [editOpenIndex, setEditOpenIndex] = useState<number | null>(null);
 
   const [userId, setUserId] = useState<string | null>(null);
+  const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [confirmSuccess, setConfirmSuccess] = useState<string | null>(null);
+  const [confirmCounts, setConfirmCounts] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data }) => {
@@ -655,8 +657,12 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
       sessionStorage.setItem(`helm_import_done_${tripId}`, '1');
 
       const totalSections = typeof json.totalSections === 'number' ? json.totalSections : '?';
+      const counts = (json.counts as Record<string, number>) ?? {};
+      setConfirmCounts(counts);
       setConfirming(false);
-      setConfirmSuccess(`Import complete — ${totalSections} section${totalSections === 1 ? '' : 's'} imported.`);
+      const msg = `Import complete — ${totalSections} section${totalSections === 1 ? '' : 's'} imported.`;
+      setConfirmSuccess(msg);
+      toast.success(msg);
     } catch (err) {
       setConfirming(false);
       setConfirmError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
@@ -695,62 +701,165 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
           @media (max-width: 767px)  { .helm-review-main { padding-left: 16px !important; padding-right: 16px !important; } }
         `}</style>
 
-        {/* Page heading */}
-        <div style={{ marginBottom: '8px' }}>
-          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '32px', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.2, marginBottom: '6px' }}>
-            Review Import
-          </h1>
-          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)' }}>
-            {payload.tripTitle}
-          </p>
-        </div>
+        {confirmSuccess ? (
+          /* ── Post-import summary panel ──────────────────────────────────── */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-        {/* ── Flags card ──────────────────────────────────────────────────────── */}
-        {hasFlags && (
-          <div style={{ background: 'rgba(180,130,30,0.06)', border: '1px solid rgba(180,130,30,0.25)', borderRadius: 'var(--r-xl)', padding: '20px 24px' }}>
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--gold-text)', marginBottom: '14px' }}>
-              Needs Review — {unresolvedCount > 0 ? `${unresolvedCount} of ${flags.length} unresolved` : `${flags.length} resolved`}
-            </p>
-
-            {flags.map((flag, i) => (
-              <FlagCard
-                key={i}
-                flag={flag}
-                index={i}
-                state={flagStates[i]}
-                editValue={flagEdits[i] ?? ''}
-                editOpen={editOpenIndex === i}
-                onFix={() => handleFix(i)}
-                onOpenEdit={() => handleOpenEdit(i)}
-                onEdit={(val) => setFlagEdits((prev) => ({ ...prev, [i]: val }))}
-                onSaveEdit={() => handleSaveEdit(i)}
-                onCancelEdit={() => setEditOpenIndex(null)}
-                onKeep={() => handleKeep(i)}
-                onDelete={() => handleDelete(i)}
-                onUndo={() => handleUndo(i)}
-                isLast={i === flags.length - 1}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Section cards */}
-        {SECTIONS.map(({ key, label }) => (
-          <SectionCard key={key} label={label} items={result[key] ?? []} />
-        ))}
-
-        {/* Unmapped card */}
-        {hasUnmapped && (
-          <div style={{ background: 'var(--bg2)', borderRadius: 'var(--r-xl)', border: '1px solid var(--border2)', boxShadow: 'var(--shadow)', padding: '20px 24px' }}>
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: '12px' }}>
-              Unmapped Data — {result.unmapped.length} {result.unmapped.length === 1 ? 'item' : 'items'}
-            </p>
-            {result.unmapped.map((item, i) => (
-              <p key={i} style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text2)', padding: '6px 0', borderBottom: i < result.unmapped.length - 1 ? '1px solid var(--border2)' : 'none' }}>
-                {item}
+            {/* Heading */}
+            <div style={{ marginBottom: '8px' }}>
+              <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '32px', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.2, marginBottom: '6px' }}>
+                Import Complete
+              </h1>
+              <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)' }}>
+                {payload.tripTitle}
               </p>
-            ))}
+            </div>
+
+            {/* Records imported */}
+            {confirmCounts && SECTIONS.some(({ key }) => (confirmCounts[key] ?? 0) > 0) && (
+              <div style={{ background: 'var(--bg2)', borderRadius: 'var(--r-xl)', border: '1px solid var(--border2)', boxShadow: 'var(--shadow)', padding: '20px 24px' }}>
+                <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: '12px' }}>
+                  Records Imported
+                </p>
+                {SECTIONS.filter(({ key }) => (confirmCounts[key] ?? 0) > 0).map(({ key, label }, idx, arr) => (
+                  <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: idx < arr.length - 1 ? '1px solid var(--border2)' : 'none' }}>
+                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text2)' }}>{label}</span>
+                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--navy)' }}>{confirmCounts[key]}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Flags summary */}
+            {hasFlags && (
+              <div style={{ background: 'var(--bg2)', borderRadius: 'var(--r-xl)', border: '1px solid var(--border2)', boxShadow: 'var(--shadow)', padding: '20px 24px' }}>
+                <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: '12px' }}>
+                  Flags — {flags.length} total
+                </p>
+
+                {/* Breakdown badges */}
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--border2)' }}>
+                  {(['fixed', 'edited', 'keep', 'deleted'] as const).map((s) => {
+                    const count = flags.filter((_, i) => flagStates[i] === s).length;
+                    if (count === 0) return null;
+                    return (
+                      <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <ResolutionBadge state={s} />
+                        <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--text3)' }}>{count}</span>
+                      </div>
+                    );
+                  })}
+                  {(() => {
+                    const n = flags.filter((_, i) => flagStates[i] === 'pending').length;
+                    return n > 0 ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text3)', background: 'var(--bg3)', padding: '2px 7px', borderRadius: '8px' }}>Unresolved</span>
+                        <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--text3)' }}>{n}</span>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+
+                {/* Flag detail rows */}
+                {flags.map((flag, i) => {
+                  const state = flagStates[i];
+                  const finalValue = state === 'fixed'
+                    ? flag.proposed
+                    : state === 'edited'
+                    ? flagEdits[i]
+                    : state === 'deleted'
+                    ? null
+                    : (() => {
+                        const ref = tryParseFieldRef(flag.field);
+                        if (!ref) return null;
+                        const arr = result[ref.section as keyof ImportResult];
+                        if (!Array.isArray(arr) || ref.index >= arr.length) return null;
+                        const fieldName = flag.field.replace(/^\w+\[\d+\]\.?/, '');
+                        return fieldName ? String((arr[ref.index] as Record<string, unknown>)[fieldName] ?? '') : null;
+                      })();
+
+                  return (
+                    <div key={i} style={{ padding: '10px 0', borderBottom: i < flags.length - 1 ? '1px solid var(--border2)' : 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                        <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, color: 'var(--navy)' }}>{flag.field}</span>
+                        <ResolutionBadge state={state} />
+                      </div>
+                      <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--text3)', margin: '0 0 4px' }}>{flag.issue}</p>
+                      {state === 'deleted' ? (
+                        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--red)', margin: 0, fontStyle: 'italic' }}>Record deleted</p>
+                      ) : finalValue ? (
+                        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--text2)', margin: 0 }}>
+                          <span style={{ color: 'var(--text3)' }}>Value: </span>{finalValue}
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
           </div>
+        ) : (
+          /* ── Normal review content ──────────────────────────────────────── */
+          <>
+            {/* Page heading */}
+            <div style={{ marginBottom: '8px' }}>
+              <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '32px', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.2, marginBottom: '6px' }}>
+                Review Import
+              </h1>
+              <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)' }}>
+                {payload.tripTitle}
+              </p>
+            </div>
+
+            {/* ── Flags card ────────────────────────────────────────────────── */}
+            {hasFlags && (
+              <div style={{ background: 'rgba(180,130,30,0.06)', border: '1px solid rgba(180,130,30,0.25)', borderRadius: 'var(--r-xl)', padding: '20px 24px' }}>
+                <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--gold-text)', marginBottom: '14px' }}>
+                  Needs Review — {unresolvedCount > 0 ? `${unresolvedCount} of ${flags.length} unresolved` : `${flags.length} resolved`}
+                </p>
+
+                {flags.map((flag, i) => (
+                  <FlagCard
+                    key={i}
+                    flag={flag}
+                    index={i}
+                    state={flagStates[i]}
+                    editValue={flagEdits[i] ?? ''}
+                    editOpen={editOpenIndex === i}
+                    onFix={() => handleFix(i)}
+                    onOpenEdit={() => handleOpenEdit(i)}
+                    onEdit={(val) => setFlagEdits((prev) => ({ ...prev, [i]: val }))}
+                    onSaveEdit={() => handleSaveEdit(i)}
+                    onCancelEdit={() => setEditOpenIndex(null)}
+                    onKeep={() => handleKeep(i)}
+                    onDelete={() => handleDelete(i)}
+                    onUndo={() => handleUndo(i)}
+                    isLast={i === flags.length - 1}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Section cards */}
+            {SECTIONS.map(({ key, label }) => (
+              <SectionCard key={key} label={label} items={result[key] ?? []} />
+            ))}
+
+            {/* Unmapped card */}
+            {hasUnmapped && (
+              <div style={{ background: 'var(--bg2)', borderRadius: 'var(--r-xl)', border: '1px solid var(--border2)', boxShadow: 'var(--shadow)', padding: '20px 24px' }}>
+                <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: '12px' }}>
+                  Unmapped Data — {result.unmapped.length} {result.unmapped.length === 1 ? 'item' : 'items'}
+                </p>
+                {result.unmapped.map((item, i) => (
+                  <p key={i} style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text2)', padding: '6px 0', borderBottom: i < result.unmapped.length - 1 ? '1px solid var(--border2)' : 'none' }}>
+                    {item}
+                  </p>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
       </main>
