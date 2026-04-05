@@ -1,4 +1,4 @@
 export const VERSION = {
-  version: "00.01.0042",
-  label: "fix: cancel toast scope, re-import confirmation cross-table check"
+  version: "00.01.0043",
+  label: "fix: file stream consumed by progress bar pre-read"
 };

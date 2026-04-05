@@ -128,19 +128,21 @@ const handleImportClose = () => {
     setImportProgress(0);
     setTotalChars(0);
 
-    // Pre-calculate character count for progress bar
-    let chars = 0;
+    // Read the file once: byte count for the progress bar and a fresh Blob for
+    // the upload. Reading the original File twice can exhaust its internal stream,
+    // causing the API to receive an empty body.
+    let uploadBlob: Blob = selectedFile;
     try {
-      const text = await selectedFile.text();
-      chars = text.length;
+      const buffer = await selectedFile.arrayBuffer();
+      setTotalChars(buffer.byteLength);
+      uploadBlob = new Blob([buffer], { type: selectedFile.type });
     } catch {
-      chars = selectedFile.size;
+      setTotalChars(selectedFile.size);
     }
-    setTotalChars(chars);
 
     try {
       const form = new FormData();
-      form.append('file', selectedFile);
+      form.append('file', uploadBlob, selectedFile.name);
       form.append('tripId', trip.id);
       form.append('departureDate', trip.departure_date ?? '');
       form.append('returnDate', trip.return_date ?? '');
