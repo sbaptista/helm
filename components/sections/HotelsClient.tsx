@@ -555,7 +555,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
               type="checkbox"
               checked={form.action_required}
               onChange={e => setField('action_required', e.target.checked)}
-              style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer' }}
+              style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0, appearance: 'auto', WebkitAppearance: 'auto' }}
             />
             <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
           </label>
