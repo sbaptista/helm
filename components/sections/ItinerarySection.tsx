@@ -33,7 +33,7 @@ function formatTime(iso: string): string {
 }
 
 function categoryColor(cat: string): { bg: string; text: string; border: string } {
-  const c = cat.toLowerCase();
+  const c = (cat ?? '').toLowerCase();
   if (c === 'flight' || c.includes('air'))
     return { bg: 'var(--bg3)', text: 'var(--navy)', border: 'var(--border2)' };
   if (c === 'hotel' || c.includes('accommodation') || c.includes('lodge') || c.includes('resort'))
