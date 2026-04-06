@@ -403,7 +403,7 @@ export function DashboardView({ trips, userEmail, fetchError }: DashboardViewPro
               letterSpacing: '0.04em',
             }}
           >
-            v{VERSION.version}
+            v{VERSION}
           </span>
         </footer>
 

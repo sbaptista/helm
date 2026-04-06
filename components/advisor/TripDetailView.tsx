@@ -990,7 +990,7 @@ const handleImportClose = () => {
             letterSpacing: '0.04em',
           }}
         >
-          v{VERSION.version}
+          v{VERSION}
         </span>
       </footer>
 

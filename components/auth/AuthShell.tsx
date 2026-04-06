@@ -141,7 +141,7 @@ export function AuthShell({ children }: AuthShellProps) {
               pointerEvents: 'none',
             }}
           >
-            v{VERSION.version}
+            v{VERSION}
           </span>
         </div>
 

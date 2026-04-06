@@ -156,7 +156,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const { showToast } = useToast()
+  const toast = useToast()
 
   // Group nearby dining by hotel_id
   const diningByHotel = nearbyDining.reduce<Record<string, NearbyDining[]>>((acc, row) => {
@@ -235,7 +235,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
           body: JSON.stringify(payload),
         })
         if (!res.ok) throw new Error()
-        showToast('Hotel updated', 'success')
+        toast.show('Hotel updated', 'success')
       } else {
         const res = await fetch(`/api/trips/${tripId}/hotels`, {
           method: 'POST',
@@ -243,13 +243,13 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
           body: JSON.stringify(payload),
         })
         if (!res.ok) throw new Error()
-        showToast('Hotel added', 'success')
+        toast.show('Hotel added', 'success')
       }
 
       await refetch()
       closeSheet()
     } catch {
-      showToast('Something went wrong', 'neutral')
+      toast.show('Something went wrong', 'neutral')
     } finally {
       setSaving(false)
     }
@@ -261,11 +261,11 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
     try {
       const res = await fetch(`/api/hotels/${editingHotel.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
-      showToast('Hotel removed', 'neutral')
+      toast.show('Hotel removed', 'neutral')
       await refetch()
       closeSheet()
     } catch {
-      showToast('Something went wrong', 'neutral')
+      toast.show('Something went wrong', 'neutral')
     } finally {
       setDeleting(false)
     }
@@ -395,7 +395,6 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                       justifyContent: 'space-between',
                       cursor: 'pointer',
                       border: 'none',
-                      borderTop: '1px solid rgba(0,0,0,0.06)',
                       textAlign: 'left',
                     }}
                   >
