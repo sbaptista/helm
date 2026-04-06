@@ -147,7 +147,7 @@ function DiningRow({ d }: { d: NearbyDining }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
+export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
   const [hotels, setHotels] = useState<Hotel[]>(initialHotels)
   const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)

@@ -1,7 +1,7 @@
 // components/sections/HotelsSection.tsx
 
 import { createClient } from '@supabase/supabase-js'
-import HotelsClient from './HotelsClient'
+import { HotelsClient } from './HotelsClient'
 
 function serverClient() {
   return createClient(
@@ -10,7 +10,7 @@ function serverClient() {
   )
 }
 
-export default async function HotelsSection({ tripId }: { tripId: string }) {
+export async function HotelsSection({ tripId }: { tripId: string }) {
   const supabase = serverClient()
 
   const [hotelsResult, diningResult] = await Promise.all([
