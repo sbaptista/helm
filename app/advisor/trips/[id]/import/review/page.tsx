@@ -1010,7 +1010,7 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
       {/* Version footer */}
       <footer style={{ textAlign: 'center', paddingBottom: 'calc(96px + var(--sab))', paddingTop: '8px' }}>
         <span style={{ fontSize: '11px', fontFamily: "'Lato', sans-serif", color: 'var(--text3)', opacity: 0.5, letterSpacing: '0.04em' }}>
-          v{VERSION.version}
+          v{VERSION}
         </span>
       </footer>
     </div>
