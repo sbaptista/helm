@@ -1,31 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-
-interface TransportRecord {
-  id: string;
-  type: string | null;
-  provider: string | null;
-  origin: string | null;
-  destination: string | null;
-  departure_time: string | null;
-  arrival_time: string | null;
-  confirmation_number: string | null;
-  notes: string | null;
-}
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return '—';
-  const [datePart, rest] = iso.split('T');
-  if (!datePart || !rest) return iso;
-  const [year, month, day] = datePart.split('-').map(Number);
-  const timeStr = rest.split(/[+Z]/)[0];
-  const [h, m] = timeStr.split(':').map(Number);
-  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const weekday = weekdays[new Date(year, month - 1, day).getDay()];
-  const suffix = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 || 12;
-  return `${weekday}, ${months[month - 1]} ${day} · ${h12}:${String(m).padStart(2, '0')} ${suffix}`;
-}
+import { TransportationClient } from './TransportationClient';
+import type { Transportation } from './TransportationClient';
 
 export async function TransportationSection({ tripId }: { tripId: string }) {
   const supabase = createClient(
@@ -33,98 +8,17 @@ export async function TransportationSection({ tripId }: { tripId: string }) {
     process.env.SUPABASE_SECRET_KEY!
   );
 
-  const { data: records } = await supabase
+  const { data: transportations } = await supabase
     .from('transportation')
-    .select('id, type, provider, origin, destination, departure_time, arrival_time, confirmation_number, notes')
+    .select('id, trip_id, type, provider, origin, destination, departure_time, arrival_time, confirmation_number, notes, sort_order, included, action_required, phone, website_url, cost')
     .eq('trip_id', tripId)
     .is('deleted_at', null)
-    .order('departure_time');
-
-  if (!records?.length) {
-    return (
-      <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', padding: '48px 0', textAlign: 'center' }}>
-        No transportation yet.
-      </p>
-    );
-  }
+    .order('departure_time', { ascending: true });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {(records as TransportRecord[]).map((r) => (
-        <div
-          key={r.id}
-          style={{
-            background: 'var(--bg2)',
-            border: '1px solid var(--border2)',
-            borderRadius: 'var(--r-lg)',
-            padding: '20px 24px',
-            boxShadow: 'var(--shadow)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-          }}
-        >
-          {/* Type + provider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            {r.type && (
-              <span style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: '12px',
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                color: 'var(--slate)',
-                background: 'var(--bg3)',
-                border: '1px solid var(--border2)',
-                borderRadius: '20px',
-                padding: '3px 10px',
-              }}>
-                {r.type}
-              </span>
-            )}
-            {r.provider && (
-              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', fontWeight: 700, color: 'var(--text)' }}>
-                {r.provider}
-              </span>
-            )}
-          </div>
-
-          {/* Route */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', fontWeight: 600, color: 'var(--navy)' }}>
-              {r.origin ?? '—'}
-            </span>
-            <svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden="true" style={{ color: 'var(--text3)', flexShrink: 0 }}>
-              <path d="M2 5h16M13 1l5 4-5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', fontWeight: 600, color: 'var(--navy)' }}>
-              {r.destination ?? '—'}
-            </span>
-          </div>
-
-          {/* Times */}
-          <div style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            <span>{formatDateTime(r.departure_time)}</span>
-            <span aria-hidden="true">→</span>
-            <span>{formatDateTime(r.arrival_time)}</span>
-          </div>
-
-          {/* Confirmation */}
-          {r.confirmation_number && (
-            <div style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)' }}>
-              <span style={{ fontWeight: 700, color: 'var(--text2)' }}>Conf: </span>
-              {r.confirmation_number}
-            </div>
-          )}
-
-          {/* Notes */}
-          {r.notes && (
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5, marginTop: '2px' }}>
-              {r.notes}
-            </p>
-          )}
-        </div>
-      ))}
-    </div>
+    <TransportationClient
+      tripId={tripId}
+      initialTransportations={(transportations ?? []) as Transportation[]}
+    />
   );
 }
