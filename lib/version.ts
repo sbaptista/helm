@@ -1,2 +1,2 @@
 // lib/version.ts
-export const VERSION = '00.01.0051'
+export const VERSION = '00.01.0052'

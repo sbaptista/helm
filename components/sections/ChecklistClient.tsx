@@ -740,6 +740,35 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
               </div>
             )
           })}
+
+          {/* Divider */}
+          <div style={{ borderTop: '1px solid var(--border2)', marginTop: '8px', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <FormField label="New Group">
+                  <input
+                    type="text"
+                    value={newGroupName}
+                    onChange={e => setNewGroupName(e.target.value)}
+                    placeholder="e.g. 🏨 Hotels"
+                    style={inputStyle()}
+                    onKeyDown={e => { if (e.key === 'Enter') handleCreateGroup() }}
+                  />
+                </FormField>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleCreateGroup}
+                loading={creatingGroup}
+                disabled={!newGroupName.trim() || creatingGroup}
+                style={{ marginBottom: '1px' }}
+              >
+                Create
+              </Button>
+            </div>
+          </div>
+
         </div>
       </BottomSheet>
     </div>
