@@ -1,148 +1,25 @@
-import { createClient } from '@supabase/supabase-js';
-
-interface Restaurant {
-  id: string;
-  name: string | null;
-  cuisine: string | null;
-  city: string | null;
-  address: string | null;
-  reservation_time: string | null;
-  confirmation_number: string | null;
-  phone: string | null;
-  website_url: string | null;
-  notes: string | null;
-}
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return '—';
-  const [datePart, rest] = iso.split('T');
-  if (!datePart || !rest) return iso;
-  const [year, month, day] = datePart.split('-').map(Number);
-  const timeStr = rest.split(/[+Z]/)[0];
-  const [h, m] = timeStr.split(':').map(Number);
-  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const weekday = weekdays[new Date(year, month - 1, day).getDay()];
-  const suffix = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 || 12;
-  return `${weekday}, ${months[month - 1]} ${day} · ${h12}:${String(m).padStart(2, '0')} ${suffix}`;
-}
+import { createClient } from '@supabase/supabase-js'
+import { RestaurantsClient } from './RestaurantsClient'
 
 export async function RestaurantsSection({ tripId }: { tripId: string }) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!
-  );
+  )
 
   const { data: restaurants } = await supabase
     .from('restaurants')
-    .select('id, name, cuisine, city, address, reservation_time, confirmation_number, phone, website_url, notes')
+    .select(
+      'id, trip_id, name, cuisine, city, address, reservation_time, party_size, style, confirmation_number, phone, website_url, notes, included, action_required'
+    )
     .eq('trip_id', tripId)
     .is('deleted_at', null)
-    .order('reservation_time');
-
-  if (!restaurants?.length) {
-    return (
-      <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', padding: '48px 0', textAlign: 'center' }}>
-        No restaurants yet.
-      </p>
-    );
-  }
+    .order('reservation_time')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {(restaurants as Restaurant[]).map((r) => (
-        <div
-          key={r.id}
-          style={{
-            background: 'var(--bg2)',
-            border: '1px solid var(--border2)',
-            borderRadius: 'var(--r-lg)',
-            padding: '20px 24px',
-            boxShadow: 'var(--shadow)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-          }}
-        >
-          {/* Name + cuisine + city */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.25 }}>
-              {r.name ?? '—'}
-            </span>
-            {r.cuisine && (
-              <span style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: '12px',
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                color: 'var(--green)',
-                background: 'var(--bg3)',
-                border: '1px solid var(--border2)',
-                borderRadius: '20px',
-                padding: '3px 10px',
-              }}>
-                {r.cuisine}
-              </span>
-            )}
-            {r.city && (
-              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', marginLeft: 'auto' }}>
-                {r.city}
-              </span>
-            )}
-          </div>
-
-          {/* Address */}
-          {r.address && (
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)' }}>
-              {r.address}
-            </p>
-          )}
-
-          {/* Reservation time */}
-          {r.reservation_time && (
-            <div style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)' }}>
-              <span style={{ fontWeight: 700, color: 'var(--text2)' }}>Reservation: </span>
-              {formatDateTime(r.reservation_time)}
-            </div>
-          )}
-
-          {/* Confirmation */}
-          {r.confirmation_number && (
-            <div style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)' }}>
-              <span style={{ fontWeight: 700, color: 'var(--text2)' }}>Conf: </span>
-              {r.confirmation_number}
-            </div>
-          )}
-
-          {/* Phone + website */}
-          {(r.phone || r.website_url) && (
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontFamily: "'Lato', sans-serif", fontSize: '13px' }}>
-              {r.phone && (
-                <span style={{ color: 'var(--text3)' }}>{r.phone}</span>
-              )}
-              {r.website_url && (
-                <a
-                  href={r.website_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: 'var(--gold-text)', textDecoration: 'underline', textUnderlineOffset: '2px' }}
-                >
-                  Website
-                </a>
-              )}
-            </div>
-          )}
-
-          {/* Notes */}
-          {r.notes && (
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5, marginTop: '2px' }}>
-              {r.notes}
-            </p>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+    <RestaurantsClient
+      tripId={tripId}
+      initialRestaurants={restaurants ?? []}
+    />
+  )
 }
