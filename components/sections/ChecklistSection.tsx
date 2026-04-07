@@ -14,7 +14,7 @@ export async function ChecklistSection({ tripId }: { tripId: string }) {
       .eq('trip_id', tripId)
       .is('deleted_at', null)
       .order('group_name', { ascending: true })
-      .order('item_number', { ascending: true }),
+      .order('item_number', { ascending: false }),
     supabase
       .from('checklist_groups')
       .select('*')

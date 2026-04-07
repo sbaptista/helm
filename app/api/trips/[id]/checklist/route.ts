@@ -33,7 +33,7 @@ export async function GET(
     .eq('trip_id', tripId)
     .is('deleted_at', null)
     .order('group_name', { ascending: true })
-    .order('item_number', { ascending: true })
+    .order('item_number', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }

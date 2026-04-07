@@ -373,10 +373,15 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
             </p>
           )}
         </div>
-        <Button variant="primary" size="sm" onClick={openAdd}>
-          <Plus size={16} />
-          Add Item
-        </Button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <Button variant="ghost" size="sm" onClick={() => setManageGroupsOpen(true)}>
+            Manage Groups
+          </Button>
+          <Button variant="primary" size="sm" onClick={openAdd}>
+            <Plus size={16} />
+            Add Item
+          </Button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -618,27 +623,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
             </div>
           )}
 
-          {/* Manage Groups link */}
-          <button
-            onClick={() => setManageGroupsOpen(true)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--gold-text)',
-              fontSize: '13px',
-              fontFamily: "'Lato', sans-serif",
-              cursor: 'pointer',
-              padding: '0',
-              textAlign: 'left',
-              textDecoration: 'underline',
-              textUnderlineOffset: '2px',
-              minHeight: '44px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            Manage Groups
-          </button>
+
 
           <FormField label="Reference">
             <input
