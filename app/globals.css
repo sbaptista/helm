@@ -94,7 +94,7 @@ body {
 }
 
 /* Remove default input appearance on iOS */
-input,
+input:not([type="checkbox"]),
 select,
 textarea {
   -webkit-appearance: none;
