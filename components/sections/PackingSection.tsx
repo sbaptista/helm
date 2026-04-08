@@ -12,7 +12,7 @@ interface Props {
   tripId: string
 }
 
-export default async function PackingSection({ tripId }: Props) {
+export async function PackingSection({ tripId }: Props) {
   const supabase = serviceClient()
 
   const [
