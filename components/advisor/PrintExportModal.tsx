@@ -17,6 +17,7 @@ interface PrintExportModalProps {
   initialItinRows?: any[];
   initialTransportation?: any[];
   initialRestaurants?: any[];
+  tripTitle: string;
 }
 
 type PrintTab = 'packet' | 'cards';
