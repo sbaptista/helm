@@ -249,3 +249,21 @@ button {
   text-transform: uppercase;
   font-family: 'Lato', sans-serif;
 }
+
+.section-row {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background var(--transition);
+}
+
+.section-row:hover {
+  background: var(--bg3);
+}

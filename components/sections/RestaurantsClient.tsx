@@ -249,18 +249,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
           <button
             key={r.id}
             onClick={() => openEdit(r)}
-            style={{
-              width: '100%',
-              background: 'var(--bg2)',
-              border: '1px solid var(--border2)',
-              borderRadius: 'var(--r)',
-              padding: '14px 16px',
-              cursor: 'pointer',
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-            }}
+            className="section-row"
           >
             {/* Row 1: name + badges */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

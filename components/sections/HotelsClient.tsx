@@ -311,16 +311,13 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
             <div
               key={hotel.id}
               style={{
-                background: 'var(--bg2)',
-                borderRadius: '12px',
-                border: '1px solid var(--bg3)',
                 overflow: 'hidden',
               }}
             >
               {/* Hotel card — tap to edit */}
               <div
                 onClick={() => openEdit(hotel)}
-                style={{ padding: '16px', cursor: 'pointer' }}
+                className="section-row"
               >
                 {/* Name + badges */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>

@@ -1,0 +1,9 @@
+- [x] Update data fetching in `app/advisor/trips/[id]/page.tsx`
+- [x] Update `components/advisor/TripDetailView.tsx` props and pass data
+- [x] Update `components/advisor/PrintExportModal.tsx`
+    - [x] Add new props and state
+    - [x] Update UI selection buttons
+    - [x] Implement Transportation card rendering
+    - [x] Implement Restaurant card rendering
+- [x] Bump version in `lib/version.ts`
+- [x] Verify functionality

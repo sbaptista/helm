@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getURL } from '@/lib/utils';
 import { type NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest): Promise<Response> {
@@ -39,10 +40,10 @@ export async function GET(request: NextRequest): Promise<Response> {
         }
       }
 
-      return Response.redirect(new URL('/advisor/dashboard', request.url));
+      return Response.redirect(new URL('/advisor/dashboard', getURL()));
     }
   }
 
   // No code present, or session exchange failed
-  return Response.redirect(new URL('/auth/login?error=true', request.url));
+  return Response.redirect(new URL('/auth/login?error=true', getURL()));
 }

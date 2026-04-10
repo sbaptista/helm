@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
 import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
+import { PrintExportModal } from '@/components/advisor/PrintExportModal';
 import type { Trip } from '@/types/trips';
 
 const TABS = [
@@ -51,6 +52,13 @@ interface TripDetailViewProps {
   checklistContent?:      React.ReactNode;
   packingContent?:        React.ReactNode;
   keyInfoContent?:        React.ReactNode;
+  days?: { id: string; day_number: number; day_date: string; title: string }[];
+  flightsData?: any[];
+  hotelsData?: any[];
+  keyInfoData?: any[];
+  itinRowsData?: any[];
+  transportationData?: any[];
+  restaurantsData?: any[];
 }
 
 function TripDetailViewInner({
@@ -65,6 +73,13 @@ function TripDetailViewInner({
   checklistContent,
   packingContent,
   keyInfoContent,
+  days = [],
+  flightsData = [],
+  hotelsData = [],
+  keyInfoData = [],
+  itinRowsData = [],
+  transportationData = [],
+  restaurantsData = [],
 }: TripDetailViewProps) {
   const router = useRouter();
   const toast = useToast();
@@ -111,6 +126,9 @@ function TripDetailViewInner({
   const [clearConfirming, setClearConfirming] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
   const [clearSuccess, setClearSuccess] = useState(false);
+
+  // Print modal
+  const [printOpen, setPrintOpen] = useState(false);
 
 const handleImportClose = () => {
     if (importPhase !== 'idle') toast.show('Import cancelled', 'neutral');
@@ -441,19 +459,27 @@ const handleImportClose = () => {
 
           {/* Right: actions */}
           <div style={{ flexShrink: 0, paddingTop: '6px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
-            <Button
-              variant="primary"
-              onClick={() => {
-                if (importDone && hasSectionData) {
-                  setReimportConfirmOpen(true);
-                } else {
-                  setImportOpen(true);
-                }
-              }}
-              disabled={importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing' || importPhase === 'navigating'}
-            >
-              Import Document
-            </Button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  if (importDone && hasSectionData) {
+                    setReimportConfirmOpen(true);
+                  } else {
+                    setImportOpen(true);
+                  }
+                }}
+                disabled={importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing' || importPhase === 'navigating'}
+              >
+                Import Document
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setPrintOpen(true)}
+              >
+                Print Trip
+              </Button>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <button
                 type="button"
@@ -993,6 +1019,26 @@ const handleImportClose = () => {
           v{VERSION}
         </span>
       </footer>
+
+      {/* Clear trip data modal */}
+      <Modal open={clearOpen} onClose={() => setClearOpen(false)}>
+        {/* ... existing clear modal content ... */}
+      </Modal>
+
+      {/* Print modal */}
+      <PrintExportModal
+        open={printOpen}
+        onClose={() => setPrintOpen(false)}
+        tripId={localTrip.id}
+        tripTitle={localTrip.title}
+        days={days}
+        initialFlights={flightsData}
+        initialHotels={hotelsData}
+        initialKeyInfo={keyInfoData}
+        initialItinRows={itinRowsData}
+        initialTransportation={transportationData}
+        initialRestaurants={restaurantsData}
+      />
 
     </div>
   );
