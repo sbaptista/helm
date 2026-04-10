@@ -1022,7 +1022,9 @@ const handleImportClose = () => {
 
       {/* Clear trip data modal */}
       <Modal open={clearOpen} onClose={() => setClearOpen(false)}>
-        {/* ... existing clear modal content ... */}
+        <>
+          {/* ... existing clear modal content ... */}
+        </>
       </Modal>
 
       {/* Print modal */}
