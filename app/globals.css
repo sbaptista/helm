@@ -267,3 +267,12 @@ button {
 .section-row:hover {
   background: var(--bg3);
 }
+
+.day-card {
+  background: var(--bg2);
+  transition: box-shadow 0.2s, background 0.2s;
+}
+.day-card:hover {
+  background: var(--cream) !important;
+  box-shadow: var(--shadow-md) !important;
+}

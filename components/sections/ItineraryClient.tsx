@@ -19,6 +19,7 @@ export type ItineraryDay = {
   location: string | null
   notes: string | null
   sort_order: number
+  type: 'flight' | 'train' | 'free' | 'transit'
 }
 
 export type ItineraryRow = {
@@ -32,13 +33,44 @@ export type ItineraryRow = {
   location: string | null
   category: string
   sort_order: number
+  timezone: string | null
+  is_all_day: boolean
 }
 
 type Props = {
   tripId: string
   initialDays: ItineraryDay[]
   initialRows: ItineraryRow[]
+  tripStartDate: string   // YYYY-MM-DD from trips.departure_date
+  tripEndDate: string     // YYYY-MM-DD from trips.return_date
 }
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const DAY_TYPE_ICONS: Record<string, string> = {
+  flight: '✈️',
+  train: '🚂',
+  free: '🌄',
+  transit: '🚌',
+}
+
+const DAY_TYPE_BORDER: Record<string, string> = {
+  flight:  'var(--gold)',
+  train:   'var(--navy)',
+  free:    'var(--green)',
+  transit: 'var(--slate)',
+}
+
+const TRIP_CITIES = [
+  { city: 'Honolulu',    tzid: 'Pacific/Honolulu' },
+  { city: 'Vancouver',   tzid: 'America/Vancouver' },
+  { city: 'Kamloops',    tzid: 'America/Vancouver' },
+  { city: 'Jasper',      tzid: 'America/Edmonton' },
+  { city: 'Lake Louise', tzid: 'America/Edmonton' },
+  { city: 'Banff',       tzid: 'America/Edmonton' },
+]
+
+const HST_TZ = 'Pacific/Honolulu'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -48,44 +80,71 @@ function formatDayDate(dateStr: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
-function formatTime(iso: string | null): string {
-  if (!iso) return ''
-  const raw = iso.split('T')[1]?.split(/[+Z]/)[0] ?? ''
-  const [h, m] = raw.split(':').map(Number)
-  if (isNaN(h) || isNaN(m)) return ''
-  const suffix = h >= 12 ? 'PM' : 'AM'
-  const h12 = h % 12 || 12
-  return `${h12}:${String(m).padStart(2, '0')} ${suffix}`
+// Display a UTC ISO timestamp in a given IANA timezone, returns "h:mm AM/PM TZ"
+function formatLocalTime(iso: string | null, tzid: string | null): string {
+  if (!iso || !tzid) return ''
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric', minute: '2-digit', hour12: true,
+      timeZone: tzid,
+    }).format(new Date(iso))
+  } catch { return '' }
 }
 
-function splitDatetime(iso: string | null): [string, string] {
-  if (!iso) return ['', '']
-  const tIdx = iso.indexOf('T')
-  if (tIdx === -1) return [iso, '']
-  return [iso.slice(0, tIdx), iso.slice(tIdx + 1, tIdx + 16)] // YYYY-MM-DD and HH:MM:SS
+// Display the abbreviated timezone name (e.g. "PDT", "HST")
+function formatTzAbbr(iso: string | null, tzid: string | null): string {
+  if (!iso || !tzid) return ''
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZoneName: 'short', timeZone: tzid,
+    }).formatToParts(new Date(iso)).find(p => p.type === 'timeZoneName')?.value ?? ''
+  } catch { return '' }
 }
 
-function joinDatetime(date: string, time: string): string | null {
-  if (!date) return null
-  return `${date}T${time || '00:00'}:00`
+// Build a UTC ISO string from a local date, time, and IANA timezone
+// e.g. ('2026-10-04', '08:30', 'America/Vancouver') -> '2026-10-04T15:30:00.000Z'
+function localToUtc(date: string, time: string, tzid: string): string | null {
+  if (!date || !time || !tzid) return null
+  try {
+    const assumed = new Date(`${date}T${time}:00`)
+    const inTz = new Date(assumed.toLocaleString('en-US', { timeZone: tzid }))
+    const diff = assumed.getTime() - inTz.getTime()
+    return new Date(assumed.getTime() + diff).toISOString()
+  } catch { return null }
+}
+
+// Extract local date and time strings from a UTC ISO for display in a form
+function utcToLocalParts(iso: string | null, tzid: string | null): [string, string] {
+  if (!iso || !tzid) return ['', '']
+  try {
+    const d = new Date(iso)
+    const datePart = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tzid, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(d) // returns YYYY-MM-DD
+    const timePart = new Intl.DateTimeFormat('en-US', {
+      timeZone: tzid, hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(d) // returns HH:MM
+    return [datePart, timePart]
+  } catch { return ['', ''] }
 }
 
 function dayToForm(d: ItineraryDay) {
   return {
-    day_number: d.day_number,
     day_date: d.day_date ?? '',
     title: d.title ?? '',
     location: d.location ?? '',
     notes: d.notes ?? '',
-    sort_order: d.sort_order,
+    type: d.type ?? 'free',
   }
 }
 
 function rowToForm(r: ItineraryRow) {
-  const [startDate, startTime] = splitDatetime(r.start_time)
-  const [endDate, endTime] = splitDatetime(r.end_time)
+  const tz = r.timezone ?? null
+  const [startDate, startTime] = utcToLocalParts(r.start_time, tz)
+  const [endDate, endTime] = utcToLocalParts(r.end_time, tz)
   return {
     day_id: r.day_id ?? '',
+    timezone: r.timezone ?? '',
     start_date: startDate,
     start_time_val: startTime,
     end_date: endDate,
@@ -95,6 +154,7 @@ function rowToForm(r: ItineraryRow) {
     location: r.location ?? '',
     category: r.category ?? '',
     sort_order: r.sort_order,
+    is_all_day: r.is_all_day ?? false,
   }
 }
 
@@ -113,27 +173,37 @@ function categoryColor(cat: string): { bg: string; text: string; border: string 
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ItineraryClient({ tripId, initialDays, initialRows }: Props) {
+export default function ItineraryClient({ tripId, initialDays, initialRows, tripStartDate, tripEndDate }: Props) {
   const [days, setDays] = useState<ItineraryDay[]>(initialDays)
   const [rows, setRows] = useState<ItineraryRow[]>(initialRows)
 
   const [daySheetOpen, setDaySheetOpen] = useState(false)
   const [rowSheetOpen, setRowSheetOpen] = useState(false)
-  
+
   const [editingDay, setEditingDay] = useState<ItineraryDay | null>(null)
   const [editingRow, setEditingRow] = useState<ItineraryRow | null>(null)
 
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
+
+  function toggleDay(dayId: string) {
+    setExpandedDays(prev => {
+      const next = new Set(prev)
+      next.has(dayId) ? next.delete(dayId) : next.add(dayId)
+      return next
+    })
+  }
+
   const EMPTY_DAY_FORM = {
-    day_number: days.length + 1,
     day_date: '',
     title: '',
     location: '',
     notes: '',
-    sort_order: days.length,
+    type: 'free',
   }
 
   const EMPTY_ROW_FORM = {
     day_id: '',
+    timezone: '',
     start_date: '',
     start_time_val: '',
     end_date: '',
@@ -143,15 +213,16 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
     location: '',
     category: 'Activity',
     sort_order: 0,
+    is_all_day: false,
   }
 
   const [dayForm, setDayForm] = useState(EMPTY_DAY_FORM)
   const [rowForm, setRowForm] = useState(EMPTY_ROW_FORM)
-  
+
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  
+
   const toast = useToast()
 
   const refetch = useCallback(async () => {
@@ -167,7 +238,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
 
   function openAddDay() {
     setEditingDay(null)
-    setDayForm({ ...EMPTY_DAY_FORM, day_number: days.length + 1, sort_order: days.length })
+    setDayForm({ ...EMPTY_DAY_FORM })
     setConfirmDelete(false)
     setDaySheetOpen(true)
   }
@@ -183,14 +254,13 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
     setSaving(true)
     try {
       const payload = {
-        day_number: dayForm.day_number,
         day_date: dayForm.day_date,
         title: dayForm.title.trim(),
         location: dayForm.location.trim() || null,
         notes: dayForm.notes.trim() || null,
-        sort_order: dayForm.sort_order,
+        type: dayForm.type,
       }
-      const res = editingDay 
+      const res = editingDay
         ? await fetch(`/api/itinerary/days/${editingDay.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -234,12 +304,12 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
     setEditingRow(null)
     const day = days.find(d => d.id === dayId)
     const dayRows = rows.filter(r => r.day_id === dayId)
-    setRowForm({ 
-      ...EMPTY_ROW_FORM, 
-      day_id: dayId, 
+    setRowForm({
+      ...EMPTY_ROW_FORM,
+      day_id: dayId,
       start_date: day?.day_date ?? '',
       end_date: day?.day_date ?? '',
-      sort_order: dayRows.length 
+      sort_order: dayRows.length
     })
     setConfirmDelete(false)
     setRowSheetOpen(true)
@@ -261,8 +331,10 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
         description: rowForm.description.trim() || null,
         location: rowForm.location.trim() || null,
         category: rowForm.category.trim() || null,
-        start_time: joinDatetime(rowForm.start_date, rowForm.start_time_val),
-        end_time: joinDatetime(rowForm.end_date, rowForm.end_time_val) || null,
+        timezone: rowForm.is_all_day ? null : rowForm.timezone || null,
+        is_all_day: rowForm.is_all_day,
+        start_time: rowForm.is_all_day ? null : localToUtc(rowForm.start_date, rowForm.start_time_val, rowForm.timezone),
+        end_time: rowForm.is_all_day ? null : (rowForm.end_date && rowForm.end_time_val ? localToUtc(rowForm.end_date, rowForm.end_time_val, rowForm.timezone) : null),
         sort_order: rowForm.sort_order,
       }
       const res = editingRow
@@ -303,7 +375,10 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
     }
   }
 
-  const sortedDays = useMemo(() => [...days].sort((a, b) => a.sort_order - b.sort_order), [days])
+  const sortedDays = useMemo(
+    () => [...days].sort((a, b) => a.day_date.localeCompare(b.day_date)),
+    [days]
+  )
   const rowsByDay = useMemo(() => {
     const map = new Map<string, ItineraryRow[]>()
     rows.forEach(r => {
@@ -311,13 +386,18 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
       arr.push(r)
       map.set(r.day_id, arr)
     })
-    map.forEach(arr => arr.sort((a, b) => a.sort_order - b.sort_order))
+    map.forEach(arr => arr.sort((a, b) => {
+      if (a.is_all_day && !b.is_all_day) return -1
+      if (!a.is_all_day && b.is_all_day) return 1
+      if (a.start_time && b.start_time) return a.start_time.localeCompare(b.start_time)
+      return a.sort_order - b.sort_order
+    }))
     return map
   }, [rows])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: '22px', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 400 }}>
@@ -337,68 +417,152 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
       {sortedDays.map(day => {
         const dayRows = rowsByDay.get(day.id) ?? []
         return (
-          <div key={day.id}>
-            {/* Day card */}
-            <button
-              onClick={() => openEditDay(day)}
-              className="section-row"
-              style={{ padding: '20px 24px', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow)' }}
+          <div key={day.id} style={{ marginBottom: '0' }}>
+            <div
+              onClick={() => toggleDay(day.id)}
+              className="day-card"
+              style={{
+                cursor: 'pointer',
+                padding: '16px 20px',
+                borderRadius: 'var(--r-lg)',
+                boxShadow: 'var(--shadow)',
+                borderLeft: `4px solid ${DAY_TYPE_BORDER[day.type] ?? 'var(--border2)'}`,
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: '16px',
+                border: '1px solid var(--border2)',
+                width: '100%',
+                textAlign: 'left',
+              }}
             >
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '4px' }}>
-                <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--gold-text)' }}>
-                  DAY {day.day_number}
-                </span>
-                <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)' }}>
-                  {formatDayDate(day.day_date)}
-                </span>
+              {/* Day number — large, muted, fixed width */}
+              <div style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: '36px',
+                fontWeight: 700,
+                color: 'rgba(13,30,53,0.15)',
+                minWidth: '52px',
+                textAlign: 'center',
+                lineHeight: 1,
+                flexShrink: 0,
+              }}>
+                {day.day_number === 0 ? (
+                  <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(13,30,53,0.25)' }}>PRE<br/>TRIP</span>
+                ) : (
+                  day.day_number
+                )}
               </div>
-              <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.25, marginBottom: day.location ? '6px' : '0' }}>
-                {day.title}
-              </h2>
-              {day.location && (
-                <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span aria-hidden="true">📍</span> {day.location}
-                </p>
-              )}
-            </button>
 
-            {/* Rows container */}
-            <div style={{ marginTop: '2px', borderLeft: '2px solid var(--border2)', marginLeft: '24px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {dayRows.map(row => (
-                <button
-                  key={row.id}
-                  onClick={() => openEditRow(row)}
-                  className="section-row"
-                  style={{ padding: '14px 16px', borderRadius: 'var(--r)', minHeight: '44px' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, color: 'var(--gold-text)', letterSpacing: '0.04em' }}>
-                      {formatTime(row.start_time)}{row.end_time ? ` – ${formatTime(row.end_time)}` : ''}
-                    </span>
-                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', fontWeight: 700, color: 'var(--text)', flex: 1 }}>
-                      {row.title}
-                    </span>
-                    <Badge color={categoryColor(row.category)}>{row.category}</Badge>
+              {/* Main content — left aligned, fills space */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '18px' }}>{DAY_TYPE_ICONS[day.type] ?? '📅'}</span>
+                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text3)', fontWeight: 400 }}>
+                    {formatDayDate(day.day_date)}
+                  </span>
+                </div>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.2 }}>
+                  {day.title}
+                </div>
+                {day.location && (
+                  <div style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', marginTop: '4px' }}>
+                    📍 {day.location}
                   </div>
-                  {row.description && (
-                    <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5 }}>
-                      {row.description}
-                    </p>
-                  )}
-                  {row.location && (
-                    <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', fontStyle: 'italic' }}>
-                      📍 {row.location}
-                    </p>
-                  )}
+                )}
+              </div>
+
+              {/* Right controls — Edit button + chevron */}
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}
+                onClick={e => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => openEditDay(day)}
+                  style={{
+                    fontFamily: "'Lato', sans-serif",
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    color: 'var(--navy)',
+                    background: 'var(--bg3)',
+                    border: '1px solid var(--border2)',
+                    borderRadius: 'var(--r)',
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    minHeight: '44px',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Edit
                 </button>
-              ))}
-              
-              <div style={{ marginTop: '8px' }}>
-                <Button variant="secondary" size="sm" onClick={() => openAddRow(day.id)}>
-                  <Plus size={14} /> Add Row
-                </Button>
+                <span
+                  onClick={() => toggleDay(day.id)}
+                  style={{
+                    fontSize: '18px',
+                    color: 'var(--slate)',
+                    transition: 'transform 0.25s',
+                    transform: expandedDays.has(day.id) ? 'rotate(90deg)' : 'rotate(0deg)',
+                    display: 'inline-block',
+                    padding: '8px',
+                    minWidth: '44px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                  }}
+                >▶</span>
               </div>
             </div>
+
+            {expandedDays.has(day.id) && (
+              <div style={{ marginTop: '2px', borderLeft: '2px solid var(--border2)', marginLeft: '24px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '10px' }}>
+                {dayRows.map(row => (
+                  <button
+                    key={row.id}
+                    onClick={() => openEditRow(row)}
+                    className="section-row"
+                    style={{ padding: '14px 16px', borderRadius: 'var(--r)', minHeight: '44px', width: '100%', textAlign: 'left' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      {row.is_all_day ? (
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--slate)', letterSpacing: '0.04em' }}>All Day</span>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: '80px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--gold-text)' }}>
+                            {formatLocalTime(row.start_time, row.timezone)}
+                            {row.end_time ? ` – ${formatLocalTime(row.end_time, row.timezone)}` : ''}
+                            {' '}{formatTzAbbr(row.start_time, row.timezone)}
+                          </span>
+                          {row.timezone !== HST_TZ && (
+                            <span style={{ fontSize: '11px', color: 'var(--text3)' }}>
+                              {formatLocalTime(row.start_time, HST_TZ)} HST
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)', flex: 1 }}>
+                        {row.title}
+                      </span>
+                      {row.category && <Badge color={categoryColor(row.category)}>{row.category}</Badge>}
+                    </div>
+                    {row.description && (
+                      <p style={{ fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5, marginTop: '6px' }}>
+                        {row.description}
+                      </p>
+                    )}
+                    {row.location && (
+                      <p style={{ fontSize: '13px', color: 'var(--text3)', fontStyle: 'italic', marginTop: '4px' }}>
+                        📍 {row.location}
+                      </p>
+                    )}
+                  </button>
+                ))}
+
+                <div style={{ marginTop: '8px' }}>
+                  <Button variant="secondary" size="sm" onClick={() => openAddRow(day.id)}>
+                    <Plus size={14} /> Add Row
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )
       })}
@@ -411,14 +575,21 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
         primaryAction={{ label: editingDay ? 'Save' : 'Add', onClick: handleSaveDay, loading: saving, disabled: saving }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <FormField label="Day Number">
-              <input type="number" value={dayForm.day_number} onChange={e => setDayForm(f => ({ ...f, day_number: parseInt(e.target.value) }))} style={inputStyle()} />
-            </FormField>
-            <FormField label="Date">
-              <input type="date" value={dayForm.day_date} onChange={e => setDayForm(f => ({ ...f, day_date: e.target.value }))} style={inputStyle()} />
-            </FormField>
-          </div>
+          <FormField label="Date">
+            <input type="date" value={dayForm.day_date} min={tripStartDate} max={tripEndDate} onChange={e => setDayForm(f => ({ ...f, day_date: e.target.value }))} style={inputStyle()} />
+          </FormField>
+          <FormField label="Day Type">
+            <select
+              value={dayForm.type}
+              onChange={e => setDayForm(f => ({ ...f, type: e.target.value }))}
+              style={inputStyle()}
+            >
+              <option value="free">🌄 Free Day</option>
+              <option value="flight">✈️ Flight Day</option>
+              <option value="train">🚂 Train Day</option>
+              <option value="transit">🚌 Transit Day</option>
+            </select>
+          </FormField>
           <FormField label="Title">
             <input type="text" value={dayForm.title} onChange={e => setDayForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Arrival in London" style={inputStyle()} />
           </FormField>
@@ -458,28 +629,61 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
               {days.find(d => d.id === rowForm.day_id)?.title || 'Selected Day'}
             </div>
           </FormField>
+
+          <FormField label="All Day">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={rowForm.is_all_day}
+                onChange={e => {
+                  const checked = e.target.checked
+                  setRowForm(f => ({
+                    ...f,
+                    is_all_day: checked,
+                    ...(checked ? { start_date: '', start_time_val: '', end_date: '', end_time_val: '', timezone: '' } : {}),
+                  }))
+                }}
+              />
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}>This is an all-day event</span>
+            </label>
+          </FormField>
+
+          <FormField label="Timezone">
+            <select
+              value={rowForm.timezone}
+              onChange={e => setRowForm(f => ({ ...f, timezone: e.target.value }))}
+              disabled={rowForm.is_all_day}
+              style={inputStyle()}
+            >
+              <option value="">— Select —</option>
+              {TRIP_CITIES.map(c => (
+                <option key={c.tzid + c.city} value={c.tzid}>{c.city}</option>
+              ))}
+            </select>
+          </FormField>
+
           <FormField label="Category">
-            <input type="text" value={rowForm.category} onChange={e => setRowForm(f => ({ ...f, category: e.target.value }))} placeholder="e.g. activity, meal, transport..." style={inputStyle()} />
+            <input type="text" value={rowForm.category} onChange={e => setRowForm(f => ({ ...f, category: e.target.value }))} placeholder="e.g. activity, meal, transport..." disabled={rowForm.is_all_day} style={inputStyle()} />
           </FormField>
           <FormField label="Title">
             <input type="text" value={rowForm.title} onChange={e => setRowForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Dinner at The Ritz" style={inputStyle()} />
           </FormField>
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <FormField label="Start Date">
-              <input type="date" value={rowForm.start_date} onChange={e => setRowForm(f => ({ ...f, start_date: e.target.value }))} style={inputStyle()} />
+              <input type="date" value={rowForm.start_date} min={tripStartDate} max={tripEndDate} onChange={e => setRowForm(f => ({ ...f, start_date: e.target.value }))} disabled={rowForm.is_all_day} style={inputStyle()} />
             </FormField>
             <FormField label="Start Time">
-              <input type="time" value={rowForm.start_time_val} onChange={e => setRowForm(f => ({ ...f, start_time_val: e.target.value }))} style={inputStyle()} />
+              <input type="time" value={rowForm.start_time_val} onChange={e => setRowForm(f => ({ ...f, start_time_val: e.target.value }))} disabled={rowForm.is_all_day} style={inputStyle()} />
             </FormField>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <FormField label="End Date">
-              <input type="date" value={rowForm.end_date} onChange={e => setRowForm(f => ({ ...f, end_date: e.target.value }))} style={inputStyle()} />
+              <input type="date" value={rowForm.end_date} min={tripStartDate} max={tripEndDate} onChange={e => setRowForm(f => ({ ...f, end_date: e.target.value }))} disabled={rowForm.is_all_day} style={inputStyle()} />
             </FormField>
             <FormField label="End Time">
-              <input type="time" value={rowForm.end_time_val} onChange={e => setRowForm(f => ({ ...f, end_time_val: e.target.value }))} style={inputStyle()} />
+              <input type="time" value={rowForm.end_time_val} onChange={e => setRowForm(f => ({ ...f, end_time_val: e.target.value }))} disabled={rowForm.is_all_day} style={inputStyle()} />
             </FormField>
           </div>
 
