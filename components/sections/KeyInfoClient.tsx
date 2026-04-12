@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { Plus } from 'lucide-react'
-import { BottomSheet } from '@/components/ui/BottomSheet'
+import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { useToast } from '@/components/ui/Toast'
@@ -233,7 +233,10 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
 
   const iconBtnStyle: React.CSSProperties = {
     background: 'none',
-    border: '1px solid var(--border2)',
+    borderTop: '1px solid var(--border2)',
+    borderRight: '1px solid var(--border2)',
+    borderBottom: '1px solid var(--border2)',
+    borderLeft: '1px solid var(--border2)',
     borderRadius: 'var(--r)',
     width: '36px',
     height: '36px',
@@ -315,7 +318,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
       </div>
 
       {/* Item Sheet */}
-      <BottomSheet
+      <ResponsiveSheet
         open={itemSheetOpen}
         onClose={closeItemSheet}
         title={editingItem ? 'Edit Item' : 'Add Item'}
@@ -409,10 +412,10 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
             )
           )}
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
 
       {/* Manage Groups Sheet */}
-      <BottomSheet
+      <ResponsiveSheet
         open={groupSheetOpen}
         onClose={() => setGroupSheetOpen(false)}
         title="Manage Groups"
@@ -447,7 +450,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
             <Button variant="primary" size="sm" onClick={handleCreateGroup} loading={creatingGroup} disabled={!newGroupName.trim() || creatingGroup} style={{ marginBottom: '1px' }}>Create</Button>
           </div>
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
     </div>
   )
 }

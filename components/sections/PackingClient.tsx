@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { Plus } from 'lucide-react'
-import { BottomSheet } from '@/components/ui/BottomSheet'
+import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { useToast } from '@/components/ui/Toast'
@@ -399,7 +399,10 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
 
   const iconBtnStyle: React.CSSProperties = {
     background: 'none',
-    border: '1px solid var(--border2)',
+    borderTop: '1px solid var(--border2)',
+    borderRight: '1px solid var(--border2)',
+    borderBottom: '1px solid var(--border2)',
+    borderLeft: '1px solid var(--border2)',
     borderRadius: 'var(--r)',
     width: '36px',
     height: '36px',
@@ -522,7 +525,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
       </div>
 
       {/* Item Sheet */}
-      <BottomSheet
+      <ResponsiveSheet
         open={itemSheetOpen}
         onClose={closeItemSheet}
         title={editingItem ? 'Edit Item' : 'Add Item'}
@@ -609,10 +612,10 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
             )
           )}
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
 
       {/* Manage Categories Sheet */}
-      <BottomSheet
+      <ResponsiveSheet
         open={catSheetOpen}
         onClose={() => setCatSheetOpen(false)}
         title="Manage Categories"
@@ -647,10 +650,10 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
             <Button variant="primary" size="sm" onClick={handleCreateCategory} loading={creatingGroup} disabled={!newCatName.trim() || creatingGroup} style={{ marginBottom: '1px' }}>Create</Button>
           </div>
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
 
       {/* Manage Sub-groups Sheet */}
-      <BottomSheet
+      <ResponsiveSheet
         open={subSheetOpen}
         onClose={() => setSubSheetOpen(false)}
         title={managingGroup ? `Sub-groups: ${managingGroup.name}` : 'Manage Sub-groups'}
@@ -688,7 +691,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
             <Button variant="primary" size="sm" onClick={handleCreateSubgroup} loading={creatingSubgroup} disabled={!newSubName.trim() || creatingSubgroup || !managingGroup} style={{ marginBottom: '1px' }}>Create</Button>
           </div>
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
     </div>
   )
 }

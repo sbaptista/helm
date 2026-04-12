@@ -50,9 +50,18 @@ export async function PATCH(
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
+  const update: Record<string, unknown> = {}
+  const allowed = [
+    'day_id', 'title', 'description', 'location', 'category',
+    'start_timezone', 'end_timezone', 'is_all_day', 'start_time', 'end_time', 'sort_order',
+    'is_approx', 'is_provided', 'action_required', 'action_note',
+  ]
+  for (const key of allowed) {
+    if (key in body) update[key] = body[key]
+  }
   const { data, error } = await supabase
     .from('itinerary_rows')
-    .update(body)
+    .update(update)
     .eq('id', rowId)
     .select()
     .single()

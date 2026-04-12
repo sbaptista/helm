@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { Plus } from 'lucide-react'
-import { BottomSheet } from '@/components/ui/BottomSheet'
+import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
@@ -19,7 +19,7 @@ export type ItineraryDay = {
   location: string | null
   notes: string | null
   sort_order: number
-  type: 'flight' | 'train' | 'free' | 'transit'
+  type: 'flight' | 'train' | 'free' | 'transit' | 'sightseeing'
 }
 
 export type ItineraryRow = {
@@ -33,8 +33,13 @@ export type ItineraryRow = {
   location: string | null
   category: string
   sort_order: number
-  timezone: string | null
+  start_timezone: string | null
+  end_timezone: string | null
   is_all_day: boolean
+  is_approx: boolean
+  is_provided: boolean
+  action_required: boolean
+  action_note: string | null
 }
 
 type Props = {
@@ -52,13 +57,15 @@ const DAY_TYPE_ICONS: Record<string, string> = {
   train: '🚂',
   free: '🌄',
   transit: '🚌',
+  sightseeing: '🗺️',
 }
 
 const DAY_TYPE_BORDER: Record<string, string> = {
-  flight:  'var(--gold)',
-  train:   'var(--navy)',
-  free:    'var(--green)',
-  transit: 'var(--slate)',
+  flight:      'var(--gold)',
+  train:       'var(--navy)',
+  free:        'var(--green)',
+  transit:     'var(--slate)',
+  sightseeing: 'var(--red)',
 }
 
 const TRIP_CITIES = [
@@ -139,12 +146,14 @@ function dayToForm(d: ItineraryDay) {
 }
 
 function rowToForm(r: ItineraryRow) {
-  const tz = r.timezone ?? null
-  const [startDate, startTime] = utcToLocalParts(r.start_time, tz)
-  const [endDate, endTime] = utcToLocalParts(r.end_time, tz)
+  const startTz = r.start_timezone ?? null
+  const endTz = r.end_timezone ?? r.start_timezone ?? null
+  const [startDate, startTime] = utcToLocalParts(r.start_time, startTz)
+  const [endDate, endTime] = utcToLocalParts(r.end_time, endTz)
   return {
     day_id: r.day_id ?? '',
-    timezone: r.timezone ?? '',
+    start_timezone: r.start_timezone ?? '',
+    end_timezone: r.end_timezone ?? '',
     start_date: startDate,
     start_time_val: startTime,
     end_date: endDate,
@@ -155,6 +164,10 @@ function rowToForm(r: ItineraryRow) {
     category: r.category ?? '',
     sort_order: r.sort_order,
     is_all_day: r.is_all_day ?? false,
+    is_approx: r.is_approx ?? false,
+    is_provided: r.is_provided ?? false,
+    action_required: r.action_required ?? false,
+    action_note: r.action_note ?? '',
   }
 }
 
@@ -203,7 +216,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
   const EMPTY_ROW_FORM = {
     day_id: '',
-    timezone: '',
+    start_timezone: '',
+    end_timezone: '',
     start_date: '',
     start_time_val: '',
     end_date: '',
@@ -214,6 +228,10 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
     category: 'Activity',
     sort_order: 0,
     is_all_day: false,
+    is_approx: false,
+    is_provided: false,
+    action_required: false,
+    action_note: '',
   }
 
   const [dayForm, setDayForm] = useState(EMPTY_DAY_FORM)
@@ -331,11 +349,16 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
         description: rowForm.description.trim() || null,
         location: rowForm.location.trim() || null,
         category: rowForm.category.trim() || null,
-        timezone: rowForm.is_all_day ? null : rowForm.timezone || null,
+        start_timezone: rowForm.is_all_day ? null : rowForm.start_timezone || null,
+        end_timezone: rowForm.is_all_day ? null : rowForm.end_timezone || null,
         is_all_day: rowForm.is_all_day,
-        start_time: rowForm.is_all_day ? null : localToUtc(rowForm.start_date, rowForm.start_time_val, rowForm.timezone),
-        end_time: rowForm.is_all_day ? null : (rowForm.end_date && rowForm.end_time_val ? localToUtc(rowForm.end_date, rowForm.end_time_val, rowForm.timezone) : null),
+        start_time: rowForm.is_all_day ? null : localToUtc(rowForm.start_date, rowForm.start_time_val, rowForm.start_timezone),
+        end_time: rowForm.is_all_day ? null : (rowForm.end_date && rowForm.end_time_val ? localToUtc(rowForm.end_date, rowForm.end_time_val, rowForm.end_timezone || rowForm.start_timezone) : null),
         sort_order: rowForm.sort_order,
+        is_approx: rowForm.is_approx,
+        is_provided: rowForm.is_provided,
+        action_required: rowForm.action_required,
+        action_note: rowForm.action_required ? (rowForm.action_note.trim() || null) : null,
       }
       const res = editingRow
         ? await fetch(`/api/itinerary/rows/${editingRow.id}`, {
@@ -419,6 +442,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
         return (
           <div key={day.id} style={{ marginBottom: '0' }}>
             <div
+              suppressHydrationWarning
               onClick={() => toggleDay(day.id)}
               className="day-card"
               style={{
@@ -427,11 +451,13 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 borderRadius: 'var(--r-lg)',
                 boxShadow: 'var(--shadow)',
                 borderLeft: `4px solid ${DAY_TYPE_BORDER[day.type] ?? 'var(--border2)'}`,
+                borderTop: '1px solid var(--border2)',
+                borderRight: '1px solid var(--border2)',
+                borderBottom: '1px solid var(--border2)',
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: '16px',
-                border: '1px solid var(--border2)',
                 width: '100%',
                 textAlign: 'left',
               }}
@@ -458,7 +484,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <span style={{ fontSize: '18px' }}>{DAY_TYPE_ICONS[day.type] ?? '📅'}</span>
-                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text3)', fontWeight: 400 }}>
+                  <span suppressHydrationWarning style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text3)', fontWeight: 400 }}>
                     {formatDayDate(day.day_date)}
                   </span>
                 </div>
@@ -496,6 +522,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                   Edit
                 </button>
                 <span
+                  suppressHydrationWarning
                   onClick={() => toggleDay(day.id)}
                   style={{
                     fontSize: '18px',
@@ -526,13 +553,13 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                         <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--slate)', letterSpacing: '0.04em' }}>All Day</span>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '80px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--gold-text)' }}>
-                            {formatLocalTime(row.start_time, row.timezone)}
-                            {row.end_time ? ` – ${formatLocalTime(row.end_time, row.timezone)}` : ''}
-                            {' '}{formatTzAbbr(row.start_time, row.timezone)}
+                          <span suppressHydrationWarning style={{ fontSize: '12px', fontWeight: 700, color: 'var(--gold-text)' }}>
+                            {row.is_approx ? '≈ ' : ''}{formatLocalTime(row.start_time, row.start_timezone)}
+                            {row.end_time ? ` – ${formatLocalTime(row.end_time, row.end_timezone ?? row.start_timezone)}` : ''}
+                            {' '}{formatTzAbbr(row.start_time, row.start_timezone)}
                           </span>
-                          {row.timezone !== HST_TZ && (
-                            <span style={{ fontSize: '11px', color: 'var(--text3)' }}>
+                          {row.start_timezone !== HST_TZ && (
+                            <span suppressHydrationWarning style={{ fontSize: '11px', color: 'var(--text3)' }}>
                               {formatLocalTime(row.start_time, HST_TZ)} HST
                             </span>
                           )}
@@ -540,9 +567,27 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                       )}
                       <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)', flex: 1 }}>
                         {row.title}
+                        {row.is_provided && (
+                          <span style={{
+                            display: 'inline-block', fontSize: '11px', fontWeight: 700,
+                            color: 'var(--green)', background: 'rgba(45,90,61,0.08)',
+                            border: '1px solid rgba(45,90,61,0.15)',
+                            borderRadius: '10px', padding: '1px 8px',
+                            whiteSpace: 'nowrap', verticalAlign: 'middle', marginLeft: '6px'
+                          }}>✓ Included</span>
+                        )}
                       </span>
                       {row.category && <Badge color={categoryColor(row.category)}>{row.category}</Badge>}
                     </div>
+                    {row.action_required && (
+                      <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '5px',
+                        borderLeft: '3px solid #B85900', padding: '2px 8px',
+                        marginTop: '5px', fontSize: '12px', color: '#B85900',
+                        fontWeight: 600, background: 'rgba(184,89,0,0.08)',
+                        borderRadius: '0 3px 3px 0'
+                      }}>🚩{row.action_note ? ` ${row.action_note}` : ''}</div>
+                    )}
                     {row.description && (
                       <p style={{ fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5, marginTop: '6px' }}>
                         {row.description}
@@ -568,7 +613,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       })}
 
       {/* Day Sheet */}
-      <BottomSheet
+      <ResponsiveSheet
         open={daySheetOpen}
         onClose={() => setDaySheetOpen(false)}
         title={editingDay ? 'Edit Day' : 'Add Day'}
@@ -588,6 +633,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               <option value="flight">✈️ Flight Day</option>
               <option value="train">🚂 Train Day</option>
               <option value="transit">🚌 Transit Day</option>
+              <option value="sightseeing">🗺️ Sightseeing</option>
             </select>
           </FormField>
           <FormField label="Title">
@@ -614,10 +660,10 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
             )
           )}
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
 
       {/* Row Sheet */}
-      <BottomSheet
+      <ResponsiveSheet
         open={rowSheetOpen}
         onClose={() => setRowSheetOpen(false)}
         title={editingRow ? 'Edit Item' : 'Add Item'}
@@ -640,26 +686,12 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                   setRowForm(f => ({
                     ...f,
                     is_all_day: checked,
-                    ...(checked ? { start_date: '', start_time_val: '', end_date: '', end_time_val: '', timezone: '' } : {}),
+                    ...(checked ? { start_date: '', start_time_val: '', end_date: '', end_time_val: '', start_timezone: '', end_timezone: '' } : {}),
                   }))
                 }}
               />
               <span style={{ fontSize: '14px', color: 'var(--text)' }}>This is an all-day event</span>
             </label>
-          </FormField>
-
-          <FormField label="Timezone">
-            <select
-              value={rowForm.timezone}
-              onChange={e => setRowForm(f => ({ ...f, timezone: e.target.value }))}
-              disabled={rowForm.is_all_day}
-              style={inputStyle()}
-            >
-              <option value="">— Select —</option>
-              {TRIP_CITIES.map(c => (
-                <option key={c.tzid + c.city} value={c.tzid}>{c.city}</option>
-              ))}
-            </select>
           </FormField>
 
           <FormField label="Category">
@@ -677,6 +709,19 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               <input type="time" value={rowForm.start_time_val} onChange={e => setRowForm(f => ({ ...f, start_time_val: e.target.value }))} disabled={rowForm.is_all_day} style={inputStyle()} />
             </FormField>
           </div>
+          <FormField label="Timezone">
+            <select
+              value={rowForm.start_timezone}
+              onChange={e => setRowForm(f => ({ ...f, start_timezone: e.target.value }))}
+              disabled={rowForm.is_all_day}
+              style={inputStyle()}
+            >
+              <option value="">— Select —</option>
+              {TRIP_CITIES.map(c => (
+                <option key={c.tzid + c.city} value={c.tzid}>{c.city}</option>
+              ))}
+            </select>
+          </FormField>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <FormField label="End Date">
@@ -686,12 +731,75 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               <input type="time" value={rowForm.end_time_val} onChange={e => setRowForm(f => ({ ...f, end_time_val: e.target.value }))} disabled={rowForm.is_all_day} style={inputStyle()} />
             </FormField>
           </div>
+          <FormField label="Timezone">
+            <select
+              value={rowForm.end_timezone}
+              onChange={e => setRowForm(f => ({ ...f, end_timezone: e.target.value }))}
+              disabled={rowForm.is_all_day}
+              style={inputStyle()}
+            >
+              <option value="">— Select —</option>
+              {TRIP_CITIES.map(c => (
+                <option key={c.tzid + c.city} value={c.tzid}>{c.city}</option>
+              ))}
+            </select>
+          </FormField>
 
           <FormField label="Location">
             <input type="text" value={rowForm.location} onChange={e => setRowForm(f => ({ ...f, location: e.target.value }))} placeholder="Optional location..." style={inputStyle()} />
           </FormField>
           <FormField label="Description">
             <textarea value={rowForm.description} onChange={e => setRowForm(f => ({ ...f, description: e.target.value }))} placeholder="Details about this item..." rows={3} style={{ ...inputStyle(), resize: 'vertical' }} />
+          </FormField>
+
+          <FormField label="Approximate time">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={rowForm.is_approx}
+                onChange={e => setRowForm(f => ({ ...f, is_approx: e.target.checked }))}
+              />
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Approximate time</span>
+            </label>
+            <span style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>Displays with ≈ prefix</span>
+          </FormField>
+
+          <FormField label="Included / Provided">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={rowForm.is_provided}
+                onChange={e => setRowForm(f => ({ ...f, is_provided: e.target.checked }))}
+              />
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Included / Provided</span>
+            </label>
+          </FormField>
+
+          <FormField label="Action Required">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={rowForm.action_required}
+                onChange={e => {
+                  const checked = e.target.checked
+                  setRowForm(f => ({
+                    ...f,
+                    action_required: checked,
+                    ...(checked ? {} : { action_note: '' }),
+                  }))
+                }}
+              />
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Action Required</span>
+            </label>
+            {rowForm.action_required && (
+              <textarea
+                value={rowForm.action_note}
+                onChange={e => setRowForm(f => ({ ...f, action_note: e.target.value }))}
+                placeholder="e.g. Confirm reservation before departure"
+                rows={2}
+                style={{ ...inputStyle(), resize: 'vertical', marginTop: '8px' }}
+              />
+            )}
           </FormField>
 
           {editingRow && (
@@ -708,7 +816,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
             )
           )}
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
 
     </div>
   )

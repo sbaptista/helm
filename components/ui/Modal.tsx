@@ -31,7 +31,7 @@ export function ModalHeader({ title, onClose }: ModalHeaderProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '24px 28px 20px',
+        padding: '24px 32px 20px',
         borderBottom: '1px solid var(--border2)',
         flexShrink: 0,
       }}
@@ -85,7 +85,7 @@ export function ModalBody({ children }: ModalBodyProps) {
   return (
     <div
       style={{
-        padding: '24px 28px',
+        padding: '28px 32px 24px',
         overflowY: 'auto',
         WebkitOverflowScrolling: 'touch' as unknown as undefined,
         overscrollBehavior: 'contain',
@@ -106,7 +106,7 @@ export function ModalFooter({ children }: ModalFooterProps) {
         alignItems: 'center',
         justifyContent: 'flex-end',
         gap: '12px',
-        padding: '20px 28px 24px',
+        padding: '20px 32px 24px',
         borderTop: '1px solid var(--border2)',
         flexShrink: 0,
       }}

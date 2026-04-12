@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { Plus } from 'lucide-react'
-import { BottomSheet } from '@/components/ui/BottomSheet'
+import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
@@ -343,7 +343,10 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
 
   const iconBtnStyle: React.CSSProperties = {
     background: 'none',
-    border: '1px solid var(--border2)',
+    borderTop: '1px solid var(--border2)',
+    borderRight: '1px solid var(--border2)',
+    borderBottom: '1px solid var(--border2)',
+    borderLeft: '1px solid var(--border2)',
     borderRadius: 'var(--r)',
     width: '36px',
     height: '36px',
@@ -531,7 +534,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
       })}
 
       {/* ── Edit / Add Item BottomSheet ── */}
-      <BottomSheet
+      <ResponsiveSheet
         open={sheetOpen}
         onClose={closeSheet}
         title={editingRecord ? 'Edit Item' : 'Add Item'}
@@ -694,10 +697,10 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
             )
           )}
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
 
       {/* ── Manage Groups BottomSheet (nested) ── */}
-      <BottomSheet
+      <ResponsiveSheet
         open={manageGroupsOpen}
         onClose={() => setManageGroupsOpen(false)}
         title="Manage Groups"
@@ -770,7 +773,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
           </div>
 
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
     </div>
   )
 }

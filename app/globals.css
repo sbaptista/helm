@@ -64,6 +64,65 @@
   --sab: env(safe-area-inset-bottom, 0px);
 }
 
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE ARCHITECTURE
+   Type scaling → INPUT DEVICE (pointer query), not window width.
+   Layout stacking → window WIDTH only.
+   Resizing the Mac browser changes layout but never font sizes.
+
+   Pointer queries:
+     (hover:hover) and (pointer:fine)  → Mac/desktop
+     (hover:none)  and (pointer:coarse) → iPad or iPhone
+   Within touch: min-width 768px = iPad tier, max-width 767px = iPhone tier
+   ══════════════════════════════════════════════════════════ */
+
+/* ── LAYOUT BREAKPOINTS (width only — no type rules here) ── */
+@media (max-width: 900px) {
+  .time-hst { display: none; }
+  .section-actions { opacity: 1; }
+  .row-actions { opacity: 1; }
+}
+
+@media (max-width: 480px) {
+  .flight-route { flex-direction: column; gap: 8px; }
+}
+
+/* ── TYPE TIER: TOUCH DEVICES ──────────────────────────────
+   iPad tier (≥768px touch): moderate bump
+   iPhone tier (<768px touch): full bump + 48px touch targets */
+
+/* iPad tier */
+@media (hover: none) and (pointer: coarse) and (min-width: 768px) {
+  /* Section rows */
+  .section-row { padding: 16px 18px; }
+
+  /* Form */
+  label { font-size: 14px; }
+  input, select, textarea { font-size: 16px; }
+
+  /* Day card */
+  .day-card { padding: 16px 14px; }
+
+  /* Touch targets */
+  button { min-height: 44px; }
+}
+
+/* iPhone tier */
+@media (hover: none) and (pointer: coarse) and (max-width: 767px) {
+  /* Section rows */
+  .section-row { padding: 18px 16px; }
+
+  /* Form — 16px prevents iOS auto-zoom */
+  label { font-size: 15px; }
+  input, select, textarea { font-size: 16px; }
+
+  /* Day card */
+  .day-card { padding: 18px 14px; }
+
+  /* Touch targets — 48px per Google HIG */
+  button { min-height: 48px; }
+}
+
 *,
 *::before,
 *::after {
@@ -266,6 +325,22 @@ button {
 
 .section-row:hover {
   background: var(--bg3);
+}
+
+/* ── Content container ─────────────────────────────────── */
+.content-container {
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 24px;
+}
+
+@media (max-width: 900px) {
+  .content-container { padding: 0 16px; }
+}
+
+@media (max-width: 480px) {
+  .content-container { padding: 0 12px; }
 }
 
 .day-card {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BottomSheet } from '@/components/ui/BottomSheet';
+import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
 
@@ -331,7 +331,7 @@ export function FlightsClient({
       )}
 
       {/* Bottom sheet */}
-      <BottomSheet
+      <ResponsiveSheet
         open={sheetOpen}
         onClose={closeSheet}
         title={isAdd ? 'Add Flight' : 'Edit Flight'}
@@ -599,7 +599,7 @@ export function FlightsClient({
           {/* Bottom breathing room */}
           <div style={{ height: '8px' }} />
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
     </div>
   );
 }

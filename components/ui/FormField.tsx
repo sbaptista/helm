@@ -79,13 +79,17 @@ export function FormField({ label, error, hint, required, children, htmlFor }: F
  * inside a FormField. Pass hasError=true to show red border.
  */
 export function inputStyle(hasError = false): React.CSSProperties {
+  const borderColor = hasError ? 'var(--red)' : 'var(--border2)';
   return {
     width: '100%',
     fontSize: '16px', /* 16px minimum — prevents iOS auto-zoom on focus */
     fontFamily: "'Lato', sans-serif",
     color: 'var(--text)',
     background: 'var(--bg2)',
-    border: `1px solid ${hasError ? 'var(--red)' : 'var(--border2)'}`,
+    borderTop: `1px solid ${borderColor}`,
+    borderRight: `1px solid ${borderColor}`,
+    borderBottom: `1px solid ${borderColor}`,
+    borderLeft: `1px solid ${borderColor}`,
     borderRadius: 'var(--r)',
     padding: '12px 14px',
     outline: 'none',
@@ -101,9 +105,13 @@ export function inputStyle(hasError = false): React.CSSProperties {
  * can't read inline styles.
  */
 export function inputFocusStyle(hasError = false): React.CSSProperties {
+  const borderColor = hasError ? 'var(--red)' : 'var(--gold)';
   return {
     ...inputStyle(hasError),
-    borderColor: hasError ? 'var(--red)' : 'var(--gold)',
+    borderTop: `1px solid ${borderColor}`,
+    borderRight: `1px solid ${borderColor}`,
+    borderBottom: `1px solid ${borderColor}`,
+    borderLeft: `1px solid ${borderColor}`,
     boxShadow: hasError
       ? '0 0 0 3px rgba(139,32,32,0.1)'
       : '0 0 0 3px rgba(184,137,42,0.12)',

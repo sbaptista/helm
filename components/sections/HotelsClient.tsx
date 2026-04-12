@@ -3,7 +3,7 @@
 
 import { useState, useCallback } from 'react'
 import { ChevronDown, ChevronUp, ExternalLink, Plus } from 'lucide-react'
-import { BottomSheet } from '@/components/ui/BottomSheet'
+import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
@@ -423,7 +423,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       </div>
 
       {/* Add / Edit Bottom Sheet */}
-      <BottomSheet open={sheetOpen} onClose={closeSheet} title={editingHotel ? 'Edit Hotel' : 'Add Hotel'}>
+      <ResponsiveSheet open={sheetOpen} onClose={closeSheet} title={editingHotel ? 'Edit Hotel' : 'Add Hotel'}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
 
           <FormField label="Hotel Name *">
@@ -610,7 +610,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
           )}
 
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
     </div>
   )
 }

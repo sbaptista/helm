@@ -55,9 +55,18 @@ export async function POST(
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
+  const insert: Record<string, unknown> = { trip_id: tripId }
+  const allowed = [
+    'day_id', 'title', 'description', 'location', 'category',
+    'start_timezone', 'end_timezone', 'is_all_day', 'start_time', 'end_time', 'sort_order',
+    'is_approx', 'is_provided', 'action_required', 'action_note',
+  ]
+  for (const key of allowed) {
+    if (key in body) insert[key] = body[key]
+  }
   const { data, error } = await supabase
     .from('itinerary_rows')
-    .insert({ ...body, trip_id: tripId })
+    .insert(insert)
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

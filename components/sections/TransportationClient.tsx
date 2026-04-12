@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { Plus } from 'lucide-react'
-import { BottomSheet } from '@/components/ui/BottomSheet'
+import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
@@ -336,7 +336,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
       </div>
 
       {/* Bottom Sheet */}
-      <BottomSheet
+      <ResponsiveSheet
         open={sheetOpen}
         onClose={closeSheet}
         title={editingRecord ? 'Edit Transportation' : 'Add Transportation'}
@@ -553,7 +553,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
           )}
 
         </div>
-      </BottomSheet>
+      </ResponsiveSheet>
     </div>
   )
 }

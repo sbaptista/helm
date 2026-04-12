@@ -633,7 +633,7 @@ const handleImportClose = () => {
           };
           const content = tabContents[activeTab];
           return content ? (
-            <div style={{ paddingTop: '32px' }}>{content}</div>
+            <div className="content-container" style={{ paddingTop: '32px' }}>{content}</div>
           ) : (
             <div
               style={{
