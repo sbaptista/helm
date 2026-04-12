@@ -32,6 +32,8 @@ export async function GET(
     .select('*')
     .eq('trip_id', tripId)
     .is('deleted_at', null)
+    .order('is_all_day', { ascending: false })
+    .order('start_time', { ascending: true, nullsFirst: false })
     .order('sort_order', { ascending: true })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)

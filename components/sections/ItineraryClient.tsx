@@ -342,6 +342,55 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
   async function handleSaveRow() {
     setSaving(true)
+
+    // ── Validation ────────────────────────────────────────────────
+    if (!rowForm.title.trim()) {
+      toast.show('Title is required', 'error')
+      setSaving(false)
+      return
+    }
+
+    if (!rowForm.is_all_day) {
+      // Start fields: all three required together or none
+      const hasStartDate = !!rowForm.start_date
+      const hasStartTime = !!rowForm.start_time_val
+      const hasStartTz   = !!rowForm.start_timezone
+
+      if (hasStartDate || hasStartTime || hasStartTz) {
+        if (!hasStartDate) { toast.show('Start date is required when start time is set', 'error'); setSaving(false); return }
+        if (!hasStartTime) { toast.show('Start time is required when start date is set', 'error'); setSaving(false); return }
+        if (!hasStartTz)   { toast.show('Start timezone is required when start time is set', 'error'); setSaving(false); return }
+      }
+
+      // End fields: all three required together or none
+      const hasEndDate = !!rowForm.end_date
+      const hasEndTime = !!rowForm.end_time_val
+
+      if (hasEndDate || hasEndTime) {
+        if (!hasEndDate) { toast.show('End date is required when end time is set', 'error'); setSaving(false); return }
+        if (!hasEndTime) { toast.show('End time is required when end date is set', 'error'); setSaving(false); return }
+
+        // End must be after start
+        if (hasStartDate && hasStartTime && hasStartTz) {
+          const startUtc = localToUtc(rowForm.start_date, rowForm.start_time_val, rowForm.start_timezone)
+          const endUtc   = localToUtc(rowForm.end_date, rowForm.end_time_val, rowForm.end_timezone || rowForm.start_timezone)
+          if (startUtc && endUtc && endUtc <= startUtc) {
+            toast.show('End time must be after start time', 'error')
+            setSaving(false)
+            return
+          }
+        }
+
+        // End without any start is not allowed
+        if (!hasStartDate && !hasStartTime) {
+          toast.show('Start time is required when end time is set', 'error')
+          setSaving(false)
+          return
+        }
+      }
+    }
+    // ── End Validation ────────────────────────────────────────────
+
     try {
       const payload = {
         day_id: rowForm.day_id,
@@ -620,39 +669,77 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
         primaryAction={{ label: editingDay ? 'Save' : 'Add', onClick: handleSaveDay, loading: saving, disabled: saving }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
-          <FormField label="Date">
-            <input type="date" value={dayForm.day_date} min={tripStartDate} max={tripEndDate} onChange={e => setDayForm(f => ({ ...f, day_date: e.target.value }))} style={inputStyle()} />
-          </FormField>
-          <FormField label="Day Type">
-            <select
-              value={dayForm.type}
-              onChange={e => setDayForm(f => ({ ...f, type: e.target.value }))}
-              style={inputStyle()}
-            >
-              <option value="free">🌄 Free Day</option>
-              <option value="flight">✈️ Flight Day</option>
-              <option value="train">🚂 Train Day</option>
-              <option value="transit">🚌 Transit Day</option>
-              <option value="sightseeing">🗺️ Sightseeing</option>
-            </select>
-          </FormField>
+
+          {/* Date + Type — 2-column grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <FormField label="Date">
+              <input
+                type="date"
+                value={dayForm.day_date}
+                min={tripStartDate}
+                max={tripEndDate}
+                onChange={e => setDayForm(f => ({ ...f, day_date: e.target.value }))}
+                style={inputStyle()}
+              />
+            </FormField>
+            <FormField label="Day Type">
+              <select value={dayForm.type} onChange={e => setDayForm(f => ({ ...f, type: e.target.value }))} style={inputStyle()}>
+                <option value="free">🌄 Free Day</option>
+                <option value="flight">✈️ Flight Day</option>
+                <option value="train">🚂 Train Day</option>
+                <option value="transit">🚌 Transit Day</option>
+                <option value="sightseeing">🗺️ Sightseeing</option>
+              </select>
+            </FormField>
+          </div>
+
+          {/* Title */}
           <FormField label="Title">
-            <input type="text" value={dayForm.title} onChange={e => setDayForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Arrival in London" style={inputStyle()} />
-          </FormField>
-          <FormField label="Location">
-            <input type="text" value={dayForm.location} onChange={e => setDayForm(f => ({ ...f, location: e.target.value }))} placeholder="e.g. London, UK" style={inputStyle()} />
-          </FormField>
-          <FormField label="Notes">
-            <textarea value={dayForm.notes} onChange={e => setDayForm(f => ({ ...f, notes: e.target.value }))} placeholder="Private notes for this day..." rows={3} style={{ ...inputStyle(), resize: 'vertical' }} />
+            <input
+              type="text"
+              value={dayForm.title}
+              onChange={e => setDayForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="e.g. Arrive Vancouver"
+              style={inputStyle()}
+            />
+            <span style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px', display: 'block' }}>
+              Shown as the day header
+            </span>
           </FormField>
 
+          {/* Location */}
+          <FormField label="Location">
+            <input
+              type="text"
+              value={dayForm.location}
+              onChange={e => setDayForm(f => ({ ...f, location: e.target.value }))}
+              placeholder="e.g. Vancouver"
+              style={inputStyle()}
+            />
+            <span style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px', display: 'block' }}>
+              City where you spend the night
+            </span>
+          </FormField>
+
+          {/* Notes */}
+          <FormField label="Notes">
+            <textarea
+              value={dayForm.notes}
+              onChange={e => setDayForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="Private notes for this day..."
+              rows={3}
+              style={{ ...inputStyle(), resize: 'vertical' }}
+            />
+          </FormField>
+
+          {/* Delete */}
           {editingDay && (
             confirmDelete ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <p style={{ fontSize: '14px', color: 'var(--red)', textAlign: 'center' }}>Remove this day and all its rows?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)} style={{ flex: 1 }}>Cancel</Button>
-                  <Button variant="primary" size="sm" onClick={handleDeleteDay} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderColor: 'var(--red)' }}>Remove</Button>
+                  <Button variant="primary" size="sm" onClick={handleDeleteDay} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderTop: '1px solid var(--red)', borderRight: '1px solid var(--red)', borderBottom: '1px solid var(--red)', borderLeft: '1px solid var(--red)' }}>Remove</Button>
                 </div>
               </div>
             ) : (
@@ -670,113 +757,208 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
         primaryAction={{ label: editingRow ? 'Save' : 'Add', onClick: handleSaveRow, loading: saving, disabled: saving }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
+
+          {/* Day selector */}
           <FormField label="Day">
-            <div style={{ ...inputStyle(), background: 'var(--bg3)', color: 'var(--text3)' }}>
-              {days.find(d => d.id === rowForm.day_id)?.title || 'Selected Day'}
-            </div>
+            <select
+              value={rowForm.day_id}
+              onChange={e => setRowForm(f => ({ ...f, day_id: e.target.value }))}
+              style={inputStyle()}
+            >
+              {days.map(d => (
+                <option key={d.id} value={d.id}>
+                  {DAY_TYPE_ICONS[d.type] ?? '📅'} {d.day_date} — {d.title}
+                </option>
+              ))}
+            </select>
           </FormField>
 
-          <FormField label="All Day">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={rowForm.is_all_day}
-                onChange={e => {
-                  const checked = e.target.checked
-                  setRowForm(f => ({
-                    ...f,
-                    is_all_day: checked,
-                    ...(checked ? { start_date: '', start_time_val: '', end_date: '', end_time_val: '', start_timezone: '', end_timezone: '' } : {}),
-                  }))
-                }}
-              />
-              <span style={{ fontSize: '14px', color: 'var(--text)' }}>This is an all-day event</span>
-            </label>
+          {/* Title — required */}
+          <FormField label="Title *">
+            <input
+              type="text"
+              value={rowForm.title}
+              onChange={e => setRowForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="e.g. 🚂 Depart Vancouver"
+              style={inputStyle()}
+            />
           </FormField>
 
+          {/* Category */}
           <FormField label="Category">
-            <input type="text" value={rowForm.category} onChange={e => setRowForm(f => ({ ...f, category: e.target.value }))} placeholder="e.g. activity, meal, transport..." disabled={rowForm.is_all_day} style={inputStyle()} />
-          </FormField>
-          <FormField label="Title">
-            <input type="text" value={rowForm.title} onChange={e => setRowForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Dinner at The Ritz" style={inputStyle()} />
-          </FormField>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <FormField label="Start Date">
-              <input type="date" value={rowForm.start_date} min={tripStartDate} max={tripEndDate} onChange={e => setRowForm(f => ({ ...f, start_date: e.target.value }))} disabled={rowForm.is_all_day} style={inputStyle()} />
-            </FormField>
-            <FormField label="Start Time">
-              <input type="time" value={rowForm.start_time_val} onChange={e => setRowForm(f => ({ ...f, start_time_val: e.target.value }))} disabled={rowForm.is_all_day} style={inputStyle()} />
-            </FormField>
-          </div>
-          <FormField label="Timezone">
             <select
-              value={rowForm.start_timezone}
-              onChange={e => setRowForm(f => ({ ...f, start_timezone: e.target.value }))}
-              disabled={rowForm.is_all_day}
+              value={rowForm.category}
+              onChange={e => setRowForm(f => ({ ...f, category: e.target.value }))}
               style={inputStyle()}
             >
-              <option value="">— Select —</option>
-              {TRIP_CITIES.map(c => (
-                <option key={c.tzid + c.city} value={c.tzid}>{c.city}</option>
-              ))}
+              <option value="Activity">Activity</option>
+              <option value="Meal">Meal</option>
+              <option value="Transport">Transport</option>
+              <option value="Flight">Flight</option>
+              <option value="Hotel">Hotel</option>
+              <option value="Tour">Tour</option>
+              <option value="Other">Other</option>
             </select>
           </FormField>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <FormField label="End Date">
-              <input type="date" value={rowForm.end_date} min={tripStartDate} max={tripEndDate} onChange={e => setRowForm(f => ({ ...f, end_date: e.target.value }))} disabled={rowForm.is_all_day} style={inputStyle()} />
-            </FormField>
-            <FormField label="End Time">
-              <input type="time" value={rowForm.end_time_val} onChange={e => setRowForm(f => ({ ...f, end_time_val: e.target.value }))} disabled={rowForm.is_all_day} style={inputStyle()} />
-            </FormField>
-          </div>
-          <FormField label="Timezone">
-            <select
-              value={rowForm.end_timezone}
-              onChange={e => setRowForm(f => ({ ...f, end_timezone: e.target.value }))}
-              disabled={rowForm.is_all_day}
-              style={inputStyle()}
-            >
-              <option value="">— Select —</option>
-              {TRIP_CITIES.map(c => (
-                <option key={c.tzid + c.city} value={c.tzid}>{c.city}</option>
-              ))}
-            </select>
-          </FormField>
+          {/* ── Timing fieldset ── */}
+          <fieldset style={{ border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px', margin: 0 }}>
+            <legend style={{ fontSize: '11px', color: 'var(--slate)', padding: '0 4px' }}>
+              Timing <span style={{ fontWeight: 400 }}>(stored as UTC, displayed in local timezone)</span>
+            </legend>
 
+            {/* Start row: Date | Start Time | Start TZ */}
+            <div className="timing-grid">
+              <FormField label="Start Date">
+                <input
+                  type="date"
+                  value={rowForm.start_date}
+                  min={tripStartDate}
+                  max={tripEndDate}
+                  onChange={e => setRowForm(f => ({ ...f, start_date: e.target.value }))}
+                  disabled={rowForm.is_all_day}
+                  style={inputStyle()}
+                />
+              </FormField>
+              <FormField label="Start Time">
+                <input
+                  type="time"
+                  value={rowForm.start_time_val}
+                  onChange={e => setRowForm(f => ({ ...f, start_time_val: e.target.value }))}
+                  disabled={rowForm.is_all_day}
+                  style={inputStyle()}
+                />
+              </FormField>
+              <FormField label="Start Timezone">
+                <select
+                  value={rowForm.start_timezone}
+                  onChange={e => setRowForm(f => ({ ...f, start_timezone: e.target.value }))}
+                  disabled={rowForm.is_all_day}
+                  style={inputStyle()}
+                >
+                  <option value="">— Select —</option>
+                  {TRIP_CITIES.map(c => (
+                    <option key={c.tzid + c.city} value={c.tzid}>{c.city}</option>
+                  ))}
+                </select>
+              </FormField>
+            </div>
+
+            {/* End row: End Date | End Time | End TZ */}
+            <div className="timing-grid">
+              <FormField label="End Date">
+                <input
+                  type="date"
+                  value={rowForm.end_date}
+                  min={tripStartDate}
+                  max={tripEndDate}
+                  onChange={e => setRowForm(f => ({ ...f, end_date: e.target.value }))}
+                  disabled={rowForm.is_all_day}
+                  style={inputStyle()}
+                />
+              </FormField>
+              <FormField label="End Time">
+                <input
+                  type="time"
+                  value={rowForm.end_time_val}
+                  onChange={e => setRowForm(f => ({ ...f, end_time_val: e.target.value }))}
+                  disabled={rowForm.is_all_day}
+                  style={inputStyle()}
+                />
+              </FormField>
+              <FormField label="End Timezone">
+                <select
+                  value={rowForm.end_timezone}
+                  onChange={e => setRowForm(f => ({ ...f, end_timezone: e.target.value }))}
+                  disabled={rowForm.is_all_day}
+                  style={inputStyle()}
+                >
+                  <option value="">— Same as start —</option>
+                  {TRIP_CITIES.map(c => (
+                    <option key={c.tzid + c.city} value={c.tzid}>{c.city}</option>
+                  ))}
+                </select>
+              </FormField>
+            </div>
+
+            {/* Checkboxes inside fieldset */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '6px' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={rowForm.is_all_day}
+                  onChange={e => {
+                    const checked = e.target.checked
+                    setRowForm(f => ({
+                      ...f,
+                      is_all_day: checked,
+                      ...(checked ? { start_date: '', start_time_val: '', end_date: '', end_time_val: '', start_timezone: '', end_timezone: '' } : {}),
+                    }))
+                  }}
+                  style={{ marginTop: '2px' }}
+                />
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>All Day</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>No specific time — sorts to top of day</div>
+                </div>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={rowForm.is_approx}
+                  onChange={e => setRowForm(f => ({ ...f, is_approx: e.target.checked }))}
+                  style={{ marginTop: '2px' }}
+                />
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>≈ Estimated Time</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Time is approximate — displays with ≈ prefix</div>
+                </div>
+              </label>
+            </div>
+          </fieldset>
+
+          {/* Location */}
           <FormField label="Location">
-            <input type="text" value={rowForm.location} onChange={e => setRowForm(f => ({ ...f, location: e.target.value }))} placeholder="Optional location..." style={inputStyle()} />
+            <input
+              type="text"
+              value={rowForm.location}
+              onChange={e => setRowForm(f => ({ ...f, location: e.target.value }))}
+              placeholder="e.g. Vancouver Airport"
+              style={inputStyle()}
+            />
+            <span style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px', display: 'block' }}>
+              Optional — shown below the item title
+            </span>
           </FormField>
+
+          {/* Description */}
           <FormField label="Description">
-            <textarea value={rowForm.description} onChange={e => setRowForm(f => ({ ...f, description: e.target.value }))} placeholder="Details about this item..." rows={3} style={{ ...inputStyle(), resize: 'vertical' }} />
+            <textarea
+              value={rowForm.description}
+              onChange={e => setRowForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Additional details about this item..."
+              rows={3}
+              style={{ ...inputStyle(), resize: 'vertical' }}
+            />
           </FormField>
 
-          <FormField label="Approximate time">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={rowForm.is_approx}
-                onChange={e => setRowForm(f => ({ ...f, is_approx: e.target.checked }))}
-              />
-              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Approximate time</span>
-            </label>
-            <span style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>Displays with ≈ prefix</span>
-          </FormField>
+          {/* Included / Provided */}
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={rowForm.is_provided}
+              onChange={e => setRowForm(f => ({ ...f, is_provided: e.target.checked }))}
+              style={{ marginTop: '2px' }}
+            />
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600 }}>✓ Included / Provided</div>
+              <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Meal or activity is included — shows green ✓ Included badge</div>
+            </div>
+          </label>
 
-          <FormField label="Included / Provided">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={rowForm.is_provided}
-                onChange={e => setRowForm(f => ({ ...f, is_provided: e.target.checked }))}
-              />
-              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Included / Provided</span>
-            </label>
-          </FormField>
-
-          <FormField label="Action Required">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          {/* Action Required */}
+          <div style={{ borderLeft: '3px solid #B85900', paddingLeft: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={rowForm.action_required}
@@ -788,8 +970,12 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                     ...(checked ? {} : { action_note: '' }),
                   }))
                 }}
+                style={{ marginTop: '2px' }}
               />
-              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Action Required</span>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#B85900' }}>🚩 Action Required</div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Flags this item — shown in the Action Required section</div>
+              </div>
             </label>
             {rowForm.action_required && (
               <textarea
@@ -800,15 +986,16 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 style={{ ...inputStyle(), resize: 'vertical', marginTop: '8px' }}
               />
             )}
-          </FormField>
+          </div>
 
+          {/* Delete */}
           {editingRow && (
             confirmDelete ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <p style={{ fontSize: '14px', color: 'var(--red)', textAlign: 'center' }}>Remove this item?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)} style={{ flex: 1 }}>Cancel</Button>
-                  <Button variant="primary" size="sm" onClick={handleDeleteRow} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderColor: 'var(--red)' }}>Remove</Button>
+                  <Button variant="primary" size="sm" onClick={handleDeleteRow} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderTop: '1px solid var(--red)', borderRight: '1px solid var(--red)', borderBottom: '1px solid var(--red)', borderLeft: '1px solid var(--red)' }}>Remove</Button>
                 </div>
               </div>
             ) : (

@@ -285,6 +285,19 @@ button {
   word-break: break-all;
 }
 
+/* Timing grid — stacks on mobile, 3-col on desktop */
+.timing-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+@media (min-width: 900px) {
+  .timing-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
 /* 3-line clamp — established pattern for all section list views */
 .line-clamp-3 {
   display: -webkit-box;
