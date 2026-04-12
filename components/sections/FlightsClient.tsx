@@ -321,7 +321,7 @@ export function FlightsClient({
 
               {/* Notes */}
               {f.notes && (
-                <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5, marginTop: '2px' }}>
+                <p className="line-clamp-3" style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5, marginTop: '2px' }}>
                   {f.notes}
                 </p>
               )}

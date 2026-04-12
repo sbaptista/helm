@@ -1,6 +1,5 @@
 // lib/version.ts
-// 00.01.0067 — Itinerary: CAN26-style modal redesign, editable Day selector,
-// Category as select (always enabled), responsive timing fieldset,
-// validation in handleSaveRow, row sort fix, border longhand fix
-// on delete buttons
-export const VERSION = '00.01.0067';
+// 00.01.0068 — line-clamp-3 on flight notes and itinerary row descriptions,
+// Sign Out button in dashboard header, confirmDelete split into
+// confirmDeleteDay and confirmDeleteRow
+export const VERSION = '00.01.0068';

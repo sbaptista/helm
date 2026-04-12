@@ -239,7 +239,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmDeleteDay, setConfirmDeleteDay] = useState(false)
+  const [confirmDeleteRow, setConfirmDeleteRow] = useState(false)
 
   const toast = useToast()
 
@@ -257,14 +258,14 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
   function openAddDay() {
     setEditingDay(null)
     setDayForm({ ...EMPTY_DAY_FORM })
-    setConfirmDelete(false)
+    setConfirmDeleteDay(false)
     setDaySheetOpen(true)
   }
 
   function openEditDay(d: ItineraryDay) {
     setEditingDay(d)
     setDayForm(dayToForm(d))
-    setConfirmDelete(false)
+    setConfirmDeleteDay(false)
     setDaySheetOpen(true)
   }
 
@@ -329,14 +330,14 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       end_date: day?.day_date ?? '',
       sort_order: dayRows.length
     })
-    setConfirmDelete(false)
+    setConfirmDeleteRow(false)
     setRowSheetOpen(true)
   }
 
   function openEditRow(r: ItineraryRow) {
     setEditingRow(r)
     setRowForm(rowToForm(r))
-    setConfirmDelete(false)
+    setConfirmDeleteRow(false)
     setRowSheetOpen(true)
   }
 
@@ -638,7 +639,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                       }}>🚩{row.action_note ? ` ${row.action_note}` : ''}</div>
                     )}
                     {row.description && (
-                      <p style={{ fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5, marginTop: '6px' }}>
+                      <p className="line-clamp-3" style={{ fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5, marginTop: '6px' }}>
                         {row.description}
                       </p>
                     )}
@@ -734,16 +735,16 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
           {/* Delete */}
           {editingDay && (
-            confirmDelete ? (
+            confirmDeleteDay ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <p style={{ fontSize: '14px', color: 'var(--red)', textAlign: 'center' }}>Remove this day and all its rows?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)} style={{ flex: 1 }}>Cancel</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteDay(false)} style={{ flex: 1 }}>Cancel</Button>
                   <Button variant="primary" size="sm" onClick={handleDeleteDay} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderTop: '1px solid var(--red)', borderRight: '1px solid var(--red)', borderBottom: '1px solid var(--red)', borderLeft: '1px solid var(--red)' }}>Remove</Button>
                 </div>
               </div>
             ) : (
-              <button onClick={() => setConfirmDelete(true)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '14px', cursor: 'pointer', padding: '8px' }}>Remove Day</button>
+              <button onClick={() => setConfirmDeleteDay(true)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '14px', cursor: 'pointer', padding: '8px' }}>Remove Day</button>
             )
           )}
         </div>
@@ -990,16 +991,16 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
           {/* Delete */}
           {editingRow && (
-            confirmDelete ? (
+            confirmDeleteRow ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <p style={{ fontSize: '14px', color: 'var(--red)', textAlign: 'center' }}>Remove this item?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)} style={{ flex: 1 }}>Cancel</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteRow(false)} style={{ flex: 1 }}>Cancel</Button>
                   <Button variant="primary" size="sm" onClick={handleDeleteRow} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderTop: '1px solid var(--red)', borderRight: '1px solid var(--red)', borderBottom: '1px solid var(--red)', borderLeft: '1px solid var(--red)' }}>Remove</Button>
                 </div>
               </div>
             ) : (
-              <button onClick={() => setConfirmDelete(true)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '14px', cursor: 'pointer', padding: '8px' }}>Remove Item</button>
+              <button onClick={() => setConfirmDeleteRow(true)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '14px', cursor: 'pointer', padding: '8px' }}>Remove Item</button>
             )
           )}
         </div>

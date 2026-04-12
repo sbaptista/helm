@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { TripCard } from '@/components/advisor/TripCard';
 import { CreateTripModal } from '@/components/advisor/CreateTripModal';
 import { VERSION } from '@/lib/version';
+import { createClient } from '@/lib/supabase/client';
 import type { Trip, TripStatus } from '@/types/trips';
 
 type FilterValue = 'all' | TripStatus;
@@ -169,6 +170,12 @@ export function DashboardView({ trips, userEmail, fetchError }: DashboardViewPro
     router.refresh();
   };
 
+  async function handleSignOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/auth/login'
+  }
+
   const tripCount = trips.length;
 
   return (
@@ -240,6 +247,24 @@ export function DashboardView({ trips, userEmail, fetchError }: DashboardViewPro
                   ＋ New Trip
                 </Button>
               </div>
+              <button
+                onClick={handleSignOut}
+                style={{
+                  fontFamily: "'Lato', sans-serif",
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: 'var(--text3)',
+                  background: 'none',
+                  border: '1px solid var(--border2)',
+                  borderRadius: 'var(--r)',
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  minHeight: '44px',
+                }}
+              >
+                Sign Out
+              </button>
             </div>
           </div>
         </header>
