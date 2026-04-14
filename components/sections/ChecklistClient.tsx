@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useContext } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
+import { TabNavigationContext } from '@/components/advisor/TripDetailView'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,7 +20,8 @@ export type ChecklistItem = {
   group_name: string | null
   ref: string | null
   due_date: string | null
-  urgent: boolean
+  action_required: boolean
+  action_note: string | null
   status: string
   resolution: string | null
   notes: string | null
@@ -38,14 +41,21 @@ type Props = {
   initialGroups: ChecklistGroup[]
 }
 
-type FilterKey = 'open' | 'urgent' | 'completed'
+type FilterKey = 'open' | 'action_required' | 'completed'
+
+const FILTER_LABELS: Record<FilterKey, string> = {
+  open: 'Open',
+  action_required: 'Attention Required',
+  completed: 'Completed',
+}
 
 const EMPTY_FORM = {
   task: '',
   group_name: '',
   ref: '',
   due_date: '',
-  urgent: false,
+  action_required: false,
+  action_note: '',
   status: 'open',
   resolution: '',
   notes: '',
@@ -67,7 +77,8 @@ function recordToForm(r: ChecklistItem) {
     group_name: r.group_name ?? '',
     ref: r.ref ?? '',
     due_date: r.due_date ?? '',
-    urgent: r.urgent,
+    action_required: r.action_required,
+    action_note: r.action_note ?? '',
     status: r.status,
     resolution: r.resolution ?? '',
     notes: r.notes ?? '',
@@ -101,6 +112,22 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set())
 
   const toast = useToast()
+  const router = useRouter()
+  const { pendingItemId, clearPendingItem } = useContext(TabNavigationContext)
+  const [highlightedId, setHighlightedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!pendingItemId) return
+    const hasItem = records.some(r => r.id === pendingItemId)
+    if (!hasItem) return
+    clearPendingItem()
+    setHighlightedId(pendingItemId)
+    setTimeout(() => {
+      const el = document.getElementById(`item-${pendingItemId}`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 80)
+    setTimeout(() => setHighlightedId(null), 1500)
+  }, [pendingItemId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Fetch ────────────────────────────────────────────────────────────────
 
@@ -260,7 +287,8 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
         group_name: form.group_name.trim() || null,
         ref: form.ref.trim() || null,
         due_date: form.due_date || null,
-        urgent: form.urgent,
+        action_required: form.action_required,
+        action_note: form.action_note.trim() || null,
         status: form.status,
         resolution: form.resolution.trim() || null,
         notes: form.notes.trim() || null,
@@ -283,6 +311,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
         toast.show('Item added', 'success')
       }
       await refetchItems()
+      router.refresh()
       closeSheet()
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -314,7 +343,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
     return records.filter(r => {
       if (activeFilters.has('open') && r.status !== 'open') return false
       if (activeFilters.has('completed') && r.status !== 'completed') return false
-      if (activeFilters.has('urgent') && !r.urgent) return false
+      if (activeFilters.has('action_required') && !r.action_required) return false
       return true
     })
   }, [records, activeFilters])
@@ -390,7 +419,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
       {/* Filter bar */}
       {records.length > 0 && (
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {(['open', 'urgent', 'completed'] as FilterKey[]).map(key => {
+          {(['open', 'action_required', 'completed'] as FilterKey[]).map(key => {
             const active = activeFilters.has(key)
             return (
               <button
@@ -412,7 +441,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
                   transition: 'all var(--transition)',
                 }}
               >
-                {key.charAt(0).toUpperCase() + key.slice(1)}
+                {FILTER_LABELS[key]}
               </button>
             )
           })}
@@ -450,7 +479,9 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
               return (
                 <button
                   key={r.id}
+                  id={`item-${r.id}`}
                   onClick={() => openEdit(r)}
+                  className={highlightedId === r.id ? 'item-highlight' : undefined}
                   style={{
                     width: '100%',
                     background: 'var(--bg2)',
@@ -499,9 +530,9 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
                       <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '11px', color: 'var(--text3)', fontWeight: 700, letterSpacing: '0.03em' }}>
                         #{r.item_number}
                       </span>
-                      {r.urgent && (
+                      {r.action_required && (
                         <Badge color={{ bg: 'rgba(184,137,42,0.1)', text: 'var(--gold-text)', border: 'rgba(184,137,42,0.2)' }}>
-                          Urgent
+                          Attention Required
                         </Badge>
                       )}
                     </div>
@@ -672,12 +703,27 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
           <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
             <input
               type="checkbox"
-              checked={form.urgent}
-              onChange={e => setField('urgent', e.target.checked)}
+              checked={form.action_required}
+              onChange={e => setField('action_required', e.target.checked)}
               style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Urgent</span>
+            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Attention Required</span>
           </label>
+
+          {form.action_required && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Attention Note
+              </span>
+              <textarea
+                value={form.action_note}
+                onChange={e => setField('action_note', e.target.value)}
+                placeholder="Describe what needs attention and by when…"
+                rows={3}
+                style={{ ...inputStyle(), resize: 'vertical' }}
+              />
+            </div>
+          )}
 
           {editingRecord && (
             confirmDelete ? (

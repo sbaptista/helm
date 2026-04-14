@@ -298,6 +298,42 @@ button {
   }
 }
 
+/* Overview stats grid — responsive auto-fit */
+.overview-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+/* Overview two-column layout */
+.overview-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 900px) {
+  .overview-layout {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.overview-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.overview-stat-card {
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+
+.overview-stat-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
 /* 3-line clamp — established pattern for all section list views */
 .line-clamp-3 {
   display: -webkit-box;
@@ -317,6 +353,30 @@ button {
   background: rgba(139, 32, 32, 0.08); /* Matches Hotels red badge bg */
   color: var(--red);
   border: 1px solid rgba(139, 32, 32, 0.2);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: 'Lato', sans-serif;
+}
+
+@keyframes helm-item-highlight {
+  0%   { background-color: rgba(184, 137, 42, 0.28); }
+  100% { background-color: transparent; }
+}
+
+.item-highlight {
+  animation: helm-item-highlight 1.5s ease-out forwards;
+}
+
+.badge-show-in-overview {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(184, 137, 42, 0.1);
+  color: var(--gold-text);
+  border: 1px solid rgba(184, 137, 42, 0.2);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   font-family: 'Lato', sans-serif;

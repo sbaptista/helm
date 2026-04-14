@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { TripDetailView } from '@/components/advisor/TripDetailView';
+import { OverviewSection }       from '@/components/sections/OverviewSection';
 import { ItinerarySection }      from '@/components/sections/ItinerarySection';
 import { FlightsSection }        from '@/components/sections/FlightsSection';
 import { HotelsSection }         from '@/components/sections/HotelsSection';
@@ -108,6 +109,7 @@ export default async function TripDetailPage({
       trip={trip}
       hasImport={!!importJob}
       hasSectionData={sectionChecks.some((r) => (r.count ?? 0) > 0)}
+      overviewContent={<OverviewSection tripId={id} trip={{ title: trip.title, departure_date: trip.departure_date, return_date: trip.return_date }} />}
       itineraryContent={<ItinerarySection      tripId={id} />}
       flightsContent={<FlightsSection          tripId={id} />}
       hotelsContent={<HotelsSection            tripId={id} />}

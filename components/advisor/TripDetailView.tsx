@@ -10,7 +10,14 @@ import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { PrintExportModal } from '@/components/advisor/PrintExportModal';
 import type { Trip } from '@/types/trips';
 
+export const TabNavigationContext = React.createContext<{
+  navigateTo: (tab: string, itemId?: string) => void
+  pendingItemId: string | null
+  clearPendingItem: () => void
+}>({ navigateTo: () => {}, pendingItemId: null, clearPendingItem: () => {} })
+
 const TABS = [
+  'Overview',
   'Itinerary',
   'Flights',
   'Hotels',
@@ -44,6 +51,7 @@ interface TripDetailViewProps {
   trip:                   Trip;
   hasImport?:             boolean;
   hasSectionData?:        boolean;
+  overviewContent?:       React.ReactNode;
   itineraryContent?:      React.ReactNode;
   flightsContent?:        React.ReactNode;
   hotelsContent?:         React.ReactNode;
@@ -65,6 +73,7 @@ function TripDetailViewInner({
   trip,
   hasImport = false,
   hasSectionData = false,
+  overviewContent,
   itineraryContent,
   flightsContent,
   hotelsContent,
@@ -83,7 +92,8 @@ function TripDetailViewInner({
 }: TripDetailViewProps) {
   const router = useRouter();
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<Tab>('Itinerary');
+  const [activeTab, setActiveTab] = useState<Tab>('Overview');
+  const [pendingItemId, setPendingItemId] = useState<string | null>(null);
 
   // Import modal
   const [importOpen, setImportOpen] = useState(false);
@@ -129,6 +139,15 @@ function TripDetailViewInner({
 
   // Print modal
   const [printOpen, setPrintOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && (TABS as readonly string[]).includes(tabParam)) {
+      setActiveTab(tabParam as Tab);
+    }
+  }, []);
 
 const handleImportClose = () => {
     if (importPhase !== 'idle') toast.show('Import cancelled', 'neutral');
@@ -305,6 +324,14 @@ const handleImportClose = () => {
   };
 
   return (
+    <TabNavigationContext.Provider value={{
+      navigateTo: (tab, itemId) => {
+        setActiveTab(tab as Tab)
+        if (itemId) setPendingItemId(itemId)
+      },
+      pendingItemId,
+      clearPendingItem: () => setPendingItemId(null),
+    }}>
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
 
       {/* Header */}
@@ -622,6 +649,7 @@ const handleImportClose = () => {
         {/* Tab content */}
         {(() => {
           const tabContents: Partial<Record<Tab, React.ReactNode>> = {
+            Overview:       overviewContent,
             Itinerary:      itineraryContent,
             Flights:        flightsContent,
             Hotels:         hotelsContent,
@@ -1043,6 +1071,7 @@ const handleImportClose = () => {
       />
 
     </div>
+    </TabNavigationContext.Provider>
   );
 }
 

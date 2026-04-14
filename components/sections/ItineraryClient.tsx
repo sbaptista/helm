@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useContext } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
+import { TabNavigationContext } from '@/components/advisor/TripDetailView'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -197,6 +199,40 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
   const [editingRow, setEditingRow] = useState<ItineraryRow | null>(null)
 
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
+
+  const router = useRouter()
+  const { pendingItemId, clearPendingItem } = useContext(TabNavigationContext)
+  const [highlightedId, setHighlightedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!pendingItemId) return
+
+    // Check if it's a row
+    const row = rows.find(r => r.id === pendingItemId)
+    if (row) {
+      clearPendingItem()
+      setHighlightedId(pendingItemId)
+      setExpandedDays(prev => new Set([...prev, row.day_id]))
+      setTimeout(() => {
+        const el = document.getElementById(`item-${pendingItemId}`)
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 80)
+      setTimeout(() => setHighlightedId(null), 1500)
+      return
+    }
+
+    // Check if it's a day
+    const day = days.find(d => d.id === pendingItemId)
+    if (day) {
+      clearPendingItem()
+      setHighlightedId(pendingItemId)
+      setTimeout(() => {
+        const el = document.getElementById(`item-${pendingItemId}`)
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 80)
+      setTimeout(() => setHighlightedId(null), 1500)
+    }
+  }, [pendingItemId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleDay(dayId: string) {
     setExpandedDays(prev => {
@@ -424,6 +460,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       if (!res.ok) throw new Error()
       toast.show(editingRow ? 'Item updated' : 'Item added', 'success')
       await refetch()
+      router.refresh()
       setRowSheetOpen(false)
     } catch {
       toast.show('Something went wrong', 'error')
@@ -490,11 +527,11 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       {sortedDays.map(day => {
         const dayRows = rowsByDay.get(day.id) ?? []
         return (
-          <div key={day.id} style={{ marginBottom: '0' }}>
+          <div key={day.id} id={`item-${day.id}`} style={{ marginBottom: '0' }}>
             <div
               suppressHydrationWarning
               onClick={() => toggleDay(day.id)}
-              className="day-card"
+              className={`day-card${highlightedId === day.id ? ' item-highlight' : ''}`}
               style={{
                 cursor: 'pointer',
                 padding: '16px 20px',
@@ -594,8 +631,9 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 {dayRows.map(row => (
                   <button
                     key={row.id}
+                    id={`item-${row.id}`}
                     onClick={() => openEditRow(row)}
-                    className="section-row"
+                    className={`section-row${highlightedId === row.id ? ' item-highlight' : ''}`}
                     style={{ padding: '14px 16px', borderRadius: 'var(--r)', minHeight: '44px', width: '100%', textAlign: 'left' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

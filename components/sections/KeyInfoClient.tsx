@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useContext } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { useToast } from '@/components/ui/Toast'
+import { TabNavigationContext } from '@/components/advisor/TripDetailView'
 
 export interface KeyInfoGroup {
   id: string
@@ -22,7 +24,9 @@ export interface KeyInfoItem {
   value: string
   url: string | null
   url_label: string | null
-  flag: boolean
+  show_in_overview: boolean
+  action_required: boolean
+  action_note: string | null
   sort_order: number
 }
 
@@ -40,6 +44,22 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const toast = useToast()
+  const router = useRouter()
+  const { pendingItemId, clearPendingItem } = useContext(TabNavigationContext)
+  const [highlightedId, setHighlightedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!pendingItemId) return
+    const hasItem = items.some(i => i.id === pendingItemId)
+    if (!hasItem) return
+    clearPendingItem()
+    setHighlightedId(pendingItemId)
+    setTimeout(() => {
+      const el = document.getElementById(`item-${pendingItemId}`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 80)
+    setTimeout(() => setHighlightedId(null), 1500)
+  }, [pendingItemId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Item BottomSheet
   const [itemSheetOpen, setItemSheetOpen] = useState(false)
@@ -50,7 +70,9 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
   const [itemValue, setItemValue] = useState('')
   const [itemUrl, setItemUrl] = useState('')
   const [itemUrlLabel, setItemUrlLabel] = useState('')
-  const [itemFlag, setItemFlag] = useState(false)
+  const [itemShowInOverview, setItemShowInOverview] = useState(false)
+  const [itemActionRequired, setItemActionRequired] = useState(false)
+  const [itemActionNote, setItemActionNote] = useState('')
 
   // Manage Groups BottomSheet
   const [groupSheetOpen, setGroupSheetOpen] = useState(false)
@@ -89,7 +111,9 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
     setItemValue('')
     setItemUrl('')
     setItemUrlLabel('')
-    setItemFlag(false)
+    setItemShowInOverview(false)
+    setItemActionRequired(false)
+    setItemActionNote('')
     setItemSheetOpen(true)
   }
 
@@ -101,7 +125,9 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
     setItemValue(item.value ?? '')
     setItemUrl(item.url ?? '')
     setItemUrlLabel(item.url_label ?? '')
-    setItemFlag(item.flag)
+    setItemShowInOverview(item.show_in_overview)
+    setItemActionRequired(item.action_required)
+    setItemActionNote(item.action_note ?? '')
     setItemSheetOpen(true)
   }
 
@@ -124,7 +150,9 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
         value: itemValue.trim() || null,
         url: itemUrl.trim() || null,
         url_label: itemUrlLabel.trim() || null,
-        flag: itemFlag,
+        show_in_overview: itemShowInOverview,
+        action_required: itemActionRequired,
+        action_note: itemActionNote.trim() || null,
       }
       
       if (editingItem) {
@@ -148,6 +176,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
         toast.show('Item added', 'success')
       }
       await refetchAll()
+      router.refresh()
       closeItemSheet()
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -253,12 +282,14 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
     return (
       <div
         key={item.id}
-        className="key-info-item"
+        id={`item-${item.id}`}
+        className={`key-info-item${highlightedId === item.id ? ' item-highlight' : ''}`}
         onClick={() => openEditItem(item)}
       >
         <div className="key-info-item-header">
           <span className="key-info-label">{item.label}</span>
-          {item.flag && <span className="badge-action-required">ACTION REQUIRED</span>}
+          {item.show_in_overview && <span className="badge-show-in-overview">IN OVERVIEW</span>}
+          {item.action_required && <span className="badge-action-required">ATTENTION REQUIRED</span>}
         </div>
         <div className="key-info-value line-clamp-3">{item.value}</div>
         {item.url && (
@@ -387,12 +418,37 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
           <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
             <input
               type="checkbox"
-              checked={itemFlag}
-              onChange={e => setItemFlag(e.target.checked)}
+              checked={itemShowInOverview}
+              onChange={e => setItemShowInOverview(e.target.checked)}
               style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
+            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Show in Overview</span>
           </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
+            <input
+              type="checkbox"
+              checked={itemActionRequired}
+              onChange={e => setItemActionRequired(e.target.checked)}
+              style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
+            />
+            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Attention Required</span>
+          </label>
+
+          {itemActionRequired && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Attention Note
+              </span>
+              <textarea
+                value={itemActionNote}
+                onChange={e => setItemActionNote(e.target.value)}
+                placeholder="Describe what needs attention and by when…"
+                rows={3}
+                style={{ ...inputStyle(), resize: 'vertical' }}
+              />
+            </div>
+          )}
 
           {editingItem && (
             confirmDelete ? (
