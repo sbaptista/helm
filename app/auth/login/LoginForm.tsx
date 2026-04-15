@@ -76,7 +76,7 @@ export function LoginForm({ initialError }: LoginFormProps) {
       const data: CheckEmailResponse = await res.json();
 
       if (data.exists) {
-        // Known user — send magic link
+        // Known user — send sign-in link
         const supabase = createClient();
         const { error } = await supabase.auth.signInWithOtp({
           email: email.trim(),

@@ -95,6 +95,23 @@ function TripDetailViewInner({
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const [pendingItemId, setPendingItemId] = useState<string | null>(null);
 
+  const tabRowRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const updateScrollState = () => {
+    const el = tabRowRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  };
+
+  useEffect(() => {
+    setTimeout(updateScrollState, 50);
+    window.addEventListener('resize', updateScrollState);
+    return () => window.removeEventListener('resize', updateScrollState);
+  }, []);
+
   // Import modal
   const [importOpen, setImportOpen] = useState(false);
   const [reimportConfirmOpen, setReimportConfirmOpen] = useState(false);
@@ -601,19 +618,109 @@ const handleImportClose = () => {
         )}
 
         {/* Tab row */}
+        <div style={{ position: 'relative' }}>
+          <style>{`
+            .helm-tab-row::-webkit-scrollbar { display: none; }
+          `}</style>
+
+          <button
+            type="button"
+            aria-label="Scroll tabs left"
+            onClick={() => tabRowRef.current?.scrollBy({ left: -200, behavior: 'smooth' })}
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: 0,
+              width: '44px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--bg)',
+              border: 'none',
+              cursor: 'pointer',
+              zIndex: 2,
+              fontSize: '34px',
+              fontWeight: 700,
+              color: 'var(--text3)',
+              padding: 0,
+              opacity: canScrollLeft ? 1 : 0,
+              pointerEvents: canScrollLeft ? 'auto' : 'none',
+              transition: 'opacity 0.2s',
+            }}
+          >
+            ‹
+          </button>
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: '44px',
+              width: '24px',
+              background: 'linear-gradient(to right, var(--bg), transparent)',
+              pointerEvents: 'none',
+              zIndex: 1,
+              opacity: canScrollLeft ? 1 : 0,
+              transition: 'opacity 0.2s',
+            }}
+          />
+          <button
+            type="button"
+            aria-label="Scroll tabs right"
+            onClick={() => tabRowRef.current?.scrollBy({ left: 200, behavior: 'smooth' })}
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              right: 0,
+              width: '44px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--bg)',
+              border: 'none',
+              cursor: 'pointer',
+              zIndex: 2,
+              fontSize: '34px',
+              fontWeight: 700,
+              color: 'var(--text3)',
+              padding: 0,
+              opacity: canScrollRight ? 1 : 0,
+              pointerEvents: canScrollRight ? 'auto' : 'none',
+              transition: 'opacity 0.2s',
+            }}
+          >
+            ›
+          </button>
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              right: '44px',
+              width: '24px',
+              background: 'linear-gradient(to left, var(--bg), transparent)',
+              pointerEvents: 'none',
+              zIndex: 1,
+              opacity: canScrollRight ? 1 : 0,
+              transition: 'opacity 0.2s',
+            }}
+          />
+
         <div
+          ref={tabRowRef}
+          onScroll={updateScrollState}
           style={{
             display: 'flex',
             gap: '0',
             borderBottom: '1px solid var(--border2)',
             overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
             scrollbarWidth: 'none',
           }}
           className="helm-tab-row"
         >
-          <style>{`
-            .helm-tab-row::-webkit-scrollbar { display: none; }
-          `}</style>
           {TABS.map((tab) => {
             const isActive = activeTab === tab;
             return (
@@ -644,6 +751,7 @@ const handleImportClose = () => {
               </button>
             );
           })}
+        </div>
         </div>
 
         {/* Tab content */}

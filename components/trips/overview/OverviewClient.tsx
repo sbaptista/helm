@@ -126,7 +126,7 @@ function StatCard({
         cursor: isClickable ? 'pointer' : 'default',
         background: isClickable
           ? (hovered ? 'var(--bg3)' : 'var(--bg2)')
-          : 'var(--bg3)',
+          : 'var(--border2)',
         transition: 'background var(--transition)',
         ...(isAlert ? {
           borderTop: '1px solid var(--red)',
@@ -215,11 +215,7 @@ export function OverviewClient({
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {attentionRequired.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => navigateTo(SOURCE_TAB[item.source], item.id)}
-                  style={{ cursor: 'pointer' }}
-                >
+                <div key={item.id}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '2px' }}>
                     <span style={{
                       fontFamily: "'Lato', sans-serif",
@@ -232,12 +228,17 @@ export function OverviewClient({
                     }}>
                       {item.source}
                     </span>
-                    <span style={{
-                      fontFamily: "'Lato', sans-serif",
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      color: 'var(--text)',
-                    }}>
+                    <span
+                      onClick={() => navigateTo(SOURCE_TAB[item.source], item.id)}
+                      style={{
+                        fontFamily: "'Lato', sans-serif",
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: 'var(--text)',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                      }}
+                    >
                       {item.label}
                     </span>
                   </div>
@@ -302,41 +303,29 @@ export function OverviewClient({
               color: 'var(--text3)',
             }}>
               {keyInfoFlagged.map((item) => (
-                <React.Fragment key={item.id}>
-                  <span>
-                    <span style={{ fontWeight: 700, color: 'var(--text2)' }}>{item.label}</span>
-                    {item.value && (
-                      <>
-                        {' '}
-                        {item.url ? (
-                          <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: 'var(--navy3)', textDecoration: 'underline' }}
-                          >
-                            {item.url_label || item.value}
-                          </a>
-                        ) : (
-                          item.value
-                        )}
-                      </>
-                    )}
-                    {!item.value && item.url && (
-                      <>
-                        {' '}
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: 'var(--navy3)', textDecoration: 'underline' }}
-                        >
-                          {item.url_label || item.label}
-                        </a>
-                      </>
-                    )}
+                <span
+                  key={item.id}
+                  onClick={() => navigateTo('Key Info', item.id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color: 'var(--text2)',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    {item.label}
                   </span>
-                </React.Fragment>
+                  {(item.value || item.url_label) && (
+                    <>
+                      {' '}
+                      <span style={{ color: 'var(--text3)' }}>
+                        {item.url_label || item.value}
+                      </span>
+                    </>
+                  )}
+                </span>
               ))}
             </div>
           </div>
