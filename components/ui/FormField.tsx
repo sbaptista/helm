@@ -15,7 +15,7 @@ export function FormField({ label, error, hint, required, children, htmlFor }: F
       <label
         htmlFor={htmlFor}
         style={{
-          fontSize: '12px',
+          fontSize: '13px',
           fontWeight: 700,
           fontFamily: "'Lato', sans-serif",
           color: 'var(--text2)',
@@ -28,7 +28,7 @@ export function FormField({ label, error, hint, required, children, htmlFor }: F
       >
         {label}
         {required && (
-          <span style={{ color: 'var(--red)', fontSize: '12px' }} aria-hidden="true">
+          <span style={{ color: 'var(--red)', fontSize: '13px' }} aria-hidden="true">
             *
           </span>
         )}
@@ -48,7 +48,7 @@ export function FormField({ label, error, hint, required, children, htmlFor }: F
         <p
           role="alert"
           style={{
-            fontSize: '12px',
+            fontSize: '13px',
             color: 'var(--red)',
             fontFamily: "'Lato', sans-serif",
             lineHeight: 1.4,
@@ -61,7 +61,7 @@ export function FormField({ label, error, hint, required, children, htmlFor }: F
       {hint && !error && (
         <p
           style={{
-            fontSize: '12px',
+            fontSize: '13px',
             color: 'var(--text3)',
             fontFamily: "'Lato', sans-serif",
             lineHeight: 1.4,

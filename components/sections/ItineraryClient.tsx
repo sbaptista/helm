@@ -86,7 +86,7 @@ const HST_TZ = 'Pacific/Honolulu'
 function formatDayDate(dateStr: string): string {
   if (!dateStr) return ''
   const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 // Display a UTC ISO timestamp in a given IANA timezone, returns "h:mm AM/PM TZ"
@@ -534,7 +534,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               className={`day-card${highlightedId === day.id ? ' item-highlight' : ''}`}
               style={{
                 cursor: 'pointer',
-                padding: '16px 20px',
+                padding: '20px 20px',
                 borderRadius: 'var(--r-lg)',
                 boxShadow: 'var(--shadow)',
                 borderLeft: `4px solid ${DAY_TYPE_BORDER[day.type] ?? 'var(--border2)'}`,
@@ -571,11 +571,11 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <span style={{ fontSize: '18px' }}>{DAY_TYPE_ICONS[day.type] ?? '📅'}</span>
-                  <span suppressHydrationWarning style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text3)', fontWeight: 400 }}>
+                  <div suppressHydrationWarning style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.2 }}>
                     {formatDayDate(day.day_date)}
-                  </span>
+                  </div>
                 </div>
-                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.2 }}>
+                <div style={{ fontSize: '15px', fontWeight: 400, color: 'var(--text2)', lineHeight: 1.4, marginTop: '2px' }}>
                   {day.title}
                 </div>
                 {day.location && (
@@ -634,26 +634,26 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                     id={`item-${row.id}`}
                     onClick={() => openEditRow(row)}
                     className={`section-row${highlightedId === row.id ? ' item-highlight' : ''}`}
-                    style={{ padding: '14px 16px', borderRadius: 'var(--r)', minHeight: '44px', width: '100%', textAlign: 'left' }}
+                    style={{ padding: '18px 16px', borderRadius: 'var(--r)', minHeight: '44px', width: '100%', textAlign: 'left' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       {row.is_all_day ? (
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--slate)', letterSpacing: '0.04em' }}>All Day</span>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--slate)', letterSpacing: '0.04em' }}>All Day</span>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '80px' }}>
-                          <span suppressHydrationWarning style={{ fontSize: '12px', fontWeight: 700, color: 'var(--gold-text)' }}>
+                          <span suppressHydrationWarning style={{ fontSize: '14px', fontWeight: 700, color: 'var(--gold-text)' }}>
                             {row.is_approx ? '≈ ' : ''}{formatLocalTime(row.start_time, row.start_timezone)}
                             {row.end_time ? ` – ${formatLocalTime(row.end_time, row.end_timezone ?? row.start_timezone)}` : ''}
                             {' '}{formatTzAbbr(row.start_time, row.start_timezone)}
                           </span>
                           {row.start_timezone !== HST_TZ && (
-                            <span suppressHydrationWarning style={{ fontSize: '11px', color: 'var(--text3)' }}>
+                            <span suppressHydrationWarning style={{ fontSize: '12px', color: 'var(--text3)' }}>
                               {formatLocalTime(row.start_time, HST_TZ)} HST
                             </span>
                           )}
                         </div>
                       )}
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)', flex: 1 }}>
+                      <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', flex: 1 }}>
                         {row.title}
                         {row.is_provided && (
                           <span style={{
@@ -677,7 +677,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                       }}>🚩{row.action_note ? ` ${row.action_note}` : ''}</div>
                     )}
                     {row.description && (
-                      <p className="line-clamp-3" style={{ fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5, marginTop: '6px' }}>
+                      <p className="line-clamp-3" style={{ fontSize: '14px', color: 'var(--text2)', lineHeight: 1.5, marginTop: '6px' }}>
                         {row.description}
                       </p>
                     )}

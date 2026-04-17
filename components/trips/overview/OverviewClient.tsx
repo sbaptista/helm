@@ -138,7 +138,7 @@ function StatCard({
     >
       <span style={{
         fontFamily: "'Cormorant Garamond', serif",
-        fontSize: '28px',
+        fontSize: '40px',
         fontWeight: 600,
         color: isAlert ? 'var(--red)' : isClickable ? 'var(--navy)' : 'var(--text3)',
         lineHeight: 1.1,

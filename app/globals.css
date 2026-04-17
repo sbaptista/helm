@@ -105,6 +105,15 @@
 
   /* Touch targets */
   button { min-height: 44px; }
+
+  /* Section content bumps */
+  .key-info-label        { font-size: 15px; }
+  .key-info-value        { font-size: 15px; }
+  .key-info-link         { font-size: 14px; }
+  .pack-item-text        { font-size: 16px; }
+  .pack-cat-name         { font-size: 15px; }
+  .pack-group-name       { font-size: 22px; }
+  .key-info-group-header { font-size: 14px; }
 }
 
 /* iPhone tier */
@@ -121,6 +130,15 @@
 
   /* Touch targets — 48px per Google HIG */
   button { min-height: 48px; }
+
+  /* Section content bumps */
+  .key-info-label        { font-size: 15px; }
+  .key-info-value        { font-size: 15px; }
+  .key-info-link         { font-size: 14px; }
+  .pack-item-text        { font-size: 16px; }
+  .pack-cat-name         { font-size: 15px; }
+  .pack-group-name       { font-size: 22px; }
+  .key-info-group-header { font-size: 14px; }
 }
 
 *,
@@ -387,7 +405,7 @@ button {
   background: var(--bg2);
   border: 1px solid var(--border2);
   border-radius: var(--r);
-  padding: 14px 16px;
+  padding: 18px 16px;
   cursor: pointer;
   text-align: left;
   display: flex;
