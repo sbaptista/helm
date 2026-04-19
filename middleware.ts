@@ -2,9 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  if (process.env.BYPASS_AUTH_USER_ID) {
-    return NextResponse.next();
-  }
+  // AUTH BYPASS — remove to re-enable login
+  return NextResponse.next();
 
   let supabaseResponse = NextResponse.next({
     request,
