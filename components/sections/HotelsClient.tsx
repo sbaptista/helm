@@ -87,7 +87,7 @@ function formatTime(time: string | null): string {
 const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '10px 12px',
-  fontSize: '16px',
+  fontSize: 'var(--fs-base)',
   border: '1px solid var(--bg3)',
   borderRadius: '8px',
   background: 'var(--bg2)',
@@ -103,13 +103,13 @@ function DiningRow({ d }: { d: NearbyDining }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>{d.name}</span>
+          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-medium)', color: 'var(--text)' }}>{d.name}</span>
           {d.meals?.map(m => (
             <span
               key={m}
               style={{
-                fontSize: '11px',
-                fontWeight: 700,
+                fontSize: 'var(--fs-xs)',
+                fontWeight: 'var(--fw-bold)',
                 padding: '2px 6px',
                 borderRadius: '4px',
                 background: 'var(--navy)',
@@ -122,10 +122,10 @@ function DiningRow({ d }: { d: NearbyDining }) {
         </div>
         <div style={{ display: 'flex', gap: '8px', marginTop: '2px', flexWrap: 'wrap' }}>
           {d.walk && (
-            <span style={{ fontSize: '12px', color: 'var(--slate)' }}>{d.walk}</span>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--slate)' }}>{d.walk}</span>
           )}
           {d.note && (
-            <span style={{ fontSize: '12px', color: 'var(--text2)' }}>{d.note}</span>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text2)' }}>{d.note}</span>
           )}
         </div>
       </div>
@@ -283,10 +283,10 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
         marginBottom: '16px',
       }}>
         <h2 style={{
-          fontSize: '22px',
+          fontSize: 'var(--fs-xl)',
           fontFamily: 'var(--font-display)',
           color: 'var(--navy)',
-          fontWeight: 400,
+          fontWeight: 'var(--fw-normal)',
         }}>
           Hotels
         </h2>
@@ -298,7 +298,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
 
       {/* Empty state */}
       {hotels.length === 0 && (
-        <p style={{ fontSize: '14px', color: 'var(--text3)' }}>No hotels added yet.</p>
+        <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>No hotels added yet.</p>
       )}
 
       {/* Hotel list */}
@@ -323,7 +323,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>
+                      <span style={{ fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-medium)', color: 'var(--text)' }}>
                         {hotel.name}
                       </span>
                       {hotel.action_required && (
@@ -336,7 +336,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
 
                     {/* Address / city */}
                     {(hotel.address || hotel.city) && (
-                      <p style={{ fontSize: '13px', color: 'var(--text3)', marginTop: '3px' }}>
+                      <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text3)', marginTop: '3px' }}>
                         {[hotel.address, hotel.city].filter(Boolean).join(', ')}
                       </p>
                     )}
@@ -344,10 +344,10 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                     {/* Check-in / Check-out */}
                     <div style={{ display: 'flex', gap: '20px', marginTop: '10px', flexWrap: 'wrap' }}>
                       <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                           Check-in
                         </span>
-                        <span style={{ fontSize: '14px', color: 'var(--text)' }}>
+                        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>
                           {formatDate(hotel.check_in_date)}
                           {hotel.check_in_time && (
                             <span style={{ color: 'var(--text3)' }}> · {formatTime(hotel.check_in_time)}</span>
@@ -355,10 +355,10 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                         </span>
                       </div>
                       <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                           Check-out
                         </span>
-                        <span style={{ fontSize: '14px', color: 'var(--text)' }}>
+                        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>
                           {formatDate(hotel.check_out_date)}
                           {hotel.check_out_time && (
                             <span style={{ color: 'var(--text3)' }}> · {formatTime(hotel.check_out_time)}</span>
@@ -369,7 +369,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
 
                     {/* Confirmation number */}
                     {hotel.confirmation_number && (
-                      <p style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '8px' }}>
+                      <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '8px' }}>
                         Conf: {hotel.confirmation_number}
                       </p>
                     )}
@@ -395,7 +395,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                       textAlign: 'left',
                     }}
                   >
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--navy)' }}>
+                    <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)' }}>
                       Nearby Dining ({dining.length})
                     </span>
                     {isExpanded
@@ -554,7 +554,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
               onChange={e => setField('action_required', e.target.checked)}
               style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0, appearance: 'auto', WebkitAppearance: 'auto' as any }}
             />
-            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
           </label>
 
           {/* Save */}
@@ -572,7 +572,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
           {editingHotel && (
             confirmDelete ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <p style={{ fontSize: '14px', color: 'var(--red)', textAlign: 'center', margin: 0 }}>
+                <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--red)', textAlign: 'center', margin: 0 }}>
                   Remove this hotel?
                 </p>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -598,7 +598,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                   background: 'none',
                   border: 'none',
                   color: 'var(--red)',
-                  fontSize: '14px',
+                  fontSize: 'var(--fs-sm)',
                   cursor: 'pointer',
                   padding: '8px',
                   minHeight: '44px',

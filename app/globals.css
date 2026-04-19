@@ -62,6 +62,37 @@
   /* iOS safe area */
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
+
+  /* Font sizes */
+  --fs-xs:      12px;
+  --fs-sm:      14px;
+  --fs-base:    16px;
+  --fs-md:      17px;
+  --fs-lg:      20px;
+  --fs-xl:      24px;
+  --fs-2xl:     28px;
+  --fs-display: 36px;
+  --fs-stat:    40px;
+
+  /* Font weights */
+  --fw-normal:  400;
+  --fw-medium:  600;
+  --fw-bold:    700;
+
+  /* Spacing */
+  --sp-xs:   4px;
+  --sp-sm:   8px;
+  --sp-md:   12px;
+  --sp-lg:   16px;
+  --sp-xl:   20px;
+  --sp-2xl:  24px;
+
+  /* Touch targets */
+  --touch-target: 48px;
+
+  /* Semantic colors */
+  --link:       var(--gold-text);
+  --link-hover: var(--gold);
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -97,23 +128,23 @@
   .section-row { padding: 16px 18px; }
 
   /* Form */
-  label { font-size: 14px; }
-  input, select, textarea { font-size: 16px; }
+  label { font-size: var(--fs-sm); }
+  input, select, textarea { font-size: var(--fs-base); }
 
   /* Day card */
   .day-card { padding: 16px 14px; }
 
   /* Touch targets */
-  button { min-height: 44px; }
+  button { min-height: var(--touch-target); }
 
   /* Section content bumps */
-  .key-info-label        { font-size: 15px; }
-  .key-info-value        { font-size: 15px; }
-  .key-info-link         { font-size: 14px; }
-  .pack-item-text        { font-size: 16px; }
-  .pack-cat-name         { font-size: 15px; }
-  .pack-group-name       { font-size: 22px; }
-  .key-info-group-header { font-size: 14px; }
+  .key-info-label        { font-size: var(--fs-base); }
+  .key-info-value        { font-size: var(--fs-base); }
+  .key-info-link         { font-size: var(--fs-sm); }
+  .pack-item-text        { font-size: var(--fs-base); }
+  .pack-cat-name         { font-size: var(--fs-base); }
+  .pack-group-name       { font-size: var(--fs-xl); }
+  .key-info-group-header { font-size: var(--fs-sm); }
 }
 
 /* iPhone tier */
@@ -122,23 +153,23 @@
   .section-row { padding: 18px 16px; }
 
   /* Form — 16px prevents iOS auto-zoom */
-  label { font-size: 15px; }
-  input, select, textarea { font-size: 16px; }
+  label { font-size: var(--fs-sm); }
+  input, select, textarea { font-size: var(--fs-base); }
 
   /* Day card */
   .day-card { padding: 18px 14px; }
 
   /* Touch targets — 48px per Google HIG */
-  button { min-height: 48px; }
+  button { min-height: var(--touch-target); }
 
   /* Section content bumps */
-  .key-info-label        { font-size: 15px; }
-  .key-info-value        { font-size: 15px; }
-  .key-info-link         { font-size: 14px; }
-  .pack-item-text        { font-size: 16px; }
-  .pack-cat-name         { font-size: 15px; }
-  .pack-group-name       { font-size: 22px; }
-  .key-info-group-header { font-size: 14px; }
+  .key-info-label        { font-size: var(--fs-base); }
+  .key-info-value        { font-size: var(--fs-base); }
+  .key-info-link         { font-size: var(--fs-sm); }
+  .pack-item-text        { font-size: var(--fs-base); }
+  .pack-cat-name         { font-size: var(--fs-base); }
+  .pack-group-name       { font-size: var(--fs-xl); }
+  .key-info-group-header { font-size: var(--fs-sm); }
 }
 
 *,
@@ -155,7 +186,7 @@ html {
 
 body {
   font-family: 'Lato', sans-serif;
-  font-size: 15px;
+  font-size: var(--fs-base);
   line-height: 1.6;
   background: var(--bg);
   color: var(--text);
@@ -196,7 +227,7 @@ button {
   padding: 8px 16px;
   border-radius: var(--r-lg);
   font-family: 'Lato', sans-serif;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text3);
   background: transparent;
@@ -221,18 +252,18 @@ button {
 }
 .pack-group-name {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 20px;
+  font-size: var(--fs-lg);
   color: var(--navy);
 }
 .pack-group-progress {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text3);
   font-weight: 400;
 }
 
 .pack-subgroup { margin-top: 8px; margin-left: 16px; }
 .pack-subgroup-header {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -249,7 +280,7 @@ button {
   cursor: pointer;
   border-bottom: 1px solid var(--border2);
 }
-.pack-item-text { flex: 1; font-size: 15px; }
+.pack-item-text { flex: 1; font-size: var(--fs-base); }
 
 .pack-cb {
   width: 22px;
@@ -268,7 +299,7 @@ button {
 .key-info-group { margin-bottom: 24px; }
 .key-info-group-header {
   font-family: 'Lato', sans-serif;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -291,12 +322,12 @@ button {
   gap: 8px;
   margin-bottom: 4px;
 }
-.key-info-label { font-weight: 600; font-size: 14px; color: var(--text); }
-.key-info-value { font-size: 14px; color: var(--text2); line-height: 1.5; }
+.key-info-label { font-weight: 600; font-size: var(--fs-sm); color: var(--text); }
+.key-info-value { font-size: var(--fs-sm); color: var(--text2); line-height: 1.5; }
 .key-info-link {
   display: inline-block;
   margin-top: 4px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--gold-text);
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -364,7 +395,7 @@ button {
 .badge-action-required {
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 20px;
@@ -388,7 +419,7 @@ button {
 .badge-show-in-overview {
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 20px;

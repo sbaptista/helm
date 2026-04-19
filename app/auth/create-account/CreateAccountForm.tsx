@@ -109,7 +109,7 @@ export function CreateAccountForm({ email }: CreateAccountFormProps) {
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+          emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
           data: {
             first_name: values.firstName.trim(),
             last_name:  values.lastName.trim(),

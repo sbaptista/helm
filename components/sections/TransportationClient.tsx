@@ -234,10 +234,10 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
         marginBottom: '16px',
       }}>
         <h2 style={{
-          fontSize: '22px',
+          fontSize: 'var(--fs-xl)',
           fontFamily: 'var(--font-display)',
           color: 'var(--navy)',
-          fontWeight: 400,
+          fontWeight: 'var(--fw-normal)',
         }}>
           Transportation v46
         </h2>
@@ -251,7 +251,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
       {records.length === 0 && (
         <p style={{
           fontFamily: "'Lato', sans-serif",
-          fontSize: '14px',
+          fontSize: 'var(--fs-sm)',
           color: 'var(--text3)',
           textAlign: 'center',
           padding: '32px 0',
@@ -272,8 +272,8 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{
                 fontFamily: "'Lato', sans-serif",
-                fontSize: '15px',
-                fontWeight: 700,
+                fontSize: 'var(--fs-base)',
+                fontWeight: 'var(--fw-bold)',
                 color: 'var(--navy)',
                 flex: 1,
                 minWidth: 0,
@@ -293,7 +293,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
             {r.provider && r.type && (
               <span style={{
                 fontFamily: "'Lato', sans-serif",
-                fontSize: '13px',
+                fontSize: 'var(--fs-sm)',
                 color: 'var(--text3)',
               }}>
                 {r.type}
@@ -304,7 +304,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
             {(r.origin || r.destination) && (
               <span style={{
                 fontFamily: "'Lato', sans-serif",
-                fontSize: '14px',
+                fontSize: 'var(--fs-sm)',
                 color: 'var(--text2)',
               }}>
                 {[r.origin, r.destination].filter(Boolean).join(' → ')}
@@ -325,7 +325,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
             {!r.included && r.cost && (
               <span style={{
                 fontFamily: "'Lato', sans-serif",
-                fontSize: '13px',
+                fontSize: 'var(--fs-sm)',
                 color: 'var(--text2)',
               }}>
                 {r.cost}
@@ -495,7 +495,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
               onChange={e => setField('included', e.target.checked)}
               style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Included (provided by operator)</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Included (provided by operator)</span>
           </label>
 
           {/* Action Required toggle */}
@@ -506,7 +506,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
               onChange={e => setField('action_required', e.target.checked)}
               style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
           </label>
 
 
@@ -515,7 +515,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
           {editingRecord && (
             confirmDelete ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <p style={{ fontSize: '14px', color: 'var(--red)', textAlign: 'center', margin: 0 }}>
+                <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--red)', textAlign: 'center', margin: 0 }}>
                   Remove this transportation record?
                 </p>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -541,7 +541,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
                   background: 'none',
                   border: 'none',
                   color: 'var(--red)',
-                  fontSize: '14px',
+                  fontSize: 'var(--fs-sm)',
                   cursor: 'pointer',
                   padding: '8px',
                   minHeight: '44px',

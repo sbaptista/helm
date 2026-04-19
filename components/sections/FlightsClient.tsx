@@ -228,7 +228,7 @@ export function FlightsClient({
       {flights.length === 0 ? (
         <p style={{
           fontFamily: "'Lato', sans-serif",
-          fontSize: '14px',
+          fontSize: 'var(--fs-sm)',
           color: 'var(--text3)',
           padding: '48px 0',
           textAlign: 'center',
@@ -263,20 +263,20 @@ export function FlightsClient({
               {/* Airline + flight number + cabin */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 {f.airline && (
-                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', fontWeight: 700, color: 'var(--text)' }}>
+                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--text)' }}>
                     {f.airline}
                   </span>
                 )}
                 {f.flight_number && (
-                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)' }}>
+                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
                     {f.flight_number}
                   </span>
                 )}
                 {f.cabin_class && (
                   <span style={{
                     fontFamily: "'Lato', sans-serif",
-                    fontSize: '12px',
-                    fontWeight: 700,
+                    fontSize: 'var(--fs-xs)',
+                    fontWeight: 'var(--fw-bold)',
                     letterSpacing: '0.04em',
                     textTransform: 'uppercase',
                     color: 'var(--gold-text)',
@@ -293,19 +293,19 @@ export function FlightsClient({
 
               {/* Route */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '26px', fontWeight: 600, color: 'var(--navy)', letterSpacing: '0.02em' }}>
+                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-2xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', letterSpacing: '0.02em' }}>
                   {f.origin_airport ?? '—'}
                 </span>
                 <svg width="24" height="12" viewBox="0 0 24 12" fill="none" aria-hidden="true" style={{ color: 'var(--text3)', flexShrink: 0 }}>
                   <path d="M2 6h20M16 2l6 4-6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '26px', fontWeight: 600, color: 'var(--navy)', letterSpacing: '0.02em' }}>
+                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-2xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', letterSpacing: '0.02em' }}>
                   {f.destination_airport ?? '—'}
                 </span>
               </div>
 
               {/* Times */}
-              <div style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                 <span>{formatDateTime(f.departure_time)}</span>
                 <span aria-hidden="true">→</span>
                 <span>{formatDateTime(f.arrival_time)}</span>
@@ -313,15 +313,15 @@ export function FlightsClient({
 
               {/* Confirmation */}
               {f.confirmation_number && (
-                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--text2)' }}>Conf: </span>
+                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Conf: </span>
                   {f.confirmation_number}
                 </div>
               )}
 
               {/* Notes */}
               {f.notes && (
-                <p className="line-clamp-3" style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', lineHeight: 1.5, marginTop: '2px' }}>
+                <p className="line-clamp-3" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', lineHeight: 1.5, marginTop: '2px' }}>
                   {f.notes}
                 </p>
               )}
@@ -504,7 +504,7 @@ export function FlightsClient({
           {saveError && (
             <p style={{
               fontFamily: "'Lato', sans-serif",
-              fontSize: '13px',
+              fontSize: 'var(--fs-sm)',
               color: 'var(--red)',
               lineHeight: 1.5,
             }}>
@@ -524,7 +524,7 @@ export function FlightsClient({
                     border: 'none',
                     cursor: 'pointer',
                     fontFamily: "'Lato', sans-serif",
-                    fontSize: '13px',
+                    fontSize: 'var(--fs-sm)',
                     color: 'var(--red)',
                     textDecoration: 'underline',
                     textUnderlineOffset: '2px',
@@ -543,7 +543,7 @@ export function FlightsClient({
                 }}>
                   <p style={{
                     fontFamily: "'Lato', sans-serif",
-                    fontSize: '13px',
+                    fontSize: 'var(--fs-sm)',
                     color: 'var(--red)',
                     marginBottom: '12px',
                     lineHeight: 1.5,
@@ -560,8 +560,8 @@ export function FlightsClient({
                         border: 'none',
                         cursor: deleting ? 'not-allowed' : 'pointer',
                         fontFamily: "'Lato', sans-serif",
-                        fontSize: '13px',
-                        fontWeight: 700,
+                        fontSize: 'var(--fs-sm)',
+                        fontWeight: 'var(--fw-bold)',
                         color: 'var(--red)',
                         textDecoration: 'underline',
                         textUnderlineOffset: '2px',
@@ -580,7 +580,7 @@ export function FlightsClient({
                         border: 'none',
                         cursor: 'pointer',
                         fontFamily: "'Lato', sans-serif",
-                        fontSize: '13px',
+                        fontSize: 'var(--fs-sm)',
                         color: 'var(--text3)',
                         textDecoration: 'underline',
                         textUnderlineOffset: '2px',

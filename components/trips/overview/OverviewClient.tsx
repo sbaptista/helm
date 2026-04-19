@@ -126,7 +126,7 @@ function StatCard({
         cursor: isClickable ? 'pointer' : 'default',
         background: isClickable
           ? (hovered ? 'var(--bg3)' : 'var(--bg2)')
-          : 'var(--border2)',
+          : 'var(--gold)',
         transition: 'background var(--transition)',
         ...(isAlert ? {
           borderTop: '1px solid var(--red)',
@@ -138,20 +138,20 @@ function StatCard({
     >
       <span style={{
         fontFamily: "'Cormorant Garamond', serif",
-        fontSize: '40px',
+        fontSize: 'var(--fs-stat)',
         fontWeight: 600,
-        color: isAlert ? 'var(--red)' : isClickable ? 'var(--navy)' : 'var(--text3)',
+        color: isAlert ? 'var(--red)' : 'var(--navy)',
         lineHeight: 1.1,
       }}>
         {value}
       </span>
       <span style={{
         fontFamily: "'Lato', sans-serif",
-        fontSize: '12px',
+        fontSize: 'var(--fs-xs)',
         fontWeight: 700,
         letterSpacing: '0.04em',
         textTransform: 'uppercase',
-        color: isAlert ? 'var(--red)' : 'var(--text3)',
+        color: isAlert ? 'var(--red)' : isClickable ? 'var(--text3)' : 'var(--navy)',
       }}>
         {label}
       </span>
@@ -206,8 +206,8 @@ export function OverviewClient({
           <div style={{ ...cardStyle, borderLeft: '3px solid var(--red)' }}>
             <p style={{
               fontFamily: "'Lato', sans-serif",
-              fontSize: '14px',
-              fontWeight: 700,
+              fontSize: 'var(--fs-sm)',
+              fontWeight: 'var(--fw-bold)',
               color: 'var(--navy)',
               margin: '0 0 12px 0',
             }}>
@@ -219,7 +219,7 @@ export function OverviewClient({
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '2px' }}>
                     <span style={{
                       fontFamily: "'Lato', sans-serif",
-                      fontSize: '10px',
+                      fontSize: 'var(--fs-xs)',
                       fontWeight: 700,
                       letterSpacing: '0.06em',
                       textTransform: 'uppercase',
@@ -232,8 +232,8 @@ export function OverviewClient({
                       onClick={() => navigateTo(SOURCE_TAB[item.source], item.id)}
                       style={{
                         fontFamily: "'Lato', sans-serif",
-                        fontSize: '14px',
-                        fontWeight: 600,
+                        fontSize: 'var(--fs-sm)',
+                        fontWeight: 'var(--fw-medium)',
                         color: 'var(--text)',
                         cursor: 'pointer',
                         textDecoration: 'underline',
@@ -246,7 +246,7 @@ export function OverviewClient({
                     <p style={{
                       margin: '0 0 0 0',
                       fontFamily: "'Lato', sans-serif",
-                      fontSize: '13px',
+                      fontSize: 'var(--fs-sm)',
                       color: 'var(--text2)',
                       lineHeight: 1.5,
                     }}>
@@ -261,8 +261,8 @@ export function OverviewClient({
           <div style={{ ...cardStyle }}>
             <p style={{
               fontFamily: "'Lato', sans-serif",
-              fontSize: '14px',
-              fontWeight: 700,
+              fontSize: 'var(--fs-sm)',
+              fontWeight: 'var(--fw-bold)',
               color: 'var(--navy)',
               margin: '0 0 8px 0',
             }}>
@@ -271,7 +271,7 @@ export function OverviewClient({
             <p style={{
               margin: 0,
               fontFamily: "'Lato', sans-serif",
-              fontSize: '14px',
+              fontSize: 'var(--fs-sm)',
               color: 'var(--text3)',
             }}>
               ✅ Nothing requires attention right now
@@ -287,8 +287,8 @@ export function OverviewClient({
           }}>
             <p style={{
               fontFamily: "'Lato', sans-serif",
-              fontSize: '14px',
-              fontWeight: 700,
+              fontSize: 'var(--fs-sm)',
+              fontWeight: 'var(--fw-bold)',
               color: 'var(--navy)',
               margin: '0 0 10px 0',
             }}>
@@ -299,7 +299,7 @@ export function OverviewClient({
               flexDirection: 'column',
               gap: '6px',
               fontFamily: "'Lato', sans-serif",
-              fontSize: '13px',
+              fontSize: 'var(--fs-sm)',
               color: 'var(--text3)',
             }}>
               {keyInfoFlagged.map((item) => (
@@ -339,8 +339,8 @@ export function OverviewClient({
           <div style={cardStyle}>
             <p style={{
               fontFamily: "'Lato', sans-serif",
-              fontSize: '14px',
-              fontWeight: 700,
+              fontSize: 'var(--fs-sm)',
+              fontWeight: 'var(--fw-bold)',
               color: 'var(--navy)',
               margin: '0 0 16px 0',
             }}>
@@ -400,8 +400,8 @@ export function OverviewClient({
                           suppressHydrationWarning
                           style={{
                             fontFamily: "'Lato', sans-serif",
-                            fontSize: '14px',
-                            fontWeight: 700,
+                            fontSize: 'var(--fs-sm)',
+                            fontWeight: 'var(--fw-bold)',
                             color: 'var(--navy)',
                           }}
                         >
@@ -410,7 +410,7 @@ export function OverviewClient({
                         {day.title && (
                           <span style={{
                             fontFamily: "'Lato', sans-serif",
-                            fontSize: '14px',
+                            fontSize: 'var(--fs-sm)',
                             color: 'var(--text2)',
                           }}>
                             {day.title}
@@ -426,7 +426,7 @@ export function OverviewClient({
                       }}>
                         <span style={{
                           fontFamily: "'Lato', sans-serif",
-                          fontSize: '12px',
+                          fontSize: 'var(--fs-xs)',
                           color: 'var(--text3)',
                         }}>
                           {day.row_count === 1 ? '1 activity' : `${day.row_count} activities`}
@@ -437,7 +437,7 @@ export function OverviewClient({
                           padding: '1px 8px',
                           borderRadius: '99px',
                           fontFamily: "'Lato', sans-serif",
-                          fontSize: '11px',
+                          fontSize: 'var(--fs-xs)',
                           fontWeight: 700,
                           letterSpacing: '0.02em',
                           whiteSpace: 'nowrap',

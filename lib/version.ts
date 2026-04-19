@@ -1,3 +1,3 @@
 // lib/version.ts
-// 00.01.0084 — Itinerary activity row typography: time 14px, title 15px, desc 14px/text2, row padding 18/16
-export const VERSION = '00.01.0084';
+// 00.01.0098 — Auth bypass via BYPASS_AUTH_USER_ID env var
+export const VERSION = '00.01.0098';

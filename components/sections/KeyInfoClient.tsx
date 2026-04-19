@@ -274,7 +274,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
     justifyContent: 'center',
     cursor: 'pointer',
     color: 'var(--text2)',
-    fontSize: '16px',
+    fontSize: 'var(--fs-base)',
     flexShrink: 0,
   }
 
@@ -310,7 +310,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
   return (
     <div>
       <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h2 style={{ fontSize: '22px', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 400 }}>
+        <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
           Key Info
         </h2>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -422,7 +422,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
               onChange={e => setItemShowInOverview(e.target.checked)}
               style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Show in Overview</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Show in Overview</span>
           </label>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
@@ -432,12 +432,12 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
               onChange={e => setItemActionRequired(e.target.checked)}
               style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Attention Required</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Attention Required</span>
           </label>
 
           {itemActionRequired && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 Attention Note
               </span>
               <textarea
@@ -453,7 +453,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
           {editingItem && (
             confirmDelete ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <p style={{ fontSize: '14px', color: 'var(--red)', textAlign: 'center', margin: 0 }}>Remove this item?</p>
+                <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--red)', textAlign: 'center', margin: 0 }}>Remove this item?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)} style={{ flex: 1 }}>Cancel</Button>
                   <Button variant="primary" size="sm" onClick={handleDeleteItem} disabled={deleting} loading={deleting}
@@ -462,7 +462,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
               </div>
             ) : (
               <button onClick={() => setConfirmDelete(true)}
-                style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '14px', cursor: 'pointer', padding: '8px', minHeight: '44px' }}>
+                style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: 'var(--fs-sm)', cursor: 'pointer', padding: '8px', minHeight: '44px' }}>
                 Remove Item
               </button>
             )
@@ -478,7 +478,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '40px' }}>
           {sortedGroups.length === 0 && (
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '24px 0' }}>
               No groups yet.
             </p>
           )}
@@ -487,7 +487,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
             return (
               <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 'var(--r)', padding: '10px 14px' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>{g.name}</span>
+                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>{g.name}</span>
                 </div>
                 <button onClick={() => moveGroup(g, 'up')} disabled={i === 0} style={{ ...iconBtnStyle, opacity: i === 0 ? 0.3 : 1 }}>↑</button>
                 <button onClick={() => moveGroup(g, 'down')} disabled={i === sortedGroups.length - 1} style={{ ...iconBtnStyle, opacity: i === sortedGroups.length - 1 ? 0.3 : 1 }}>↓</button>

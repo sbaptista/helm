@@ -411,7 +411,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
     justifyContent: 'center',
     cursor: 'pointer',
     color: 'var(--text2)',
-    fontSize: '16px',
+    fontSize: 'var(--fs-base)',
     flexShrink: 0,
   }
 
@@ -444,7 +444,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
   return (
     <div>
       <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h2 style={{ fontSize: '22px', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 400 }}>
+        <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
           Packing List
         </h2>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -474,7 +474,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
 
       <div className="pack-list">
         {personGroups.length === 0 && (
-          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
+          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
             No categories yet. Add one via Manage Categories.
           </p>
         )}
@@ -581,7 +581,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
               onChange={e => setItemOwned(e.target.checked)}
               style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Owned</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Owned</span>
           </label>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
@@ -591,13 +591,13 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
               onChange={e => setItemPacked(e.target.checked)}
               style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Packed</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Packed</span>
           </label>
 
           {editingItem && (
             confirmDelete ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <p style={{ fontSize: '14px', color: 'var(--red)', textAlign: 'center', margin: 0 }}>Remove this item?</p>
+                <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--red)', textAlign: 'center', margin: 0 }}>Remove this item?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)} style={{ flex: 1 }}>Cancel</Button>
                   <Button variant="primary" size="sm" onClick={handleDeleteItem} disabled={deleting} loading={deleting}
@@ -606,7 +606,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
               </div>
             ) : (
               <button onClick={() => setConfirmDelete(true)}
-                style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '14px', cursor: 'pointer', padding: '8px', minHeight: '44px' }}>
+                style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: 'var(--fs-sm)', cursor: 'pointer', padding: '8px', minHeight: '44px' }}>
                 Remove Item
               </button>
             )
@@ -622,7 +622,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '40px' }}>
           {personGroups.length === 0 && (
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '24px 0' }}>
               No categories yet.
             </p>
           )}
@@ -631,7 +631,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
             return (
               <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 'var(--r)', padding: '10px 14px' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>{g.name}</span>
+                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>{g.name}</span>
                 </div>
                 <button onClick={() => moveCategory(g, 'up')} disabled={i === 0} style={{ ...iconBtnStyle, opacity: i === 0 ? 0.3 : 1 }}>↑</button>
                 <button onClick={() => moveCategory(g, 'down')} disabled={i === personGroups.length - 1} style={{ ...iconBtnStyle, opacity: i === personGroups.length - 1 ? 0.3 : 1 }}>↓</button>
@@ -664,14 +664,14 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
             return (
               <>
                 {groupSubs.length === 0 && (
-                  <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', textAlign: 'center', padding: '24px 0' }}>No sub-groups yet.</p>
+                  <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '24px 0' }}>No sub-groups yet.</p>
                 )}
                 {groupSubs.map((s, i) => {
                   const hasItems = personItems.some(item => item.subgroup_id === s.id)
                   return (
                     <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 'var(--r)', padding: '10px 14px' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>{s.name}</span>
+                        <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>{s.name}</span>
                       </div>
                       <button onClick={() => moveSubgroup(s, 'up')} disabled={i === 0} style={{ ...iconBtnStyle, opacity: i === 0 ? 0.3 : 1 }}>↑</button>
                       <button onClick={() => moveSubgroup(s, 'down')} disabled={i === groupSubs.length - 1} style={{ ...iconBtnStyle, opacity: i === groupSubs.length - 1 ? 0.3 : 1 }}>↓</button>

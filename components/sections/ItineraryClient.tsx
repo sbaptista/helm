@@ -510,7 +510,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '22px', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 400 }}>
+        <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
           Itinerary
         </h2>
         <Button variant="primary" size="sm" onClick={openAddDay}>
@@ -519,7 +519,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       </div>
 
       {sortedDays.length === 0 && (
-        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
+        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
           No itinerary data yet.
         </p>
       )}
@@ -552,7 +552,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               {/* Day number — large, muted, fixed width */}
               <div style={{
                 fontFamily: "'Cormorant Garamond', serif",
-                fontSize: '36px',
+                fontSize: 'var(--fs-display)',
                 fontWeight: 700,
                 color: 'rgba(13,30,53,0.15)',
                 minWidth: '52px',
@@ -561,7 +561,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 flexShrink: 0,
               }}>
                 {day.day_number === 0 ? (
-                  <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(13,30,53,0.25)' }}>PRE<br/>TRIP</span>
+                  <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(13,30,53,0.25)' }}>PRE<br/>TRIP</span>
                 ) : (
                   day.day_number
                 )}
@@ -571,15 +571,15 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <span style={{ fontSize: '18px' }}>{DAY_TYPE_ICONS[day.type] ?? '📅'}</span>
-                  <div suppressHydrationWarning style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', fontWeight: 600, color: 'var(--navy)', lineHeight: 1.2 }}>
+                  <div suppressHydrationWarning style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', lineHeight: 1.2 }}>
                     {formatDayDate(day.day_date)}
                   </div>
                 </div>
-                <div style={{ fontSize: '15px', fontWeight: 400, color: 'var(--text2)', lineHeight: 1.4, marginTop: '2px' }}>
+                <div style={{ fontSize: 'var(--fs-base)', fontWeight: 400, color: 'var(--text2)', lineHeight: 1.4, marginTop: '2px' }}>
                   {day.title}
                 </div>
                 {day.location && (
-                  <div style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', marginTop: '4px' }}>
+                  <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', marginTop: '4px' }}>
                     📍 {day.location}
                   </div>
                 )}
@@ -594,8 +594,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                   onClick={() => openEditDay(day)}
                   style={{
                     fontFamily: "'Lato', sans-serif",
-                    fontSize: '13px',
-                    fontWeight: 700,
+                    fontSize: 'var(--fs-sm)',
+                    fontWeight: 'var(--fw-bold)',
                     color: 'var(--navy)',
                     background: 'var(--bg3)',
                     border: '1px solid var(--border2)',
@@ -638,26 +638,26 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       {row.is_all_day ? (
-                        <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--slate)', letterSpacing: '0.04em' }}>All Day</span>
+                        <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--slate)', letterSpacing: '0.04em' }}>All Day</span>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '80px' }}>
-                          <span suppressHydrationWarning style={{ fontSize: '14px', fontWeight: 700, color: 'var(--gold-text)' }}>
+                          <span suppressHydrationWarning style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--gold-text)' }}>
                             {row.is_approx ? '≈ ' : ''}{formatLocalTime(row.start_time, row.start_timezone)}
                             {row.end_time ? ` – ${formatLocalTime(row.end_time, row.end_timezone ?? row.start_timezone)}` : ''}
                             {' '}{formatTzAbbr(row.start_time, row.start_timezone)}
                           </span>
                           {row.start_timezone !== HST_TZ && (
-                            <span suppressHydrationWarning style={{ fontSize: '12px', color: 'var(--text3)' }}>
+                            <span suppressHydrationWarning style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)' }}>
                               {formatLocalTime(row.start_time, HST_TZ)} HST
                             </span>
                           )}
                         </div>
                       )}
-                      <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', flex: 1 }}>
+                      <span style={{ fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-bold)', color: 'var(--text)', flex: 1 }}>
                         {row.title}
                         {row.is_provided && (
                           <span style={{
-                            display: 'inline-block', fontSize: '11px', fontWeight: 700,
+                            display: 'inline-block', fontSize: 'var(--fs-xs)', fontWeight: 'var(--fw-bold)',
                             color: 'var(--green)', background: 'rgba(45,90,61,0.08)',
                             border: '1px solid rgba(45,90,61,0.15)',
                             borderRadius: '10px', padding: '1px 8px',
@@ -671,18 +671,18 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                       <div style={{
                         display: 'inline-flex', alignItems: 'center', gap: '5px',
                         borderLeft: '3px solid #B85900', padding: '2px 8px',
-                        marginTop: '5px', fontSize: '12px', color: '#B85900',
+                        marginTop: '5px', fontSize: 'var(--fs-xs)', color: '#B85900',
                         fontWeight: 600, background: 'rgba(184,89,0,0.08)',
                         borderRadius: '0 3px 3px 0'
                       }}>🚩{row.action_note ? ` ${row.action_note}` : ''}</div>
                     )}
                     {row.description && (
-                      <p className="line-clamp-3" style={{ fontSize: '14px', color: 'var(--text2)', lineHeight: 1.5, marginTop: '6px' }}>
+                      <p className="line-clamp-3" style={{ fontSize: 'var(--fs-sm)', color: 'var(--text2)', lineHeight: 1.5, marginTop: '6px' }}>
                         {row.description}
                       </p>
                     )}
                     {row.location && (
-                      <p style={{ fontSize: '13px', color: 'var(--text3)', fontStyle: 'italic', marginTop: '4px' }}>
+                      <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text3)', fontStyle: 'italic', marginTop: '4px' }}>
                         📍 {row.location}
                       </p>
                     )}
@@ -741,7 +741,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               placeholder="e.g. Arrive Vancouver"
               style={inputStyle()}
             />
-            <span style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px', display: 'block' }}>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '4px', display: 'block' }}>
               Shown as the day header
             </span>
           </FormField>
@@ -755,7 +755,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               placeholder="e.g. Vancouver"
               style={inputStyle()}
             />
-            <span style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px', display: 'block' }}>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '4px', display: 'block' }}>
               City where you spend the night
             </span>
           </FormField>
@@ -775,14 +775,14 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
           {editingDay && (
             confirmDeleteDay ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <p style={{ fontSize: '14px', color: 'var(--red)', textAlign: 'center' }}>Remove this day and all its rows?</p>
+                <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--red)', textAlign: 'center' }}>Remove this day and all its rows?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteDay(false)} style={{ flex: 1 }}>Cancel</Button>
                   <Button variant="primary" size="sm" onClick={handleDeleteDay} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderTop: '1px solid var(--red)', borderRight: '1px solid var(--red)', borderBottom: '1px solid var(--red)', borderLeft: '1px solid var(--red)' }}>Remove</Button>
                 </div>
               </div>
             ) : (
-              <button onClick={() => setConfirmDeleteDay(true)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '14px', cursor: 'pointer', padding: '8px' }}>Remove Day</button>
+              <button onClick={() => setConfirmDeleteDay(true)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: 'var(--fs-sm)', cursor: 'pointer', padding: '8px' }}>Remove Day</button>
             )
           )}
         </div>
@@ -842,7 +842,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
           {/* ── Timing fieldset ── */}
           <fieldset style={{ border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px', margin: 0 }}>
-            <legend style={{ fontSize: '11px', color: 'var(--slate)', padding: '0 4px' }}>
+            <legend style={{ fontSize: 'var(--fs-xs)', color: 'var(--slate)', padding: '0 4px' }}>
               Timing <span style={{ fontWeight: 400 }}>(stored as UTC, displayed in local timezone)</span>
             </legend>
 
@@ -937,8 +937,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                   style={{ marginTop: '2px' }}
                 />
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600 }}>All Day</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>No specific time — sorts to top of day</div>
+                  <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-medium)' }}>All Day</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)' }}>No specific time — sorts to top of day</div>
                 </div>
               </label>
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
@@ -949,8 +949,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                   style={{ marginTop: '2px' }}
                 />
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600 }}>≈ Estimated Time</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Time is approximate — displays with ≈ prefix</div>
+                  <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-medium)' }}>≈ Estimated Time</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)' }}>Time is approximate — displays with ≈ prefix</div>
                 </div>
               </label>
             </div>
@@ -965,7 +965,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               placeholder="e.g. Vancouver Airport"
               style={inputStyle()}
             />
-            <span style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px', display: 'block' }}>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '4px', display: 'block' }}>
               Optional — shown below the item title
             </span>
           </FormField>
@@ -990,8 +990,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               style={{ marginTop: '2px' }}
             />
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 600 }}>✓ Included / Provided</div>
-              <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Meal or activity is included — shows green ✓ Included badge</div>
+              <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-medium)' }}>✓ Included / Provided</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)' }}>Meal or activity is included — shows green ✓ Included badge</div>
             </div>
           </label>
 
@@ -1012,8 +1012,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 style={{ marginTop: '2px' }}
               />
               <div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#B85900' }}>🚩 Action Required</div>
-                <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Flags this item — shown in the Action Required section</div>
+                <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-medium)', color: '#B85900' }}>🚩 Action Required</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)' }}>Flags this item — shown in the Action Required section</div>
               </div>
             </label>
             {rowForm.action_required && (
@@ -1031,14 +1031,14 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
           {editingRow && (
             confirmDeleteRow ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <p style={{ fontSize: '14px', color: 'var(--red)', textAlign: 'center' }}>Remove this item?</p>
+                <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--red)', textAlign: 'center' }}>Remove this item?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteRow(false)} style={{ flex: 1 }}>Cancel</Button>
                   <Button variant="primary" size="sm" onClick={handleDeleteRow} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderTop: '1px solid var(--red)', borderRight: '1px solid var(--red)', borderBottom: '1px solid var(--red)', borderLeft: '1px solid var(--red)' }}>Remove</Button>
                 </div>
               </div>
             ) : (
-              <button onClick={() => setConfirmDeleteRow(true)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '14px', cursor: 'pointer', padding: '8px' }}>Remove Item</button>
+              <button onClick={() => setConfirmDeleteRow(true)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: 'var(--fs-sm)', cursor: 'pointer', padding: '8px' }}>Remove Item</button>
             )
           )}
         </div>

@@ -11,6 +11,9 @@ function serviceClient() {
 }
 
 async function getAuthUserId(): Promise<string | null> {
+  if (process.env.BYPASS_AUTH_USER_ID) {
+    return process.env.BYPASS_AUTH_USER_ID;
+  }
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

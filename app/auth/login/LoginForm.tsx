@@ -78,10 +78,11 @@ export function LoginForm({ initialError }: LoginFormProps) {
       if (data.exists) {
         // Known user — send sign-in link
         const supabase = createClient();
+        const redirectTo = `${window.location.origin}/auth/callback`;
         const { error } = await supabase.auth.signInWithOtp({
           email: email.trim(),
           options: {
-            emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+            emailRedirectTo: redirectTo,
           },
         });
         if (error) throw new Error(error.message);

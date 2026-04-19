@@ -384,7 +384,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
     justifyContent: 'center',
     cursor: 'pointer',
     color: 'var(--text2)',
-    fontSize: '16px',
+    fontSize: 'var(--fs-base)',
     flexShrink: 0,
   }
 
@@ -396,11 +396,11 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
       {/* Section header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
         <div>
-          <h2 style={{ fontSize: '22px', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 400 }}>
+          <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
             Checklist
           </h2>
           {records.length > 0 && (
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', marginTop: '2px' }}>
+            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', marginTop: '2px' }}>
               {totalCompleted} of {records.length} complete
             </p>
           )}
@@ -427,8 +427,8 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
                 onClick={() => toggleFilter(key)}
                 style={{
                   fontFamily: "'Lato', sans-serif",
-                  fontSize: '12px',
-                  fontWeight: 700,
+                  fontSize: 'var(--fs-xs)',
+                  fontWeight: 'var(--fw-bold)',
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
                   padding: '4px 12px',
@@ -450,12 +450,12 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
 
       {/* Empty states */}
       {records.length === 0 && (
-        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
+        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
           No checklist items yet.
         </p>
       )}
       {records.length > 0 && filtered.length === 0 && (
-        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
+        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
           No items match the current filters.
         </p>
       )}
@@ -466,10 +466,10 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
         return (
           <div key={groupName} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: '4px', borderBottom: '1px solid var(--border2)' }}>
-              <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '18px', fontWeight: 600, color: 'var(--navy)' }}>
+              <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-lg)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)' }}>
                 {groupName}
               </span>
-              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--text3)' }}>
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)' }}>
                 {groupCompleted}/{items.length}
               </span>
             </div>
@@ -527,7 +527,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
                   </div>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '11px', color: 'var(--text3)', fontWeight: 700, letterSpacing: '0.03em' }}>
+                      <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)', fontWeight: 'var(--fw-bold)', letterSpacing: '0.03em' }}>
                         #{r.item_number}
                       </span>
                       {r.action_required && (
@@ -538,7 +538,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
                     </div>
                     <span style={{
                       fontFamily: "'Lato', sans-serif",
-                      fontSize: '14px',
+                      fontSize: 'var(--fs-sm)',
                       fontWeight: 500,
                       color: 'var(--text)',
                       textDecoration: isCompleted ? 'line-through' : 'none',
@@ -547,12 +547,12 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
                       {r.task}
                     </span>
                     {r.ref && (
-                      <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--text3)', lineHeight: 1.4 }}>
+                      <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)', lineHeight: 1.4 }}>
                         {r.ref}
                       </span>
                     )}
                     {r.due_date && (
-                      <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--text3)' }}>
+                      <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)' }}>
                         Due {formatDate(r.due_date)}
                       </span>
                     )}
@@ -707,12 +707,12 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
               onChange={e => setField('action_required', e.target.checked)}
               style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>Attention Required</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Attention Required</span>
           </label>
 
           {form.action_required && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 Attention Note
               </span>
               <textarea
@@ -728,7 +728,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
           {editingRecord && (
             confirmDelete ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <p style={{ fontSize: '14px', color: 'var(--red)', textAlign: 'center', margin: 0 }}>Remove this item?</p>
+                <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--red)', textAlign: 'center', margin: 0 }}>Remove this item?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)} style={{ flex: 1 }}>Cancel</Button>
                   <Button variant="primary" size="sm" onClick={handleDelete} disabled={deleting} loading={deleting}
@@ -737,7 +737,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
               </div>
             ) : (
               <button onClick={() => setConfirmDelete(true)}
-                style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '14px', cursor: 'pointer', padding: '8px', minHeight: '44px' }}>
+                style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: 'var(--fs-sm)', cursor: 'pointer', padding: '8px', minHeight: '44px' }}>
                 Remove Item
               </button>
             )
@@ -753,7 +753,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '40px' }}>
           {sortedGroups.length === 0 && (
-            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '24px 0' }}>
               No groups yet.
             </p>
           )}
@@ -770,11 +770,11 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
                 padding: '10px 14px',
               }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text)', fontWeight: 500 }}>
+                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>
                     {g.name}
                   </span>
                   {itemCount > 0 && (
-                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', color: 'var(--text3)', marginLeft: '8px' }}>
+                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginLeft: '8px' }}>
                       {itemCount} item{itemCount !== 1 ? 's' : ''}
                     </span>
                   )}
