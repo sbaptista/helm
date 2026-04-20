@@ -23,6 +23,7 @@ interface DashboardViewProps {
   trips: Trip[];
   userEmail: string;
   fetchError?: string | null;
+  showSignOut?: boolean;
 }
 
 function FilterPill({
@@ -159,7 +160,7 @@ function FilteredEmptyState() {
   );
 }
 
-export function DashboardView({ trips, userEmail, fetchError }: DashboardViewProps) {
+export function DashboardView({ trips, userEmail, fetchError, showSignOut = true }: DashboardViewProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterValue>('all');
   const [modalOpen, setModalOpen] = useState(false);
@@ -245,24 +246,26 @@ export function DashboardView({ trips, userEmail, fetchError }: DashboardViewPro
                   ＋ New Trip
                 </Button>
               </div>
-              <button
-                onClick={handleSignOut}
-                style={{
-                  fontFamily: "'Lato', sans-serif",
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: 'var(--text3)',
-                  background: 'none',
-                  border: '1px solid var(--border2)',
-                  borderRadius: 'var(--r)',
-                  padding: '8px 16px',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  minHeight: '44px',
-                }}
-              >
-                Sign Out
-              </button>
+              {showSignOut && (
+                <button
+                  onClick={handleSignOut}
+                  style={{
+                    fontFamily: "'Lato', sans-serif",
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    color: 'var(--text3)',
+                    background: 'none',
+                    border: '1px solid var(--border2)',
+                    borderRadius: 'var(--r)',
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    minHeight: '44px',
+                  }}
+                >
+                  Sign Out
+                </button>
+              )}
             </div>
           </div>
         </header>

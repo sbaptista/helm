@@ -1,3 +1,3 @@
 // lib/version.ts
-// 00.01.0101 — dashboard bypass shim adds email: ''
-export const VERSION = '00.01.0101';
+// 00.01.0102 — service client for bypass fetch, hide sign out when bypassed
+export const VERSION = '00.01.0102';

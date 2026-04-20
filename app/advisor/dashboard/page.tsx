@@ -1,10 +1,20 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { DashboardView } from '@/components/advisor/DashboardView';
 import type { Trip, TripStatus } from '@/types/trips';
 
+function getServiceClient() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!
+  );
+}
+
 async function fetchTrips(userId: string): Promise<Trip[]> {
-  const supabase = await createClient();
+  const supabase = process.env.BYPASS_AUTH_USER_ID
+    ? getServiceClient()
+    : await createClient();
 
   // Get all trip_ids where this user is an advisor
   const { data: memberRows, error: memberError } = await supabase
@@ -75,6 +85,7 @@ export default async function AdvisorDashboardPage() {
       trips={trips}
       userEmail={user.email ?? ''}
       fetchError={fetchError}
+      showSignOut={!process.env.BYPASS_AUTH_USER_ID}
     />
   );
 }
