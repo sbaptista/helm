@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'action';
 export type ButtonSize = 'default' | 'sm' | 'icon';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -17,6 +17,8 @@ interface VariantTokens {
   border: string;
   bgHover: string;
   borderHover: string;
+  borderWidth?: string;
+  fontWeight?: number;
 }
 
 const VARIANTS: Record<ButtonVariant, VariantTokens> = {
@@ -47,6 +49,15 @@ const VARIANTS: Record<ButtonVariant, VariantTokens> = {
     border: 'rgba(139,32,32,0.2)',
     bgHover: 'rgba(139,32,32,0.14)',
     borderHover: 'rgba(139,32,32,0.3)',
+  },
+  action: {
+    bg: 'transparent',
+    color: 'var(--text)',
+    border: '#F5A623',
+    bgHover: '#F5A623',
+    borderHover: '#F5A623',
+    borderWidth: '4px',
+    fontWeight: 400,
   },
 };
 
@@ -96,13 +107,13 @@ export function Button({
     justifyContent: 'center',
     gap: '8px',
     fontFamily: "'Lato', sans-serif",
-    fontWeight: 700,
+    fontWeight: v.fontWeight ?? 700,
     letterSpacing: '0.02em',
     borderRadius: 'var(--r)',
-    borderTop: `1px solid ${hovered && !isDisabled ? v.borderHover : v.border}`,
-    borderRight: `1px solid ${hovered && !isDisabled ? v.borderHover : v.border}`,
-    borderBottom: `1px solid ${hovered && !isDisabled ? v.borderHover : v.border}`,
-    borderLeft: `1px solid ${hovered && !isDisabled ? v.borderHover : v.border}`,
+    borderTop: `${v.borderWidth ?? '1px'} solid ${hovered && !isDisabled ? v.borderHover : v.border}`,
+    borderRight: `${v.borderWidth ?? '1px'} solid ${hovered && !isDisabled ? v.borderHover : v.border}`,
+    borderBottom: `${v.borderWidth ?? '1px'} solid ${hovered && !isDisabled ? v.borderHover : v.border}`,
+    borderLeft: `${v.borderWidth ?? '1px'} solid ${hovered && !isDisabled ? v.borderHover : v.border}`,
     background: hovered && !isDisabled ? v.bgHover : v.bg,
     color: v.color,
     cursor: isDisabled ? 'not-allowed' : 'pointer',

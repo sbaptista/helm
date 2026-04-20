@@ -506,7 +506,7 @@ const handleImportClose = () => {
           <div style={{ flexShrink: 0, paddingTop: '6px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
             <div style={{ display: 'flex', gap: '8px' }}>
               <Button
-                variant="primary"
+                variant="secondary"
                 onClick={() => {
                   if (importDone && hasSectionData) {
                     setReimportConfirmOpen(true);

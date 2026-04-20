@@ -75,6 +75,12 @@ export function CalendarButton({ tripId, tripName }: CalendarButtonProps) {
     }
   }, []);
 
+  useEffect(() => {
+    const handler = () => fetchStatus()
+    window.addEventListener('gcal:dirty', handler)
+    return () => window.removeEventListener('gcal:dirty', handler)
+  }, []);
+
   // Handle post-OAuth return: ?gcal_connected=true
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -198,13 +204,12 @@ export function CalendarButton({ tripId, tripName }: CalendarButtonProps) {
   const formatLastSynced = (iso?: string | null) =>
     iso ? `Last updated ${new Date(iso).toLocaleString()}` : 'Never synced';
 
-  const stateConfig: Record<GCalState, { background: string; color: string; label: string }> = {
-    loading:         { background: 'transparent',  color: 'var(--navy)', label: '…' },
-    unconnected:     { background: 'transparent',  color: 'var(--navy)', label: 'Unconnected' },
-    connected:       { background: 'transparent',  color: 'var(--navy)', label: '✅ Connected' },
-    update_required: { background: 'var(--gold)',  color: 'var(--navy)', label: 'Update' },
+  const stateLabel: Record<GCalState, string> = {
+    loading:         '…',
+    unconnected:     'Unconnected',
+    connected:       '✅ Connected',
+    update_required: 'Update!',
   };
-  const cfg = stateConfig[status.state];
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -239,31 +244,24 @@ export function CalendarButton({ tripId, tripName }: CalendarButtonProps) {
   return (
     <>
       {/* Trigger button */}
-      <button
+      <Button
+        variant={status.state === 'update_required' ? 'action' : 'secondary'}
         onClick={handleButtonClick}
         disabled={status.state === 'loading' || isOffline}
         style={{
-          display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid var(--navy)',
           borderRadius: '6px',
           padding: '8px 20px',
-          opacity: isOffline ? 0.5 : 1,
-          cursor: isOffline ? 'not-allowed' : status.state === 'loading' ? 'default' : 'pointer',
           minWidth: '120px',
-          background: cfg.background,
-          color: cfg.color,
         }}
       >
         <span style={{ fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-bold)' }}>
           Calendar
         </span>
-        <span style={{ fontSize: 'var(--fs-xs)', marginTop: '2px' }}>
-          {isOffline ? 'Unavailable offline' : cfg.label}
+        <span style={{ fontSize: 'var(--fs-xs)', marginTop: '2px', fontWeight: status.state === 'update_required' && !isOffline ? 700 : undefined }}>
+          {isOffline ? 'Unavailable offline' : stateLabel[status.state]}
         </span>
-      </button>
+      </Button>
 
       {/* State 1 — Unconnected modal */}
       {status.state === 'unconnected' && (

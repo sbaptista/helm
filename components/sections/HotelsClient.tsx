@@ -246,6 +246,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
         toast.show('Hotel added', 'success')
       }
 
+      window.dispatchEvent(new CustomEvent('gcal:dirty'))
       await refetch()
       closeSheet()
     } catch {

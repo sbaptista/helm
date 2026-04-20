@@ -42,15 +42,17 @@ export async function GET(
       'flights', 'hotels', 'transportation',
       'restaurants', 'itinerary_rows', 'checklist'
     ]
-    let dirtyCount = 0
-    for (const table of tables) {
-      const { count } = await supabase
-        .from(table)
-        .select('id', { count: 'exact', head: true })
-        .eq('trip_id', tripId)
-        .eq('gcal_dirty', true)
-      dirtyCount += count ?? 0
-    }
+    const counts = await Promise.all(
+      tables.map(table =>
+        supabase
+          .from(table)
+          .select('id', { count: 'exact', head: true })
+          .eq('trip_id', tripId)
+          .eq('gcal_dirty', true)
+          .then(({ count }) => count ?? 0)
+      )
+    )
+    const dirtyCount = counts.reduce((sum, n) => sum + n, 0)
 
     return NextResponse.json({
       state: dirtyCount > 0 ? 'update_required' : 'connected',

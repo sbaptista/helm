@@ -196,6 +196,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
         if (!res.ok) throw new Error()
         toast.show('Transportation added', 'success')
       }
+      window.dispatchEvent(new CustomEvent('gcal:dirty'))
       await refetch()
       closeSheet()
     } catch {

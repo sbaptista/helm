@@ -459,6 +459,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
           })
       if (!res.ok) throw new Error()
       toast.show(editingRow ? 'Item updated' : 'Item added', 'success')
+      window.dispatchEvent(new CustomEvent('gcal:dirty'))
       await refetch()
       router.refresh()
       setRowSheetOpen(false)

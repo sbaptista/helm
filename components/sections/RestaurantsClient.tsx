@@ -179,6 +179,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
         if (!res.ok) throw new Error()
         toast.show('Restaurant added', 'success')
       }
+      window.dispatchEvent(new CustomEvent('gcal:dirty'))
       await refetch()
       closeSheet()
     } catch {

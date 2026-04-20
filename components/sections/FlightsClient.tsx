@@ -188,6 +188,7 @@ export function FlightsClient({
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Something went wrong.');
+      window.dispatchEvent(new CustomEvent('gcal:dirty'));
       await refetch();
       closeSheet();
     } catch (e) {

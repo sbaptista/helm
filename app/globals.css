@@ -41,6 +41,8 @@
   --green: #2D5A3D;
   --green2: #3D7A52;
   --red: #8B2020;
+  --action: #E07B00;
+  --action-text: #ffffff;
 
   /* Borders */
   --border: rgba(184, 137, 42, 0.18);

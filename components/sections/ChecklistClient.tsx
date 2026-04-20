@@ -310,6 +310,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
         if (!res.ok) throw new Error()
         toast.show('Item added', 'success')
       }
+      window.dispatchEvent(new CustomEvent('gcal:dirty'))
       await refetchItems()
       router.refresh()
       closeSheet()

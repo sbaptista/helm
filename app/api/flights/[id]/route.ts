@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createAuthClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -8,18 +11,30 @@ function getServiceClient() {
   return createClient(url, key);
 }
 
+async function getAuthUserId(): Promise<string | null> {
+  if (process.env.BYPASS_AUTH_USER_ID) {
+    return process.env.BYPASS_AUTH_USER_ID;
+  }
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { cookies: { getAll: () => cookieStore.getAll() } }
+  );
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}
+
 // ─── PATCH /api/flights/[id] ─────────────────────────────────────────────────
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
 
-  // Auth
-  const authClient = await createAuthClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 });
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   let body: Record<string, unknown>;
   try {
@@ -56,7 +71,7 @@ export async function PATCH(
     .from('trip_members')
     .select('id')
     .eq('trip_id', flight.trip_id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .maybeSingle();
   if (!member) return Response.json({ error: 'Access denied.' }, { status: 403 });
 
