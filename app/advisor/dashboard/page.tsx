@@ -57,7 +57,7 @@ export default async function AdvisorDashboardPage() {
 
   const BYPASS = process.env.BYPASS_AUTH_USER_ID
   const user = BYPASS
-    ? { id: BYPASS }
+    ? { id: BYPASS, email: '' }
     : (await supabase.auth.getUser()).data.user
   if (!user) redirect('/auth/login');
 
