@@ -62,6 +62,7 @@ export async function PATCH(
   for (const key of allowed) {
     if (key in body) update[key] = body[key]
   }
+  update.gcal_dirty = true
   const { data, error } = await supabase
     .from('itinerary_rows')
     .update(update)

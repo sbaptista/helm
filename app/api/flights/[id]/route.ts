@@ -39,6 +39,7 @@ export async function PATCH(
   if (Object.keys(updates).length === 0) {
     return Response.json({ error: 'No valid fields to update.' }, { status: 400 });
   }
+  updates.gcal_dirty = true;
 
   let supabase;
   try { supabase = getServiceClient(); } catch (e) {

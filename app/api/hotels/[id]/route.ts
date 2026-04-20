@@ -20,7 +20,7 @@ export async function PATCH(
 
   const { data, error } = await supabase
     .from('hotels')
-    .update(body)
+    .update({ ...body, gcal_dirty: true })
     .eq('id', id)
     .select()
     .single()

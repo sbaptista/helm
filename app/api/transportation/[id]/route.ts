@@ -51,7 +51,7 @@ export async function PATCH(
   const body = await req.json()
   const { data, error } = await supabase
     .from('transportation')
-    .update(body)
+    .update({ ...body, gcal_dirty: true })
     .eq('id', id)
     .select()
     .single()

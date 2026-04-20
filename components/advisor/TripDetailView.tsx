@@ -8,6 +8,7 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Moda
 import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { PrintExportModal } from '@/components/advisor/PrintExportModal';
+import { CalendarButton } from '@/components/advisor/CalendarButton';
 import type { Trip } from '@/types/trips';
 
 export const TabNavigationContext = React.createContext<{
@@ -523,6 +524,7 @@ const handleImportClose = () => {
               >
                 Print Trip
               </Button>
+              <CalendarButton tripId={trip.id} tripName={trip.title} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <button
