@@ -1,20 +1,10 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getDataClient } from '@/lib/supabase/data-client';
 import { DashboardView } from '@/components/advisor/DashboardView';
 import type { Trip, TripStatus } from '@/types/trips';
 
-function getServiceClient() {
-  return createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
-  );
-}
-
 async function fetchTrips(userId: string): Promise<Trip[]> {
-  const supabase = process.env.BYPASS_AUTH_USER_ID
-    ? getServiceClient()
-    : await createClient();
+  const supabase = await getDataClient();
 
   // Get all trip_ids where this user is an advisor
   const { data: memberRows, error: memberError } = await supabase
@@ -63,7 +53,7 @@ async function fetchTrips(userId: string): Promise<Trip[]> {
 }
 
 export default async function AdvisorDashboardPage() {
-  const supabase = await createClient();
+  const supabase = await getDataClient();
 
   const BYPASS = process.env.BYPASS_AUTH_USER_ID
   const user = BYPASS

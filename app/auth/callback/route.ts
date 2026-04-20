@@ -1,11 +1,11 @@
-import { createClient } from '@/lib/supabase/server';
+import { getDataClient } from '@/lib/supabase/data-client';
 import { type NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest): Promise<Response> {
   const code = request.nextUrl.searchParams.get('code');
 
   if (code) {
-    const supabase = await createClient();
+    const supabase = await getDataClient();
     const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!sessionError) {

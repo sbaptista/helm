@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getDataClient } from '@/lib/supabase/data-client';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { TripDetailView } from '@/components/advisor/TripDetailView';
 import { OverviewSection }       from '@/components/sections/OverviewSection';
@@ -20,7 +20,7 @@ export default async function TripDetailPage({
 }) {
   const { id } = await params;
 
-  const supabase = await createClient();
+  const supabase = await getDataClient();
 
   const BYPASS = process.env.BYPASS_AUTH_USER_ID
   const user = BYPASS

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { getDataClient } from '@/lib/supabase/data-client';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { PrintStyles } from '@/components/advisor/print/PrintStyles';
@@ -14,7 +14,7 @@ export default async function TripPrintPage({
   const { id } = await params;
   const sp = await searchParams;
 
-  const supabase = await createClient();
+  const supabase = await getDataClient();
   const BYPASS = process.env.BYPASS_AUTH_USER_ID
   const user = BYPASS
     ? { id: BYPASS }
