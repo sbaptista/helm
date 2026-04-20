@@ -171,9 +171,7 @@ export function DashboardView({ trips, userEmail, fetchError }: DashboardViewPro
   };
 
   async function handleSignOut() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    window.location.href = '/auth/login'
+    // AUTH BYPASS — restore supabase.auth.signOut() when auth is re-enabled
   }
 
   const tripCount = trips.length;
