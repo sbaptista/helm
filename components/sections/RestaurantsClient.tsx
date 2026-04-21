@@ -26,6 +26,7 @@ export type Restaurant = {
   notes: string | null
   included: boolean
   action_required: boolean
+  gcal_include: boolean
 }
 
 type Props = {
@@ -50,6 +51,7 @@ const EMPTY_FORM = {
   notes: '',
   included: false,
   action_required: false,
+  gcal_include: false,
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ function recordToForm(r: Restaurant) {
     notes: r.notes ?? '',
     included: r.included,
     action_required: r.action_required,
+    gcal_include: r.gcal_include ?? false,
   }
 }
 
@@ -160,6 +163,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
         notes: form.notes.trim() || null,
         included: form.included,
         action_required: form.action_required,
+        gcal_include: form.gcal_include,
       }
 
       if (editingRecord) {
@@ -472,6 +476,25 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
             />
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
           </label>
+
+          {/* Google Calendar */}
+          <div style={{ marginBottom: 'var(--sp-md)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: form.reservation_date ? 1 : 0.4 }}>
+              <input
+                type="checkbox"
+                checked={form.gcal_include ?? false}
+                disabled={!form.reservation_date}
+                onChange={e => setField('gcal_include', e.target.checked)}
+                style={{ width: '16px', height: '16px' }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
+            </label>
+            {!form.reservation_date && (
+              <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 16px)' }}>
+                Set a reservation date to enable calendar sync
+              </p>
+            )}
+          </div>
 
           {/* Delete */}
           {editingRecord && (

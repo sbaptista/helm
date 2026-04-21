@@ -1,11 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
-import { createClient as createAuthClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
-function getServiceClient() {
+function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
   if (!url || !key) throw new Error('Supabase credentials not configured.');
   return createClient(url, key);
+}
+
+async function getAuthUserId(): Promise<string | null> {
+  if (process.env.BYPASS_AUTH_USER_ID) {
+    return process.env.BYPASS_AUTH_USER_ID;
+  }
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { cookies: { getAll: () => cookieStore.getAll() } }
+  );
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? null;
 }
 
 // ─── GET /api/trips/[id]/flights ─────────────────────────────────────────────
@@ -17,7 +32,7 @@ export async function GET(
   const { id } = await params;
 
   let supabase;
-  try { supabase = getServiceClient(); } catch (e) {
+  try { supabase = serviceClient(); } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 500 });
   }
 
@@ -40,10 +55,8 @@ export async function POST(
 ): Promise<Response> {
   const { id } = await params;
 
-  // Auth
-  const authClient = await createAuthClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 });
+  const userId = await getAuthUserId();
+  if (!userId) return Response.json({ error: 'Unauthorized.' }, { status: 401 });
 
   let body: Record<string, unknown>;
   try {
@@ -53,7 +66,7 @@ export async function POST(
   }
 
   let supabase;
-  try { supabase = getServiceClient(); } catch (e) {
+  try { supabase = serviceClient(); } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 500 });
   }
 
@@ -62,7 +75,7 @@ export async function POST(
     .from('trip_members')
     .select('id')
     .eq('trip_id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .maybeSingle();
   if (!member) return Response.json({ error: 'Access denied.' }, { status: 403 });
 

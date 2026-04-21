@@ -42,6 +42,7 @@ export type ItineraryRow = {
   is_provided: boolean
   action_required: boolean
   action_note: string | null
+  gcal_include: boolean
 }
 
 type Props = {
@@ -170,6 +171,7 @@ function rowToForm(r: ItineraryRow) {
     is_provided: r.is_provided ?? false,
     action_required: r.action_required ?? false,
     action_note: r.action_note ?? '',
+    gcal_include: r.gcal_include ?? false,
   }
 }
 
@@ -268,6 +270,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
     is_provided: false,
     action_required: false,
     action_note: '',
+    gcal_include: false,
   }
 
   const [dayForm, setDayForm] = useState(EMPTY_DAY_FORM)
@@ -445,6 +448,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
         is_provided: rowForm.is_provided,
         action_required: rowForm.action_required,
         action_note: rowForm.action_required ? (rowForm.action_note.trim() || null) : null,
+        gcal_include: rowForm.gcal_include,
       }
       const res = editingRow
         ? await fetch(`/api/itinerary/rows/${editingRow.id}`, {
@@ -1025,6 +1029,25 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 rows={2}
                 style={{ ...inputStyle(), resize: 'vertical', marginTop: '8px' }}
               />
+            )}
+          </div>
+
+          {/* Google Calendar */}
+          <div style={{ marginBottom: 'var(--sp-md)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: rowForm.start_date ? 1 : 0.4 }}>
+              <input
+                type="checkbox"
+                checked={rowForm.gcal_include ?? false}
+                disabled={!rowForm.start_date}
+                onChange={e => setRowForm(f => ({ ...f, gcal_include: e.target.checked }))}
+                style={{ width: '16px', height: '16px' }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
+            </label>
+            {!rowForm.start_date && (
+              <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 16px)' }}>
+                Set an activity date to enable calendar sync
+              </p>
             )}
           </div>
 

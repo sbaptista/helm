@@ -100,7 +100,8 @@ async function pushSimple({
     .select('*')
     .eq('trip_id', tripId)
     .is('deleted_at', null)
-    .or(`gcal_dirty.eq.true,${gcalIdField}.is.null`)
+    .eq('gcal_include', true)
+    .eq('gcal_dirty', true)
 
   for (const row of rows ?? []) {
     const label = getLabel(row)
@@ -128,7 +129,8 @@ async function pushHotels({ tripId, calendarId, accessToken, supabase, onEvent }
     .select('*')
     .eq('trip_id', tripId)
     .is('deleted_at', null)
-    .or('gcal_dirty.eq.true,gcal_checkin_event_id.is.null,gcal_checkout_event_id.is.null')
+    .eq('gcal_include', true)
+    .eq('gcal_dirty', true)
 
   for (const row of rows ?? []) {
     // Check-in
@@ -161,8 +163,8 @@ async function pushChecklist({ tripId, calendarId, accessToken, supabase, onEven
     .select('*')
     .eq('trip_id', tripId)
     .is('deleted_at', null)
-    .not('due_date', 'is', null)
-    .or('gcal_dirty.eq.true,gcal_due_event_id.is.null')
+    .eq('gcal_include', true)
+    .eq('gcal_dirty', true)
 
   for (const row of rows ?? []) {
     // Due event

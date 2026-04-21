@@ -26,6 +26,7 @@ export type ChecklistItem = {
   resolution: string | null
   notes: string | null
   sort_order: number
+  gcal_include: boolean
 }
 
 export type ChecklistGroup = {
@@ -59,6 +60,7 @@ const EMPTY_FORM = {
   status: 'open',
   resolution: '',
   notes: '',
+  gcal_include: false,
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -82,6 +84,7 @@ function recordToForm(r: ChecklistItem) {
     status: r.status,
     resolution: r.resolution ?? '',
     notes: r.notes ?? '',
+    gcal_include: r.gcal_include ?? false,
   }
 }
 
@@ -292,6 +295,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
         status: form.status,
         resolution: form.resolution.trim() || null,
         notes: form.notes.trim() || null,
+        gcal_include: form.gcal_include,
       }
       if (editingRecord) {
         const res = await fetch(`/api/checklist/${editingRecord.id}`, {
@@ -725,6 +729,25 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
               />
             </div>
           )}
+
+          {/* Google Calendar */}
+          <div style={{ marginBottom: 'var(--sp-md)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: form.due_date ? 1 : 0.4 }}>
+              <input
+                type="checkbox"
+                checked={form.gcal_include ?? false}
+                disabled={!form.due_date}
+                onChange={e => setField('gcal_include', e.target.checked)}
+                style={{ width: '16px', height: '16px' }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
+            </label>
+            {!form.due_date && (
+              <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 16px)' }}>
+                Set a due date to enable calendar sync
+              </p>
+            )}
+          </div>
 
           {editingRecord && (
             confirmDelete ? (

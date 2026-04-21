@@ -35,10 +35,11 @@ export async function PATCH(
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const supabase = serverClient()
   const body = await request.json()
+  const { gcal_include } = body
 
   const { data, error } = await supabase
     .from('hotels')
-    .update({ ...body, gcal_dirty: true })
+    .update({ ...body, gcal_dirty: gcal_include === true ? true : false })
     .eq('id', id)
     .select()
     .single()

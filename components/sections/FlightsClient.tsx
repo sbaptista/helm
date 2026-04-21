@@ -18,6 +18,7 @@ export interface Flight {
   cabin_class: string | null;
   confirmation_number: string | null;
   notes: string | null;
+  gcal_include: boolean;
 }
 
 interface FlightForm {
@@ -32,6 +33,7 @@ interface FlightForm {
   cabin_class: string;
   confirmation_number: string;
   notes: string;
+  gcal_include: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -48,6 +50,7 @@ const EMPTY_FORM: FlightForm = {
   cabin_class: '',
   confirmation_number: '',
   notes: '',
+  gcal_include: false,
 };
 
 function splitDatetime(iso: string | null): [string, string] {
@@ -79,6 +82,7 @@ function flightToForm(f: Flight): FlightForm {
     cabin_class: f.cabin_class ?? '',
     confirmation_number: f.confirmation_number ?? '',
     notes: f.notes ?? '',
+    gcal_include: f.gcal_include ?? false,
   };
 }
 
@@ -172,6 +176,7 @@ export function FlightsClient({
         cabin_class:         form.cabin_class         || null,
         confirmation_number: form.confirmation_number || null,
         notes:               form.notes               || null,
+        gcal_include:        form.gcal_include,
       };
 
       const res = isAdd
@@ -500,6 +505,25 @@ export function FlightsClient({
               placeholder="Optional notes…"
             />
           </FormField>
+
+          {/* Google Calendar */}
+          <div style={{ marginBottom: 'var(--sp-md)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: form.departure_date ? 1 : 0.4 }}>
+              <input
+                type="checkbox"
+                checked={form.gcal_include ?? false}
+                disabled={!form.departure_date}
+                onChange={e => setField('gcal_include', e.target.checked)}
+                style={{ width: '16px', height: '16px' }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
+            </label>
+            {!form.departure_date && (
+              <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 16px)' }}>
+                Set a departure date to enable calendar sync
+              </p>
+            )}
+          </div>
 
           {/* Error */}
           {saveError && (

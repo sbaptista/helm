@@ -58,9 +58,19 @@ export async function POST(
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
+  const {
+    name, cuisine, city, address, reservation_time, party_size, style, type,
+    confirmation_number, phone, website_url, notes, included, action_required,
+  } = body
   const { data, error } = await supabase
     .from('restaurants')
-    .insert({ ...body, trip_id: tripId })
+    .insert({
+      trip_id: tripId,
+      name, cuisine, city, address, reservation_time, party_size, style, type: type ?? 'independent',
+      confirmation_number, phone, website_url, notes, included, action_required,
+      gcal_include: false,
+      gcal_dirty: false,
+    })
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

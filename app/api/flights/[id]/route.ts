@@ -1,10 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
-import { createClient as createAuthClient } from '@/lib/supabase/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
-function getServiceClient() {
+function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
   if (!url || !key) throw new Error('Supabase credentials not configured.');
@@ -45,7 +44,7 @@ export async function PATCH(
 
   const allowed = [
     'flight_number', 'airline', 'origin_airport', 'destination_airport',
-    'departure_time', 'arrival_time', 'cabin_class', 'confirmation_number', 'notes',
+    'departure_time', 'arrival_time', 'cabin_class', 'confirmation_number', 'notes', 'gcal_include',
   ];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
@@ -54,10 +53,10 @@ export async function PATCH(
   if (Object.keys(updates).length === 0) {
     return Response.json({ error: 'No valid fields to update.' }, { status: 400 });
   }
-  updates.gcal_dirty = true;
+  updates.gcal_dirty = updates.gcal_include === true ? true : false;
 
   let supabase;
-  try { supabase = getServiceClient(); } catch (e) {
+  try { supabase = serviceClient(); } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 500 });
   }
 
@@ -90,13 +89,11 @@ export async function DELETE(
 ): Promise<Response> {
   const { id } = await params;
 
-  // Auth
-  const authClient = await createAuthClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return Response.json({ error: 'Unauthorized.' }, { status: 401 });
+  const userId = await getAuthUserId();
+  if (!userId) return Response.json({ error: 'Unauthorized.' }, { status: 401 });
 
   let supabase;
-  try { supabase = getServiceClient(); } catch (e) {
+  try { supabase = serviceClient(); } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 500 });
   }
 
@@ -110,7 +107,7 @@ export async function DELETE(
     .from('trip_members')
     .select('id')
     .eq('trip_id', flight.trip_id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .maybeSingle();
   if (!member) return Response.json({ error: 'Access denied.' }, { status: 403 });
 

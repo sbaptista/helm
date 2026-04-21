@@ -49,9 +49,19 @@ export async function PATCH(
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
+  const {
+    name, cuisine, city, address, reservation_time, party_size, style,
+    confirmation_number, phone, website_url, notes, included, action_required,
+    gcal_include,
+  } = body
   const { data, error } = await supabase
     .from('restaurants')
-    .update({ ...body, gcal_dirty: true })
+    .update({
+      name, cuisine, city, address, reservation_time, party_size, style,
+      confirmation_number, phone, website_url, notes, included, action_required,
+      gcal_include,
+      gcal_dirty: gcal_include === true ? true : false,
+    })
     .eq('id', id)
     .select()
     .single()

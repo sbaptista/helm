@@ -28,6 +28,7 @@ type Hotel = {
   sort_order: number
   action_required: boolean
   room_type: string | null
+  gcal_include: boolean
 }
 
 type NearbyDining = {
@@ -63,6 +64,7 @@ const EMPTY_FORM = {
   website_url: '',
   notes: '',
   action_required: false,
+  gcal_include: false,
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -197,6 +199,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       website_url: hotel.website_url ?? '',
       notes: hotel.notes ?? '',
       action_required: hotel.action_required,
+      gcal_include: hotel.gcal_include ?? false,
     })
     setConfirmDelete(false)
     setSheetOpen(true)
@@ -226,6 +229,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
         website_url: form.website_url.trim() || null,
         notes: form.notes.trim() || null,
         action_required: form.action_required,
+        gcal_include: form.gcal_include,
       }
 
       if (editingHotel) {
@@ -557,6 +561,19 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
             />
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
           </label>
+
+          {/* Google Calendar */}
+          <div style={{ marginBottom: 'var(--sp-md)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)' }}>
+              <input
+                type="checkbox"
+                checked={form.gcal_include ?? false}
+                onChange={e => setField('gcal_include', e.target.checked)}
+                style={{ width: '16px', height: '16px' }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
+            </label>
+          </div>
 
           {/* Save */}
           <Button

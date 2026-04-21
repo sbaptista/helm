@@ -57,12 +57,12 @@ export async function PATCH(
   const allowed = [
     'day_id', 'title', 'description', 'location', 'category',
     'start_timezone', 'end_timezone', 'is_all_day', 'start_time', 'end_time', 'sort_order',
-    'is_approx', 'is_provided', 'action_required', 'action_note',
+    'is_approx', 'is_provided', 'action_required', 'action_note', 'gcal_include',
   ]
   for (const key of allowed) {
     if (key in body) update[key] = body[key]
   }
-  update.gcal_dirty = true
+  update.gcal_dirty = update.gcal_include === true ? true : false
   const { data, error } = await supabase
     .from('itinerary_rows')
     .update(update)

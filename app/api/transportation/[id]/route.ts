@@ -49,9 +49,10 @@ export async function PATCH(
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
+  const { gcal_include } = body
   const { data, error } = await supabase
     .from('transportation')
-    .update({ ...body, gcal_dirty: true })
+    .update({ ...body, gcal_dirty: gcal_include === true ? true : false })
     .eq('id', id)
     .select()
     .single()
