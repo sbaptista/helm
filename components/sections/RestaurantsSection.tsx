@@ -10,7 +10,7 @@ export async function RestaurantsSection({ tripId }: { tripId: string }) {
   const { data: restaurants } = await supabase
     .from('restaurants')
     .select(
-      'id, trip_id, name, cuisine, city, address, reservation_time, party_size, style, confirmation_number, phone, website_url, notes, included, action_required'
+      'id, trip_id, name, cuisine, city, address, reservation_time, party_size, style, confirmation_number, phone, website_url, notes, included, action_required, gcal_include'
     )
     .eq('trip_id', tripId)
     .is('deleted_at', null)
