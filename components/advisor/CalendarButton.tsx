@@ -145,6 +145,7 @@ export function CalendarButton({ tripId, tripName }: CalendarButtonProps) {
               });
             } else if (payload.type === 'complete') {
               setProgressDone(true);
+              fetchStatus();
             }
           } catch {}
         }

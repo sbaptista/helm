@@ -48,6 +48,7 @@ export async function GET(
           .from(table)
           .select('id', { count: 'exact', head: true })
           .eq('trip_id', tripId)
+          .is('deleted_at', null)
           .eq('gcal_dirty', true)
           .then(({ count }) => count ?? 0)
       )

@@ -110,10 +110,13 @@ async function pushSimple({
       const { eventId, action } = await upsertEvent(
         accessToken, calendarId, row[gcalIdField] ?? null, event
       )
-      await supabase
+      const { error: resetError, data: resetData, count } = await supabase
         .from(table)
         .update({ [gcalIdField]: eventId, gcal_dirty: false })
         .eq('id', row.id)
+        .select()
+      console.log('[PUSH RESET]', table, row.id, { resetError, resetData, count })
+      if (resetError) throw new Error(`Failed to reset gcal_dirty: ${resetError.message}`)
       onEvent({ action, label, status: 'success' })
     } catch (err: any) {
       onEvent({ action: row[gcalIdField] ? 'update' : 'create', label, status: 'error', error: err.message })
@@ -147,11 +150,13 @@ async function pushHotels({ tripId, calendarId, accessToken, supabase, onEvent }
     try {
       const event = buildHotelCheckoutEvent(row)
       const { eventId, action } = await upsertEvent(accessToken, calendarId, row.gcal_checkout_event_id ?? null, event)
-      await supabase.from('hotels').update({ gcal_checkout_event_id: eventId, gcal_dirty: false }).eq('id', row.id)
+      await supabase.from('hotels').update({ gcal_checkout_event_id: eventId }).eq('id', row.id)
       onEvent({ action, label: `${row.name} · Check-out`, status: 'success' })
     } catch (err: any) {
       onEvent({ action: row.gcal_checkout_event_id ? 'update' : 'create', label: `${row.name} · Check-out`, status: 'error', error: err.message })
     }
+
+    await supabase.from('hotels').update({ gcal_dirty: false }).eq('id', row.id)
   }
 }
 
@@ -182,14 +187,13 @@ async function pushChecklist({ tripId, calendarId, accessToken, supabase, onEven
       try {
         const event = buildChecklistWarningEvent(row)
         const { eventId, action } = await upsertEvent(accessToken, calendarId, row.gcal_warning_event_id ?? null, event)
-        await supabase.from('checklist').update({ gcal_warning_event_id: eventId, gcal_dirty: false }).eq('id', row.id)
+        await supabase.from('checklist').update({ gcal_warning_event_id: eventId }).eq('id', row.id)
         onEvent({ action, label: `⚠️ ${row.task} · Warning`, status: 'success' })
       } catch (err: any) {
         onEvent({ action: row.gcal_warning_event_id ? 'update' : 'create', label: `⚠️ ${row.task} · Warning`, status: 'error', error: err.message })
       }
-    } else {
-      // No warning event needed — just clear dirty flag
-      await supabase.from('checklist').update({ gcal_dirty: false }).eq('id', row.id)
     }
+
+    await supabase.from('checklist').update({ gcal_dirty: false }).eq('id', row.id)
   }
 }

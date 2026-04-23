@@ -259,7 +259,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
           color: 'var(--navy)',
           fontWeight: 'var(--fw-normal)',
         }}>
-          Transportation v46
+          Transportation
         </h2>
         <Button variant="primary" size="sm" onClick={openAdd}>
           <Plus size={16} />
