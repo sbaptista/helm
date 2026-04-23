@@ -61,6 +61,8 @@ export async function POST(
   const {
     name, cuisine, city, address, reservation_time, party_size, style, type,
     confirmation_number, phone, website_url, notes, included, action_required,
+    display_label, reservation_status, confirmed, booking_source, maps_url,
+    action_note, state_province, postal_code, email, booking_url,
   } = body
   const { data, error } = await supabase
     .from('restaurants')
@@ -68,6 +70,8 @@ export async function POST(
       trip_id: tripId,
       name, cuisine, city, address, reservation_time, party_size, style, type: type ?? 'independent',
       confirmation_number, phone, website_url, notes, included, action_required,
+      display_label, reservation_status, confirmed, booking_source, maps_url,
+      action_note, state_province, postal_code, email, booking_url,
       gcal_include: false,
       gcal_dirty: false,
     })

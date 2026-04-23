@@ -26,8 +26,8 @@ function buildDescription(parts: Record<string, string | null | undefined>): str
 // ── Flights ───────────────────────────────────────────────────────
 
 export function buildFlightEvent(row: any): GCalEvent {
-  const tz = getAirportTimezone(row.origin_airport)
-  const arrTz = getAirportTimezone(row.destination_airport)
+  const tz = row.departure_timezone ?? getAirportTimezone(row.origin_airport)
+  const arrTz = row.arrival_timezone ?? getAirportTimezone(row.destination_airport)
   const dep = new Date(row.departure_time)
   const arr = new Date(row.arrival_time)
 

@@ -11,16 +11,19 @@ export const CITY_TIMEZONES: Record<string, string> = {
   calgary: 'America/Edmonton',
 }
 
-export const AIRPORT_TIMEZONES: Record<string, string> = {
-  HNL: 'Pacific/Honolulu',
-  YVR: 'America/Vancouver',
-  YKA: 'America/Vancouver',
-  YXS: 'America/Vancouver',
-  YXC: 'America/Edmonton',
-  YYC: 'America/Edmonton',
-  YJA: 'America/Edmonton',
-  // add more as needed
+export const AIRPORT_LOOKUP: Record<string, { city: string; timezone: string }> = {
+  HNL: { city: 'Honolulu, HI',  timezone: 'Pacific/Honolulu'    },
+  SEA: { city: 'Seattle, WA',   timezone: 'America/Los_Angeles' },
+  YVR: { city: 'Vancouver, BC', timezone: 'America/Vancouver'   },
+  YKA: { city: 'Kamloops, BC',  timezone: 'America/Vancouver'   },
+  YJA: { city: 'Jasper, AB',    timezone: 'America/Edmonton'    },
+  YBW: { city: 'Banff, AB',     timezone: 'America/Edmonton'    },
 }
+
+// Keep backwards-compatible export for any existing callers
+export const AIRPORT_TIMEZONES: Record<string, string> = Object.fromEntries(
+  Object.entries(AIRPORT_LOOKUP).map(([code, val]) => [code, val.timezone])
+)
 
 export function getCityTimezone(city: string): string {
   return CITY_TIMEZONES[city?.toLowerCase()?.trim()] ?? 'America/Vancouver'

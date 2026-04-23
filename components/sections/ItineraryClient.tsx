@@ -783,7 +783,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--red)', textAlign: 'center' }}>Remove this day and all its rows?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteDay(false)} style={{ flex: 1 }}>Cancel</Button>
-                  <Button variant="primary" size="sm" onClick={handleDeleteDay} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderTop: '1px solid var(--red)', borderRight: '1px solid var(--red)', borderBottom: '1px solid var(--red)', borderLeft: '1px solid var(--red)' }}>Remove</Button>
+                  <Button variant="primary" size="sm" onClick={handleDeleteDay} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderStyle: 'solid', borderWidth: '1px', borderTopColor: 'var(--red)', borderRightColor: 'var(--red)', borderBottomColor: 'var(--red)', borderLeftColor: 'var(--red)' }}>Remove</Button>
                 </div>
               </div>
             ) : (
@@ -1058,7 +1058,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--red)', textAlign: 'center' }}>Remove this item?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteRow(false)} style={{ flex: 1 }}>Cancel</Button>
-                  <Button variant="primary" size="sm" onClick={handleDeleteRow} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderTop: '1px solid var(--red)', borderRight: '1px solid var(--red)', borderBottom: '1px solid var(--red)', borderLeft: '1px solid var(--red)' }}>Remove</Button>
+                  <Button variant="primary" size="sm" onClick={handleDeleteRow} disabled={deleting} loading={deleting} style={{ flex: 1, background: 'var(--red)', borderStyle: 'solid', borderWidth: '1px', borderTopColor: 'var(--red)', borderRightColor: 'var(--red)', borderBottomColor: 'var(--red)', borderLeftColor: 'var(--red)' }}>Remove</Button>
                 </div>
               </div>
             ) : (

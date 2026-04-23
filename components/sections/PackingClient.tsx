@@ -601,7 +601,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)} style={{ flex: 1 }}>Cancel</Button>
                   <Button variant="primary" size="sm" onClick={handleDeleteItem} disabled={deleting} loading={deleting}
-                    style={{ flex: 1, background: 'var(--red)', borderColor: 'var(--red)' }}>Remove</Button>
+                    style={{ flex: 1, background: 'var(--red)', borderTopColor: 'var(--red)', borderRightColor: 'var(--red)', borderBottomColor: 'var(--red)', borderLeftColor: 'var(--red)' }}>Remove</Button>
                 </div>
               </div>
             ) : (

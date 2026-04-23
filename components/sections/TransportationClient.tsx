@@ -28,6 +28,8 @@ export type Transportation = {
   website_url: string | null
   cost: string | null
   gcal_include: boolean
+  departure_timezone: string | null
+  arrival_timezone: string | null
 }
 
 type Props = {
@@ -36,6 +38,13 @@ type Props = {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+const TIMEZONE_OPTIONS = [
+  { value: 'Pacific/Honolulu',    label: 'Honolulu (HST)' },
+  { value: 'America/Los_Angeles', label: 'Seattle / Pacific (PDT/PST)' },
+  { value: 'America/Vancouver',   label: 'Vancouver / Kamloops (PDT/PST)' },
+  { value: 'America/Edmonton',    label: 'Jasper / Banff (MDT/MST)' },
+]
 
 const TRANSPORT_TYPES = [
   'Motorcoach',
@@ -65,6 +74,8 @@ const EMPTY_FORM = {
   included: false,
   action_required: false,
   gcal_include: false,
+  departure_timezone: '',
+  arrival_timezone: '',
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -117,6 +128,8 @@ function recordToForm(r: Transportation) {
     included: r.included,
     action_required: r.action_required,
     gcal_include: r.gcal_include ?? false,
+    departure_timezone: r.departure_timezone ?? '',
+    arrival_timezone: r.arrival_timezone ?? '',
   }
 }
 
@@ -181,6 +194,8 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
         included: form.included,
         action_required: form.action_required,
         gcal_include: form.gcal_include,
+        departure_timezone: form.departure_timezone || null,
+        arrival_timezone: form.arrival_timezone || null,
       }
 
       if (editingRecord) {
@@ -419,6 +434,20 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
             </div>
           </FormField>
 
+          {/* Departure Timezone */}
+          <FormField label="Departure Timezone">
+            <select
+              value={form.departure_timezone}
+              onChange={e => setField('departure_timezone', e.target.value)}
+              style={{ ...inputStyle(), cursor: 'pointer' }}
+            >
+              <option value="">Select…</option>
+              {TIMEZONE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </FormField>
+
           {/* Arrival date + time */}
           <FormField label="Arrival">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -435,6 +464,20 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
                 style={inputStyle()}
               />
             </div>
+          </FormField>
+
+          {/* Arrival Timezone */}
+          <FormField label="Arrival Timezone">
+            <select
+              value={form.arrival_timezone}
+              onChange={e => setField('arrival_timezone', e.target.value)}
+              style={{ ...inputStyle(), cursor: 'pointer' }}
+            >
+              <option value="">Select…</option>
+              {TIMEZONE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </FormField>
 
           {/* Confirmation Number */}
@@ -550,7 +593,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
                     onClick={handleDelete}
                     disabled={deleting}
                     loading={deleting}
-                    style={{ flex: 1, background: 'var(--red)', borderColor: 'var(--red)' }}
+                    style={{ flex: 1, background: 'var(--red)', borderTopColor: 'var(--red)', borderRightColor: 'var(--red)', borderBottomColor: 'var(--red)', borderLeftColor: 'var(--red)' }}
                   >
                     Remove
                   </Button>

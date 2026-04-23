@@ -44,7 +44,13 @@ export async function PATCH(
 
   const allowed = [
     'flight_number', 'airline', 'origin_airport', 'destination_airport',
-    'departure_time', 'arrival_time', 'cabin_class', 'confirmation_number', 'notes', 'gcal_include',
+    'origin_city', 'destination_city',
+    'departure_time', 'arrival_time',
+    'departure_timezone', 'arrival_timezone',
+    'cabin_class', 'seat_number', 'confirmation_number', 'notes',
+    'departure_terminal', 'departure_gate',
+    'arrival_terminal', 'arrival_gate',
+    'action_required', 'gcal_include',
   ];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {

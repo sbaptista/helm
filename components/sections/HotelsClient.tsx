@@ -29,6 +29,9 @@ type Hotel = {
   action_required: boolean
   room_type: string | null
   gcal_include: boolean
+  province: string | null
+  postal_code: string | null
+  maps_url: string | null
 }
 
 type NearbyDining = {
@@ -65,6 +68,9 @@ const EMPTY_FORM = {
   notes: '',
   action_required: false,
   gcal_include: false,
+  province: '',
+  postal_code: '',
+  maps_url: '',
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -200,6 +206,9 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       notes: hotel.notes ?? '',
       action_required: hotel.action_required,
       gcal_include: hotel.gcal_include ?? false,
+      province: hotel.province ?? '',
+      postal_code: hotel.postal_code ?? '',
+      maps_url: hotel.maps_url ?? '',
     })
     setConfirmDelete(false)
     setSheetOpen(true)
@@ -230,6 +239,9 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
         notes: form.notes.trim() || null,
         action_required: form.action_required,
         gcal_include: form.gcal_include,
+        province: form.province.trim() || null,
+        postal_code: form.postal_code.trim() || null,
+        maps_url: form.maps_url.trim() || null,
       }
 
       if (editingHotel) {
@@ -339,11 +351,24 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                       )}
                     </div>
 
-                    {/* Address / city */}
-                    {(hotel.address || hotel.city) && (
+                    {/* Address / city / province / postal code */}
+                    {(hotel.address || hotel.city || hotel.province || hotel.postal_code) && (
                       <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text3)', marginTop: '3px' }}>
-                        {[hotel.address, hotel.city].filter(Boolean).join(', ')}
+                        {[hotel.address, hotel.city, hotel.province, hotel.postal_code].filter(Boolean).join(', ')}
                       </p>
+                    )}
+
+                    {/* Maps link */}
+                    {hotel.maps_url && (
+                      <a
+                        href={hotel.maps_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        style={{ fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', marginTop: '2px', display: 'inline-block' }}
+                      >
+                        View on Maps ↗
+                      </a>
                     )}
 
                     {/* Check-in / Check-out */}
@@ -468,6 +493,37 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
               value={form.address}
               onChange={e => setField('address', e.target.value)}
               placeholder="405 Spray Ave"
+              style={inputStyle}
+            />
+          </FormField>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <FormField label="Province">
+              <input
+                type="text"
+                value={form.province}
+                onChange={e => setField('province', e.target.value)}
+                placeholder="e.g. BC"
+                style={inputStyle}
+              />
+            </FormField>
+            <FormField label="Postal Code">
+              <input
+                type="text"
+                value={form.postal_code}
+                onChange={e => setField('postal_code', e.target.value)}
+                placeholder="e.g. V6Z 1X5"
+                style={inputStyle}
+              />
+            </FormField>
+          </div>
+
+          <FormField label="Maps URL">
+            <input
+              type="url"
+              value={form.maps_url}
+              onChange={e => setField('maps_url', e.target.value)}
+              placeholder="e.g. https://maps.google.com/..."
               style={inputStyle}
             />
           </FormField>
@@ -603,7 +659,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                     onClick={handleDelete}
                     disabled={deleting}
                     loading={deleting}
-                    style={{ flex: 1, background: 'var(--red)', borderColor: 'var(--red)' }}
+                    style={{ flex: 1, background: 'var(--red)', borderTopColor: 'var(--red)', borderRightColor: 'var(--red)', borderBottomColor: 'var(--red)', borderLeftColor: 'var(--red)' }}
                   >
                     Remove
                   </Button>

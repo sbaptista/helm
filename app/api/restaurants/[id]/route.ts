@@ -53,6 +53,8 @@ export async function PATCH(
     name, cuisine, city, address, reservation_time, party_size, style,
     confirmation_number, phone, website_url, notes, included, action_required,
     gcal_include,
+    display_label, reservation_status, confirmed, booking_source, maps_url,
+    action_note, state_province, postal_code, email, booking_url,
   } = body
   const { data, error } = await supabase
     .from('restaurants')
@@ -61,6 +63,8 @@ export async function PATCH(
       confirmation_number, phone, website_url, notes, included, action_required,
       gcal_include,
       gcal_dirty: gcal_include === true ? true : false,
+      display_label, reservation_status, confirmed, booking_source, maps_url,
+      action_note, state_province, postal_code, email, booking_url,
     })
     .eq('id', id)
     .select()

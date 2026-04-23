@@ -14,6 +14,7 @@ export type Restaurant = {
   id: string
   trip_id: string
   name: string | null
+  display_label: string | null
   cuisine: string | null
   city: string | null
   address: string | null
@@ -22,11 +23,20 @@ export type Restaurant = {
   style: string | null
   confirmation_number: string | null
   phone: string | null
+  email: string | null
   website_url: string | null
+  booking_url: string | null
+  maps_url: string | null
   notes: string | null
   included: boolean
   action_required: boolean
+  action_note: string | null
   gcal_include: boolean
+  reservation_status: string
+  confirmed: boolean
+  booking_source: string | null
+  state_province: string | null
+  postal_code: string | null
 }
 
 type Props = {
@@ -36,8 +46,17 @@ type Props = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const RESERVATION_STATUS_OPTIONS = [
+  { value: 'Yes – Priority', label: 'Yes – Priority' },
+  { value: 'Yes',            label: 'Yes' },
+  { value: 'Recommended',    label: 'Recommended' },
+  { value: 'No',             label: 'No' },
+  { value: 'TBD',            label: 'TBD' },
+]
+
 const EMPTY_FORM = {
   name: '',
+  display_label: '',
   cuisine: '',
   city: '',
   address: '',
@@ -47,11 +66,20 @@ const EMPTY_FORM = {
   style: '',
   confirmation_number: '',
   phone: '',
+  email: '',
   website_url: '',
+  booking_url: '',
+  maps_url: '',
   notes: '',
   included: false,
   action_required: false,
+  action_note: '',
   gcal_include: false,
+  reservation_status: 'TBD',
+  confirmed: false,
+  booking_source: '',
+  state_province: '',
+  postal_code: '',
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -87,22 +115,52 @@ function formatDateTime(iso: string | null): string {
 function recordToForm(r: Restaurant) {
   const [resDate, resTime] = splitDatetime(r.reservation_time)
   return {
-    name: r.name ?? '',
-    cuisine: r.cuisine ?? '',
-    city: r.city ?? '',
-    address: r.address ?? '',
-    reservation_date: resDate,
+    name:                 r.name                 ?? '',
+    display_label:        r.display_label        ?? '',
+    cuisine:              r.cuisine              ?? '',
+    city:                 r.city                 ?? '',
+    address:              r.address              ?? '',
+    reservation_date:     resDate,
     reservation_time_val: resTime,
-    party_size: r.party_size != null ? String(r.party_size) : '',
-    style: r.style ?? '',
-    confirmation_number: r.confirmation_number ?? '',
-    phone: r.phone ?? '',
-    website_url: r.website_url ?? '',
-    notes: r.notes ?? '',
-    included: r.included,
-    action_required: r.action_required,
-    gcal_include: r.gcal_include ?? false,
+    party_size:           r.party_size != null ? String(r.party_size) : '',
+    style:                r.style                ?? '',
+    confirmation_number:  r.confirmation_number  ?? '',
+    phone:                r.phone                ?? '',
+    email:                r.email                ?? '',
+    website_url:          r.website_url          ?? '',
+    booking_url:          r.booking_url          ?? '',
+    maps_url:             r.maps_url             ?? '',
+    notes:                r.notes                ?? '',
+    included:             r.included,
+    action_required:      r.action_required,
+    action_note:          r.action_note          ?? '',
+    gcal_include:         r.gcal_include         ?? false,
+    reservation_status:   r.reservation_status   ?? 'TBD',
+    confirmed:            r.confirmed            ?? false,
+    booking_source:       r.booking_source       ?? '',
+    state_province:       r.state_province       ?? '',
+    postal_code:          r.postal_code          ?? '',
   }
+}
+
+// ─── Group Header ─────────────────────────────────────────────────────────────
+
+function GroupHeader({ label, first }: { label: string; first?: boolean }) {
+  return (
+    <div style={{
+      fontFamily: "'Lato', sans-serif",
+      fontSize: 'var(--fs-xs)',
+      fontWeight: 'var(--fw-bold)',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase' as const,
+      color: 'var(--gold)',
+      paddingBottom: '6px',
+      borderBottom: '2px solid var(--border2)',
+      marginTop: first ? '0' : '28px',
+    }}>
+      {label}
+    </div>
+  )
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -150,20 +208,30 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
     setSaving(true)
     try {
       const payload = {
-        name: form.name.trim() || null,
-        cuisine: form.cuisine.trim() || null,
-        city: form.city.trim() || null,
-        address: form.address.trim() || null,
-        reservation_time: joinDatetime(form.reservation_date, form.reservation_time_val),
-        party_size: form.party_size.trim() ? parseInt(form.party_size, 10) : null,
-        style: form.style.trim() || null,
+        name:                form.name.trim() || null,
+        display_label:       form.display_label.trim() || null,
+        cuisine:             form.cuisine.trim() || null,
+        city:                form.city.trim() || null,
+        address:             form.address.trim() || null,
+        reservation_time:    joinDatetime(form.reservation_date, form.reservation_time_val),
+        party_size:          form.party_size.trim() ? parseInt(form.party_size, 10) : null,
+        style:               form.style.trim() || null,
         confirmation_number: form.confirmation_number.trim() || null,
-        phone: form.phone.trim() || null,
-        website_url: form.website_url.trim() || null,
-        notes: form.notes.trim() || null,
-        included: form.included,
-        action_required: form.action_required,
-        gcal_include: form.gcal_include,
+        phone:               form.phone.trim() || null,
+        email:               form.email.trim() || null,
+        website_url:         form.website_url.trim() || null,
+        booking_url:         form.booking_url.trim() || null,
+        maps_url:            form.maps_url.trim() || null,
+        notes:               form.notes.trim() || null,
+        included:            form.included,
+        action_required:     form.action_required,
+        action_note:         form.action_note.trim() || null,
+        gcal_include:        form.gcal_include,
+        reservation_status:  form.reservation_status,
+        confirmed:           form.confirmed,
+        booking_source:      form.booking_source.trim() || null,
+        state_province:      form.state_province.trim() || null,
+        postal_code:         form.postal_code.trim() || null,
       }
 
       if (editingRecord) {
@@ -197,9 +265,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
     if (!editingRecord) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/restaurants/${editingRecord.id}`, {
-        method: 'DELETE',
-      })
+      const res = await fetch(`/api/restaurants/${editingRecord.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.show('Restaurant removed', 'success')
       await refetch()
@@ -215,18 +281,8 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
       {/* Section header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '16px',
-      }}>
-        <h2 style={{
-          fontSize: 'var(--fs-xl)',
-          fontFamily: 'var(--font-display)',
-          color: 'var(--navy)',
-          fontWeight: 'var(--fw-normal)',
-        }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
           Restaurants
         </h2>
         <Button variant="primary" size="sm" onClick={openAdd}>
@@ -237,13 +293,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
 
       {/* Empty state */}
       {records.length === 0 && (
-        <p style={{
-          fontFamily: "'Lato', sans-serif",
-          fontSize: 'var(--fs-sm)',
-          color: 'var(--text3)',
-          textAlign: 'center',
-          padding: '32px 0',
-        }}>
+        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
           No restaurants added yet.
         </p>
       )}
@@ -251,63 +301,168 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
       {/* Record list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {records.map(r => (
-          <button
-            key={r.id}
-            onClick={() => openEdit(r)}
-            className="section-row"
-          >
-            {/* Row 1: name + badges */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: 'var(--fs-base)',
-                fontWeight: 'var(--fw-bold)',
-                color: 'var(--navy)',
-                flex: 1,
-                minWidth: 0,
-              }}>
+          <button key={r.id} onClick={() => openEdit(r)} className="section-row">
+
+            {/* Header: name + status badge */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-bold)', color: 'var(--navy)', flex: 1, minWidth: 0 }}>
                 {r.name || 'Restaurant'}
               </span>
-              {r.included
-                ? <Badge color={{ bg: 'rgba(45,90,61,0.1)', text: 'var(--green)', border: 'rgba(45,90,61,0.2)' }}>Included</Badge>
-                : <Badge color={{ bg: 'rgba(90,109,122,0.1)', text: 'var(--slate)', border: 'rgba(90,109,122,0.2)' }}>Self-Arranged</Badge>
+              {r.confirmed
+                ? '✅ CONFIRMED'
+                : `Reservation: ${r.reservation_status}`
               }
-              {r.action_required && (
-                <Badge color={{ bg: 'rgba(184,137,42,0.1)', text: 'var(--gold-text)', border: 'rgba(184,137,42,0.2)' }}>Action Required</Badge>
-              )}
             </div>
 
-            {/* Row 2: cuisine + style */}
-            {(r.cuisine || r.style) && (
-              <span style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: 'var(--fs-sm)',
-                color: 'var(--text3)',
-              }}>
-                {[r.cuisine, r.style].filter(Boolean).join(' · ')}
+            {/* Subtitle: display_label */}
+            {r.display_label && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                {r.display_label}
               </span>
             )}
 
-            {/* Row 3: city */}
-            {r.city && (
-              <span style={{
+            {/* Style (2-line clamp) */}
+            {r.style && (
+              <p style={{
                 fontFamily: "'Lato', sans-serif",
                 fontSize: 'var(--fs-sm)',
                 color: 'var(--text3)',
+                lineHeight: 1.5,
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                margin: 0,
               }}>
-                {r.city}
+                {r.style}
+              </p>
+            )}
+
+            {/* City + State/Province */}
+            {(r.city || r.state_province) && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                {[r.city, r.state_province].filter(Boolean).join(', ')}
               </span>
             )}
 
-            {/* Row 4: reservation time + party size */}
-            <span style={{
-              fontFamily: "'Lato', sans-serif",
-              fontSize: 'var(--fs-sm)',
-              color: 'var(--text3)',
-            }}>
-              {formatDateTime(r.reservation_time)}
-              {r.party_size != null && ` · Party of ${r.party_size}`}
-            </span>
+            {/* Address + Postal Code */}
+            {(r.address || r.postal_code) && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                {[r.address, r.postal_code].filter(Boolean).join(' ')}
+              </span>
+            )}
+
+            {/* Phone */}
+            {r.phone && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                📞 {r.phone}
+              </span>
+            )}
+
+            {/* Email */}
+            {r.email && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                ✉️ {r.email}
+              </span>
+            )}
+
+            {/* Reservation details — only when confirmed */}
+            {r.confirmed && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                {[
+                  r.reservation_time ? formatDateTime(r.reservation_time) : null,
+                  r.party_size != null ? `Party of ${r.party_size}` : null,
+                  r.confirmation_number ? `Conf #${r.confirmation_number}` : null,
+                  r.booking_source ?? null,
+                ].filter(Boolean).join(' · ')}
+              </span>
+            )}
+
+            {/* Website link */}
+            {r.website_url && (
+              <a
+                href={r.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}
+              >
+                🔗 Website ↗
+              </a>
+            )}
+
+            {/* Maps link */}
+            {r.maps_url && (
+              <a
+                href={r.maps_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block' }}
+              >
+                📍 Map ↗
+              </a>
+            )}
+
+            {/* Booking link */}
+            {r.booking_url && (
+              <a
+                href={r.booking_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block' }}
+              >
+                📋 View Booking ↗
+              </a>
+            )}
+
+            {/* Notes (3-line clamp) */}
+            {r.notes && (
+              <p className="line-clamp-3" style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: 'var(--fs-sm)',
+                color: 'var(--text3)',
+                lineHeight: 1.5,
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                margin: 0,
+              }}>
+                {r.notes}
+              </p>
+            )}
+
+            {/* Action Required footer */}
+            {r.action_required && (
+              <div style={{
+                padding: '8px 10px',
+                background: 'rgba(184,137,42,0.08)',
+                border: '1px solid rgba(184,137,42,0.2)',
+                borderRadius: '6px',
+                marginTop: '4px',
+              }}>
+                <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', fontWeight: 'var(--fw-bold)', color: 'var(--gold-text)' }}>
+                  🚩 Action Required
+                </span>
+                {r.action_note && (
+                  <p style={{
+                    fontFamily: "'Lato', sans-serif",
+                    fontSize: 'var(--fs-xs)',
+                    color: 'var(--text3)',
+                    margin: '4px 0 0',
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                  }}>
+                    {r.action_note}
+                  </p>
+                )}
+              </div>
+            )}
+
           </button>
         ))}
       </div>
@@ -326,52 +481,159 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
 
-          {/* Name + Cuisine */}
+          {/* ── Group: Restaurant ── */}
+          <GroupHeader label="Restaurant" first />
+
+          <FormField label="Name">
+            <input
+              type="text"
+              value={form.name}
+              onChange={e => setField('name', e.target.value)}
+              placeholder="e.g. The Keg"
+              style={inputStyle()}
+            />
+          </FormField>
+
+          <FormField label="Display Label">
+            <input
+              type="text"
+              value={form.display_label}
+              onChange={e => setField('display_label', e.target.value)}
+              placeholder="e.g. Oct 5 – Dinner (choice A)"
+              style={inputStyle()}
+            />
+          </FormField>
+
+          <FormField label="Cuisine">
+            <input
+              type="text"
+              value={form.cuisine}
+              onChange={e => setField('cuisine', e.target.value)}
+              placeholder="e.g. Steakhouse"
+              style={inputStyle()}
+            />
+          </FormField>
+
+          <FormField label="Style">
+            <textarea
+              value={form.style}
+              onChange={e => setField('style', e.target.value)}
+              placeholder="e.g. Classic seafood & oyster bar. Vancouver landmark."
+              rows={2}
+              style={{ ...inputStyle(), resize: 'vertical' }}
+            />
+          </FormField>
+
+          {/* ── Group: Location ── */}
+          <GroupHeader label="Location" />
+
+          <FormField label="City">
+            <input
+              type="text"
+              value={form.city}
+              onChange={e => setField('city', e.target.value)}
+              placeholder="e.g. Banff"
+              style={inputStyle()}
+            />
+          </FormField>
+
+          <FormField label="Address">
+            <input
+              type="text"
+              value={form.address}
+              onChange={e => setField('address', e.target.value)}
+              placeholder="e.g. 123 Banff Ave"
+              style={inputStyle()}
+            />
+          </FormField>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <FormField label="Name">
+            <FormField label="State / Province">
               <input
                 type="text"
-                value={form.name}
-                onChange={e => setField('name', e.target.value)}
-                placeholder="e.g. The Keg"
+                value={form.state_province}
+                onChange={e => setField('state_province', e.target.value)}
+                placeholder="e.g. BC or WA"
                 style={inputStyle()}
               />
             </FormField>
-            <FormField label="Cuisine">
+            <FormField label="Postal Code">
               <input
                 type="text"
-                value={form.cuisine}
-                onChange={e => setField('cuisine', e.target.value)}
-                placeholder="e.g. Steakhouse"
+                value={form.postal_code}
+                onChange={e => setField('postal_code', e.target.value)}
+                placeholder="e.g. V0E 1E0"
                 style={inputStyle()}
               />
             </FormField>
           </div>
 
-          {/* City + Address */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <FormField label="City">
-              <input
-                type="text"
-                value={form.city}
-                onChange={e => setField('city', e.target.value)}
-                placeholder="e.g. Banff"
-                style={inputStyle()}
-              />
-            </FormField>
-            <FormField label="Address">
-              <input
-                type="text"
-                value={form.address}
-                onChange={e => setField('address', e.target.value)}
-                placeholder="e.g. 123 Banff Ave"
-                style={inputStyle()}
-              />
-            </FormField>
-          </div>
+          <FormField label="Phone">
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={e => setField('phone', e.target.value)}
+              placeholder="+1 (800) 000-0000"
+              style={inputStyle()}
+            />
+          </FormField>
 
-          {/* Reservation date + time */}
-          <FormField label="Reservation">
+          <FormField label="Email">
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => setField('email', e.target.value)}
+              placeholder="reservations@example.com"
+              style={inputStyle()}
+            />
+          </FormField>
+
+          <FormField label="Website">
+            <input
+              type="url"
+              value={form.website_url}
+              onChange={e => setField('website_url', e.target.value)}
+              placeholder="https://..."
+              style={inputStyle()}
+            />
+          </FormField>
+
+          <FormField label="Maps URL">
+            <input
+              type="url"
+              value={form.maps_url}
+              onChange={e => setField('maps_url', e.target.value)}
+              placeholder="e.g. https://maps.google.com/..."
+              style={inputStyle()}
+            />
+          </FormField>
+
+          {/* ── Group: Reservation ── */}
+          <GroupHeader label="Reservation" />
+
+          <FormField label="Reservation Status">
+            <select
+              value={form.reservation_status}
+              onChange={e => setField('reservation_status', e.target.value)}
+              style={{ ...inputStyle(), cursor: 'pointer' }}
+            >
+              {RESERVATION_STATUS_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </FormField>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
+            <input
+              type="checkbox"
+              checked={form.confirmed}
+              onChange={e => setField('confirmed', e.target.checked)}
+              style={{ width: '16px', height: '16px', cursor: 'pointer', flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Confirmed</span>
+          </label>
+
+          <FormField label="Reservation Time">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <input
                 type="date"
@@ -388,63 +650,54 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
             </div>
           </FormField>
 
-          {/* Party Size + Style */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <FormField label="Party Size">
-              <input
-                type="number"
-                min="1"
-                value={form.party_size}
-                onChange={e => setField('party_size', e.target.value)}
-                placeholder="e.g. 2"
-                style={inputStyle()}
-              />
-            </FormField>
-            <FormField label="Style">
-              <input
-                type="text"
-                value={form.style}
-                onChange={e => setField('style', e.target.value)}
-                placeholder="e.g. Fine Dining"
-                style={inputStyle()}
-              />
-            </FormField>
-          </div>
-
-          {/* Confirmation Number */}
-          <FormField label="Confirmation Number">
+          <FormField label="Party Size">
             <input
-              type="text"
-              value={form.confirmation_number}
-              onChange={e => setField('confirmation_number', e.target.value)}
-              placeholder="e.g. RES-123456"
+              type="number"
+              min="1"
+              value={form.party_size}
+              onChange={e => setField('party_size', e.target.value)}
+              placeholder="e.g. 2"
               style={inputStyle()}
             />
           </FormField>
 
-          {/* Phone + Website */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <FormField label="Phone">
+          <div style={{ opacity: form.confirmed ? 1 : 0.4, pointerEvents: form.confirmed ? 'auto' : 'none' }}>
+            <FormField label="Confirmation Number">
               <input
-                type="tel"
-                value={form.phone}
-                onChange={e => setField('phone', e.target.value)}
-                placeholder="+1 (800) 000-0000"
-                style={inputStyle()}
-              />
-            </FormField>
-            <FormField label="Website">
-              <input
-                type="url"
-                value={form.website_url}
-                onChange={e => setField('website_url', e.target.value)}
-                placeholder="https://..."
+                type="text"
+                value={form.confirmation_number}
+                onChange={e => setField('confirmation_number', e.target.value)}
+                placeholder="e.g. RES-123456"
                 style={inputStyle()}
               />
             </FormField>
           </div>
 
-          {/* Notes */}
+          <div style={{ opacity: form.confirmed ? 1 : 0.4, pointerEvents: form.confirmed ? 'auto' : 'none' }}>
+            <FormField label="Booking Source">
+              <input
+                type="text"
+                value={form.booking_source}
+                onChange={e => setField('booking_source', e.target.value)}
+                placeholder="e.g. OpenTable"
+                style={inputStyle()}
+              />
+            </FormField>
+          </div>
+
+          <FormField label="Booking URL">
+            <input
+              type="url"
+              value={form.booking_url}
+              onChange={e => setField('booking_url', e.target.value)}
+              placeholder="https://..."
+              style={inputStyle()}
+            />
+          </FormField>
+
+          {/* ── Group: Notes ── */}
+          <GroupHeader label="Notes" />
+
           <FormField label="Notes">
             <textarea
               value={form.notes}
@@ -455,29 +708,31 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
             />
           </FormField>
 
-          {/* Included toggle */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
-            <input
-              type="checkbox"
-              checked={form.included}
-              onChange={e => setField('included', e.target.checked)}
-              style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
-            />
-            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Included (provided by operator)</span>
-          </label>
+          {/* ── Group: Flags ── */}
+          <GroupHeader label="Flags" />
 
-          {/* Action Required toggle */}
           <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
             <input
               type="checkbox"
               checked={form.action_required}
               onChange={e => setField('action_required', e.target.checked)}
-              style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
+              style={{ width: '16px', height: '16px', cursor: 'pointer', flexShrink: 0 }}
             />
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
           </label>
 
-          {/* Google Calendar */}
+          {form.action_required && (
+            <FormField label="Action Note">
+              <input
+                type="text"
+                value={form.action_note}
+                onChange={e => setField('action_note', e.target.value)}
+                placeholder="e.g. Call to confirm by Sep 1"
+                style={inputStyle()}
+              />
+            </FormField>
+          )}
+
           <div style={{ marginBottom: 'var(--sp-md)' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: form.reservation_date ? 1 : 0.4 }}>
               <input
@@ -496,7 +751,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
             )}
           </div>
 
-          {/* Delete */}
+          {/* ── Delete ── */}
           {editingRecord && (
             confirmDelete ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -513,7 +768,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
                     onClick={handleDelete}
                     disabled={deleting}
                     loading={deleting}
-                    style={{ flex: 1, background: 'var(--red)', borderColor: 'var(--red)' }}
+                    style={{ flex: 1, background: 'var(--red)', borderTopColor: 'var(--red)', borderRightColor: 'var(--red)', borderBottomColor: 'var(--red)', borderLeftColor: 'var(--red)' }}
                   >
                     Remove
                   </Button>
@@ -522,15 +777,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
             ) : (
               <button
                 onClick={() => setConfirmDelete(true)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--red)',
-                  fontSize: 'var(--fs-sm)',
-                  cursor: 'pointer',
-                  padding: '8px',
-                  minHeight: '44px',
-                }}
+                style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: 'var(--fs-sm)', cursor: 'pointer', padding: '8px', minHeight: '44px' }}
               >
                 Remove Restaurant
               </button>

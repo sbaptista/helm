@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
+import { AIRPORT_LOOKUP } from '@/lib/gcal/timezones';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -13,12 +14,22 @@ export interface Flight {
   airline: string | null;
   origin_airport: string | null;
   destination_airport: string | null;
+  origin_city: string | null;
+  destination_city: string | null;
   departure_time: string | null;
   arrival_time: string | null;
+  departure_timezone: string | null;
+  arrival_timezone: string | null;
   cabin_class: string | null;
+  seat_number: string | null;
   confirmation_number: string | null;
+  departure_terminal: string | null;
+  departure_gate: string | null;
+  arrival_terminal: string | null;
+  arrival_gate: string | null;
   notes: string | null;
   gcal_include: boolean;
+  action_required: boolean;
 }
 
 interface FlightForm {
@@ -26,15 +37,34 @@ interface FlightForm {
   airline: string;
   origin_airport: string;
   destination_airport: string;
+  origin_city: string;
+  destination_city: string;
   departure_date: string;
   departure_time_val: string;
   arrival_date: string;
   arrival_time_val: string;
+  departure_timezone: string;
+  arrival_timezone: string;
   cabin_class: string;
+  seat_number: string;
   confirmation_number: string;
+  departure_terminal: string;
+  departure_gate: string;
+  arrival_terminal: string;
+  arrival_gate: string;
   notes: string;
   gcal_include: boolean;
+  action_required: boolean;
 }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const TIMEZONE_OPTIONS = [
+  { value: 'Pacific/Honolulu',    label: 'Honolulu (HST)' },
+  { value: 'America/Los_Angeles', label: 'Seattle / Pacific (PDT/PST)' },
+  { value: 'America/Vancouver',   label: 'Vancouver / Kamloops (PDT/PST)' },
+  { value: 'America/Edmonton',    label: 'Jasper / Banff (MDT/MST)' },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,14 +73,24 @@ const EMPTY_FORM: FlightForm = {
   airline: '',
   origin_airport: '',
   destination_airport: '',
+  origin_city: '',
+  destination_city: '',
   departure_date: '',
   departure_time_val: '',
   arrival_date: '',
   arrival_time_val: '',
+  departure_timezone: '',
+  arrival_timezone: '',
   cabin_class: '',
+  seat_number: '',
   confirmation_number: '',
+  departure_terminal: '',
+  departure_gate: '',
+  arrival_terminal: '',
+  arrival_gate: '',
   notes: '',
   gcal_include: false,
+  action_required: false,
 };
 
 function splitDatetime(iso: string | null): [string, string] {
@@ -71,18 +111,28 @@ function flightToForm(f: Flight): FlightForm {
   const [depDate, depTime] = splitDatetime(f.departure_time);
   const [arrDate, arrTime] = splitDatetime(f.arrival_time);
   return {
-    flight_number: f.flight_number ?? '',
-    airline: f.airline ?? '',
-    origin_airport: f.origin_airport ?? '',
+    flight_number:       f.flight_number       ?? '',
+    airline:             f.airline             ?? '',
+    origin_airport:      f.origin_airport      ?? '',
     destination_airport: f.destination_airport ?? '',
-    departure_date: depDate,
-    departure_time_val: depTime,
-    arrival_date: arrDate,
-    arrival_time_val: arrTime,
-    cabin_class: f.cabin_class ?? '',
+    origin_city:         f.origin_city         ?? '',
+    destination_city:    f.destination_city    ?? '',
+    departure_date:      depDate,
+    departure_time_val:  depTime,
+    arrival_date:        arrDate,
+    arrival_time_val:    arrTime,
+    departure_timezone:  f.departure_timezone  ?? '',
+    arrival_timezone:    f.arrival_timezone    ?? '',
+    cabin_class:         f.cabin_class         ?? '',
+    seat_number:         f.seat_number         ?? '',
     confirmation_number: f.confirmation_number ?? '',
-    notes: f.notes ?? '',
-    gcal_include: f.gcal_include ?? false,
+    departure_terminal:  f.departure_terminal  ?? '',
+    departure_gate:      f.departure_gate      ?? '',
+    arrival_terminal:    f.arrival_terminal    ?? '',
+    arrival_gate:        f.arrival_gate        ?? '',
+    notes:               f.notes               ?? '',
+    gcal_include:        f.gcal_include        ?? false,
+    action_required:     f.action_required     ?? false,
   };
 }
 
@@ -99,6 +149,31 @@ function formatDateTime(iso: string | null): string {
   const suffix = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${weekday}, ${months[month - 1]} ${day} · ${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+}
+
+function formatTimezoneAbbrev(tz: string | null): string {
+  if (!tz) return '';
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' })
+      .formatToParts(new Date())
+      .find(p => p.type === 'timeZoneName')?.value ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function applyAirportLookup(
+  code: string,
+  side: 'origin' | 'destination',
+  setForm: React.Dispatch<React.SetStateAction<FlightForm>>,
+) {
+  const entry = AIRPORT_LOOKUP[code.toUpperCase()];
+  if (!entry) return;
+  setForm(prev => ({
+    ...prev,
+    [side === 'origin' ? 'origin_city' : 'destination_city']: entry.city,
+    [side === 'origin' ? 'departure_timezone' : 'arrival_timezone']: entry.timezone,
+  }));
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -171,12 +246,22 @@ export function FlightsClient({
         airline:             form.airline             || null,
         origin_airport:      form.origin_airport      || null,
         destination_airport: form.destination_airport || null,
+        origin_city:         form.origin_city         || null,
+        destination_city:    form.destination_city    || null,
         departure_time:      joinDatetime(form.departure_date, form.departure_time_val),
         arrival_time:        joinDatetime(form.arrival_date,   form.arrival_time_val),
+        departure_timezone:  form.departure_timezone  || null,
+        arrival_timezone:    form.arrival_timezone    || null,
         cabin_class:         form.cabin_class         || null,
+        seat_number:         form.seat_number         || null,
         confirmation_number: form.confirmation_number || null,
+        departure_terminal:  form.departure_terminal  || null,
+        departure_gate:      form.departure_gate      || null,
+        arrival_terminal:    form.arrival_terminal    || null,
+        arrival_gate:        form.arrival_gate        || null,
         notes:               form.notes               || null,
         gcal_include:        form.gcal_include,
+        action_required:     form.action_required,
       };
 
       const res = isAdd
@@ -217,6 +302,21 @@ export function FlightsClient({
       setSaveError(e instanceof Error ? e.message : 'Something went wrong.');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const toggleActionRequired = async (f: Flight, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newVal = !f.action_required;
+    setFlights(prev => prev.map(fl => fl.id === f.id ? { ...fl, action_required: newVal } : fl));
+    try {
+      await fetch(`/api/flights/${f.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action_required: newVal }),
+      });
+    } catch {
+      setFlights(prev => prev.map(fl => fl.id === f.id ? { ...fl, action_required: f.action_required } : fl));
     }
   };
 
@@ -266,7 +366,7 @@ export function FlightsClient({
                 minHeight: '44px',
               }}
             >
-              {/* Airline + flight number + cabin */}
+              {/* Airline + flight number + cabin + flag */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 {f.airline && (
                   <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--text)' }}>
@@ -290,38 +390,104 @@ export function FlightsClient({
                     border: '1px solid var(--border)',
                     borderRadius: '20px',
                     padding: '3px 10px',
-                    marginLeft: 'auto',
                   }}>
                     {f.cabin_class}
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={(e) => toggleActionRequired(f, e)}
+                  aria-label={f.action_required ? 'Clear action required' : 'Mark action required'}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '15px',
+                    opacity: f.action_required ? 1 : 0.22,
+                    marginLeft: 'auto',
+                    padding: '4px',
+                    lineHeight: 1,
+                    minHeight: '44px',
+                  }}
+                >
+                  🚩
+                </button>
               </div>
 
               {/* Route */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-2xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', letterSpacing: '0.02em' }}>
-                  {f.origin_airport ?? '—'}
-                </span>
-                <svg width="24" height="12" viewBox="0 0 24 12" fill="none" aria-hidden="true" style={{ color: 'var(--text3)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-2xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', letterSpacing: '0.02em', lineHeight: 1 }}>
+                    {f.origin_airport ?? '—'}
+                  </span>
+                  {f.origin_city && (
+                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '2px' }}>
+                      {f.origin_city}
+                    </span>
+                  )}
+                </div>
+                <svg width="24" height="12" viewBox="0 0 24 12" fill="none" aria-hidden="true" style={{ color: 'var(--text3)', flexShrink: 0, marginTop: '6px' }}>
                   <path d="M2 6h20M16 2l6 4-6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-2xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', letterSpacing: '0.02em' }}>
-                  {f.destination_airport ?? '—'}
-                </span>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-2xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', letterSpacing: '0.02em', lineHeight: 1 }}>
+                    {f.destination_airport ?? '—'}
+                  </span>
+                  {f.destination_city && (
+                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '2px' }}>
+                      {f.destination_city}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* Times */}
-              <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              {/* Departs */}
+              <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: 'var(--text2)', fontWeight: 'var(--fw-bold)', minWidth: '56px' }}>Departs</span>
                 <span>{formatDateTime(f.departure_time)}</span>
-                <span aria-hidden="true">→</span>
-                <span>{formatDateTime(f.arrival_time)}</span>
+                {f.departure_timezone && (
+                  <span style={{ opacity: 0.6 }}>{formatTimezoneAbbrev(f.departure_timezone)}</span>
+                )}
               </div>
+
+              {/* Arrives */}
+              <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: 'var(--text2)', fontWeight: 'var(--fw-bold)', minWidth: '56px' }}>Arrives</span>
+                <span>{formatDateTime(f.arrival_time)}</span>
+                {f.arrival_timezone && (
+                  <span style={{ opacity: 0.6 }}>{formatTimezoneAbbrev(f.arrival_timezone)}</span>
+                )}
+              </div>
+
+              {/* Seat */}
+              {f.seat_number && (
+                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Seat: </span>
+                  {f.seat_number}
+                </div>
+              )}
 
               {/* Confirmation */}
               {f.confirmation_number && (
                 <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
                   <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Conf: </span>
                   {f.confirmation_number}
+                </div>
+              )}
+
+              {/* Departure terminal / gate */}
+              {(f.departure_terminal || f.departure_gate) && (
+                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Dep: </span>
+                  {[f.departure_terminal, f.departure_gate].filter(Boolean).join(' · ')}
+                </div>
+              )}
+
+              {/* Arrival terminal / gate */}
+              {(f.arrival_terminal || f.arrival_gate) && (
+                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Arr: </span>
+                  {[f.arrival_terminal, f.arrival_gate].filter(Boolean).join(' · ')}
                 </div>
               )}
 
@@ -380,17 +546,20 @@ export function FlightsClient({
             />
           </FormField>
 
-          {/* Route — From / To side by side */}
+          {/* Route — airport codes side by side */}
           <div style={{ display: 'flex', gap: '10px' }}>
             <div style={{ flex: 1 }}>
-              <FormField label="From" htmlFor="fl-origin">
+              <FormField label="From (Airport Code)" htmlFor="fl-origin">
                 <input
                   id="fl-origin"
                   type="text"
                   value={form.origin_airport}
                   onChange={(e) => setField('origin_airport', e.target.value.toUpperCase())}
                   onFocus={() => setFocusedField('origin_airport')}
-                  onBlur={() => setFocusedField(null)}
+                  onBlur={() => {
+                    setFocusedField(null);
+                    applyAirportLookup(form.origin_airport, 'origin', setForm);
+                  }}
                   style={{ ...fieldStyle('origin_airport'), textTransform: 'uppercase' }}
                   placeholder="JFK"
                   maxLength={4}
@@ -399,17 +568,54 @@ export function FlightsClient({
               </FormField>
             </div>
             <div style={{ flex: 1 }}>
-              <FormField label="To" htmlFor="fl-destination">
+              <FormField label="To (Airport Code)" htmlFor="fl-destination">
                 <input
                   id="fl-destination"
                   type="text"
                   value={form.destination_airport}
                   onChange={(e) => setField('destination_airport', e.target.value.toUpperCase())}
                   onFocus={() => setFocusedField('destination_airport')}
-                  onBlur={() => setFocusedField(null)}
+                  onBlur={() => {
+                    setFocusedField(null);
+                    applyAirportLookup(form.destination_airport, 'destination', setForm);
+                  }}
                   style={{ ...fieldStyle('destination_airport'), textTransform: 'uppercase' }}
                   placeholder="LHR"
                   maxLength={4}
+                  autoComplete="off"
+                />
+              </FormField>
+            </div>
+          </div>
+
+          {/* City names side by side */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ flex: 1 }}>
+              <FormField label="Origin City" htmlFor="fl-origin-city">
+                <input
+                  id="fl-origin-city"
+                  type="text"
+                  value={form.origin_city}
+                  onChange={(e) => setField('origin_city', e.target.value)}
+                  onFocus={() => setFocusedField('origin_city')}
+                  onBlur={() => setFocusedField(null)}
+                  style={fieldStyle('origin_city')}
+                  placeholder="e.g. Honolulu, HI"
+                  autoComplete="off"
+                />
+              </FormField>
+            </div>
+            <div style={{ flex: 1 }}>
+              <FormField label="Destination City" htmlFor="fl-dest-city">
+                <input
+                  id="fl-dest-city"
+                  type="text"
+                  value={form.destination_city}
+                  onChange={(e) => setField('destination_city', e.target.value)}
+                  onFocus={() => setFocusedField('destination_city')}
+                  onBlur={() => setFocusedField(null)}
+                  style={fieldStyle('destination_city')}
+                  placeholder="e.g. Vancouver, BC"
                   autoComplete="off"
                 />
               </FormField>
@@ -438,6 +644,23 @@ export function FlightsClient({
             </div>
           </FormField>
 
+          {/* Departure Timezone */}
+          <FormField label="Departure Timezone" htmlFor="fl-dep-tz">
+            <select
+              id="fl-dep-tz"
+              value={form.departure_timezone}
+              onChange={(e) => setField('departure_timezone', e.target.value)}
+              onFocus={() => setFocusedField('departure_timezone')}
+              onBlur={() => setFocusedField(null)}
+              style={{ ...fieldStyle('departure_timezone'), cursor: 'pointer' }}
+            >
+              <option value="">Select…</option>
+              {TIMEZONE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </FormField>
+
           {/* Arrival — date + time */}
           <FormField label="Arrival">
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -460,6 +683,23 @@ export function FlightsClient({
             </div>
           </FormField>
 
+          {/* Arrival Timezone */}
+          <FormField label="Arrival Timezone" htmlFor="fl-arr-tz">
+            <select
+              id="fl-arr-tz"
+              value={form.arrival_timezone}
+              onChange={(e) => setField('arrival_timezone', e.target.value)}
+              onFocus={() => setFocusedField('arrival_timezone')}
+              onBlur={() => setFocusedField(null)}
+              style={{ ...fieldStyle('arrival_timezone'), cursor: 'pointer' }}
+            >
+              <option value="">Select…</option>
+              {TIMEZONE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </FormField>
+
           {/* Cabin Class */}
           <FormField label="Cabin Class" htmlFor="fl-cabin">
             <select
@@ -478,6 +718,21 @@ export function FlightsClient({
             </select>
           </FormField>
 
+          {/* Seat Number */}
+          <FormField label="Seat Number" htmlFor="fl-seat">
+            <input
+              id="fl-seat"
+              type="text"
+              value={form.seat_number}
+              onChange={(e) => setField('seat_number', e.target.value)}
+              onFocus={() => setFocusedField('seat_number')}
+              onBlur={() => setFocusedField(null)}
+              style={fieldStyle('seat_number')}
+              placeholder="e.g. 3A Cathleen / 3B Stanley"
+              autoComplete="off"
+            />
+          </FormField>
+
           {/* Confirmation Code */}
           <FormField label="Confirmation Code" htmlFor="fl-conf">
             <input
@@ -493,18 +748,86 @@ export function FlightsClient({
             />
           </FormField>
 
-          {/* Notes */}
-          <FormField label="Notes" htmlFor="fl-notes">
-            <textarea
-              id="fl-notes"
-              value={form.notes}
-              onChange={(e) => setField('notes', e.target.value)}
-              onFocus={() => setFocusedField('notes')}
-              onBlur={() => setFocusedField(null)}
-              style={{ ...fieldStyle('notes'), minHeight: '80px', resize: 'vertical' }}
-              placeholder="Optional notes…"
-            />
-          </FormField>
+          {/* Terminal & Gate — Departure */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ flex: 1 }}>
+              <FormField label="Dep. Terminal" htmlFor="fl-dep-terminal">
+                <input
+                  id="fl-dep-terminal"
+                  type="text"
+                  value={form.departure_terminal}
+                  onChange={(e) => setField('departure_terminal', e.target.value)}
+                  onFocus={() => setFocusedField('departure_terminal')}
+                  onBlur={() => setFocusedField(null)}
+                  style={fieldStyle('departure_terminal')}
+                  placeholder="e.g. Terminal 2"
+                  autoComplete="off"
+                />
+              </FormField>
+            </div>
+            <div style={{ flex: 1 }}>
+              <FormField label="Dep. Gate" htmlFor="fl-dep-gate">
+                <input
+                  id="fl-dep-gate"
+                  type="text"
+                  value={form.departure_gate}
+                  onChange={(e) => setField('departure_gate', e.target.value)}
+                  onFocus={() => setFocusedField('departure_gate')}
+                  onBlur={() => setFocusedField(null)}
+                  style={fieldStyle('departure_gate')}
+                  placeholder="e.g. Gate B14"
+                  autoComplete="off"
+                />
+              </FormField>
+            </div>
+          </div>
+
+          {/* Terminal & Gate — Arrival */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ flex: 1 }}>
+              <FormField label="Arr. Terminal" htmlFor="fl-arr-terminal">
+                <input
+                  id="fl-arr-terminal"
+                  type="text"
+                  value={form.arrival_terminal}
+                  onChange={(e) => setField('arrival_terminal', e.target.value)}
+                  onFocus={() => setFocusedField('arrival_terminal')}
+                  onBlur={() => setFocusedField(null)}
+                  style={fieldStyle('arrival_terminal')}
+                  placeholder="e.g. Terminal 2"
+                  autoComplete="off"
+                />
+              </FormField>
+            </div>
+            <div style={{ flex: 1 }}>
+              <FormField label="Arr. Gate" htmlFor="fl-arr-gate">
+                <input
+                  id="fl-arr-gate"
+                  type="text"
+                  value={form.arrival_gate}
+                  onChange={(e) => setField('arrival_gate', e.target.value)}
+                  onFocus={() => setFocusedField('arrival_gate')}
+                  onBlur={() => setFocusedField(null)}
+                  style={fieldStyle('arrival_gate')}
+                  placeholder="e.g. Gate B14"
+                  autoComplete="off"
+                />
+              </FormField>
+            </div>
+          </div>
+
+          {/* Action Required */}
+          <div style={{ marginBottom: 'var(--sp-sm)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)' }}>
+              <input
+                type="checkbox"
+                checked={form.action_required}
+                onChange={e => setField('action_required', e.target.checked)}
+                style={{ width: '16px', height: '16px' }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)' }}>Action Required</span>
+            </label>
+          </div>
 
           {/* Google Calendar */}
           <div style={{ marginBottom: 'var(--sp-md)' }}>
@@ -524,6 +847,19 @@ export function FlightsClient({
               </p>
             )}
           </div>
+
+          {/* Notes */}
+          <FormField label="Notes" htmlFor="fl-notes">
+            <textarea
+              id="fl-notes"
+              value={form.notes}
+              onChange={(e) => setField('notes', e.target.value)}
+              onFocus={() => setFocusedField('notes')}
+              onBlur={() => setFocusedField(null)}
+              style={{ ...fieldStyle('notes'), minHeight: '80px', resize: 'vertical' }}
+              placeholder="Optional notes…"
+            />
+          </FormField>
 
           {/* Error */}
           {saveError && (
