@@ -1,9 +1,8 @@
-// app/api/hotels/[id]/route.ts
-
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { logger } from '@/lib/logger'
 
 function serverClient() {
   return createClient(
@@ -31,21 +30,29 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const userId = await getAuthUserId()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const supabase = serverClient()
-  const body = await request.json()
-  const { gcal_include } = body
+  try {
+    const userId = await getAuthUserId()
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const supabase = serverClient()
+    const body = await request.json()
+    const { gcal_include } = body
 
-  const { data, error } = await supabase
-    .from('hotels')
-    .update({ ...body, gcal_dirty: gcal_include === true ? true : false })
-    .eq('id', id)
-    .select()
-    .single()
+    const { data, error } = await supabase
+      .from('hotels')
+      .update({ ...body, gcal_dirty: gcal_include === true ? true : false })
+      .eq('id', id)
+      .select()
+      .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+    if (error) {
+      logger.error('api/hotels', 'Supabase error on PATCH', { error: error.message, recordId: id })
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json(data)
+  } catch (err) {
+    logger.critical('api/hotels', 'Unhandled exception in PATCH handler', { error: err instanceof Error ? err.message : String(err) })
+    return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 })
+  }
 }
 
 export async function DELETE(
@@ -53,13 +60,21 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const supabase = serverClient()
+  try {
+    const supabase = serverClient()
 
-  const { error } = await supabase
-    .from('hotels')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id)
+    const { error } = await supabase
+      .from('hotels')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+    if (error) {
+      logger.error('api/hotels', 'Supabase error on DELETE', { error: error.message, recordId: id })
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    logger.critical('api/hotels', 'Unhandled exception in DELETE handler', { error: err instanceof Error ? err.message : String(err) })
+    return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 })
+  }
 }

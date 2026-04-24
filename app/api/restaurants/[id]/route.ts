@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { logger } from '@/lib/logger'
 
 function serviceClient() {
   return createClient(
@@ -29,48 +30,56 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const userId = await getAuthUserId()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const userId = await getAuthUserId()
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = serviceClient()
-  const { data: record } = await supabase
-    .from('restaurants')
-    .select('trip_id')
-    .eq('id', id)
-    .single()
-  if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const supabase = serviceClient()
+    const { data: record } = await supabase
+      .from('restaurants')
+      .select('trip_id')
+      .eq('id', id)
+      .single()
+    if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const { data: member } = await supabase
-    .from('trip_members')
-    .select('id')
-    .eq('trip_id', record.trip_id)
-    .eq('user_id', userId)
-    .single()
-  if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const { data: member } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', record.trip_id)
+      .eq('user_id', userId)
+      .single()
+    if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = await req.json()
-  const {
-    name, cuisine, city, address, reservation_time, party_size, style,
-    confirmation_number, phone, website_url, notes, included, action_required,
-    gcal_include,
-    display_label, reservation_status, confirmed, booking_source, maps_url,
-    action_note, state_province, postal_code, email, booking_url,
-  } = body
-  const { data, error } = await supabase
-    .from('restaurants')
-    .update({
+    const body = await req.json()
+    const {
       name, cuisine, city, address, reservation_time, party_size, style,
       confirmation_number, phone, website_url, notes, included, action_required,
       gcal_include,
-      gcal_dirty: gcal_include === true ? true : false,
       display_label, reservation_status, confirmed, booking_source, maps_url,
       action_note, state_province, postal_code, email, booking_url,
-    })
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+    } = body
+    const { data, error } = await supabase
+      .from('restaurants')
+      .update({
+        name, cuisine, city, address, reservation_time, party_size, style,
+        confirmation_number, phone, website_url, notes, included, action_required,
+        gcal_include,
+        gcal_dirty: gcal_include === true ? true : false,
+        display_label, reservation_status, confirmed, booking_source, maps_url,
+        action_note, state_province, postal_code, email, booking_url,
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) {
+      logger.error('api/restaurants', 'Supabase error on PATCH', { error: error.message, recordId: id })
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json(data)
+  } catch (err) {
+    logger.critical('api/restaurants', 'Unhandled exception in PATCH handler', { error: err instanceof Error ? err.message : String(err) })
+    return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 })
+  }
 }
 
 export async function DELETE(
@@ -78,29 +87,37 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const userId = await getAuthUserId()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const userId = await getAuthUserId()
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = serviceClient()
-  const { data: record } = await supabase
-    .from('restaurants')
-    .select('trip_id')
-    .eq('id', id)
-    .single()
-  if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const supabase = serviceClient()
+    const { data: record } = await supabase
+      .from('restaurants')
+      .select('trip_id')
+      .eq('id', id)
+      .single()
+    if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const { data: member } = await supabase
-    .from('trip_members')
-    .select('id')
-    .eq('trip_id', record.trip_id)
-    .eq('user_id', userId)
-    .single()
-  if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const { data: member } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', record.trip_id)
+      .eq('user_id', userId)
+      .single()
+    if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { error } = await supabase
-    .from('restaurants')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+    const { error } = await supabase
+      .from('restaurants')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) {
+      logger.error('api/restaurants', 'Supabase error on DELETE', { error: error.message, recordId: id })
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    logger.critical('api/restaurants', 'Unhandled exception in DELETE handler', { error: err instanceof Error ? err.message : String(err) })
+    return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 })
+  }
 }

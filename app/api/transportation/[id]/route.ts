@@ -2,14 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { logger } from '@/lib/logger'
 
-function serviceClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
-  )
-}
-
+function serviceClient() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!) }
 async function getAuthUserId(): Promise<string | null> {
   if (process.env.BYPASS_AUTH_USER_ID) {
     return process.env.BYPASS_AUTH_USER_ID;
@@ -29,35 +24,43 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-const userId = await getAuthUserId()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const userId = await getAuthUserId()
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = serviceClient()
-  const { data: record } = await supabase
-    .from('transportation')
-    .select('trip_id')
-    .eq('id', id)
-    .single()
-  if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const supabase = serviceClient()
+    const { data: record } = await supabase
+      .from('transportation')
+      .select('trip_id')
+      .eq('id', id)
+      .single()
+    if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const { data: member } = await supabase
-    .from('trip_members')
-    .select('id')
-    .eq('trip_id', record.trip_id)
-    .eq('user_id', userId)
-    .single()
-  if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const { data: member } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', record.trip_id)
+      .eq('user_id', userId)
+      .single()
+    if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = await req.json()
-  const { gcal_include } = body
-  const { data, error } = await supabase
-    .from('transportation')
-    .update({ ...body, gcal_dirty: gcal_include === true ? true : false })
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+    const body = await req.json()
+    const { gcal_include } = body
+    const { data, error } = await supabase
+      .from('transportation')
+      .update({ ...body, gcal_dirty: gcal_include === true ? true : false })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) {
+      logger.error('api/transportation', 'Supabase error on PATCH', { error: error.message, recordId: id })
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json(data)
+  } catch (err) {
+    logger.critical('api/transportation', 'Unhandled exception in PATCH handler', { error: err instanceof Error ? err.message : String(err) })
+    return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 })
+  }
 }
 
 export async function DELETE(
@@ -65,29 +68,37 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const userId = await getAuthUserId()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const userId = await getAuthUserId()
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = serviceClient()
-  const { data: record } = await supabase
-    .from('transportation')
-    .select('trip_id')
-    .eq('id', id)
-    .single()
-  if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const supabase = serviceClient()
+    const { data: record } = await supabase
+      .from('transportation')
+      .select('trip_id')
+      .eq('id', id)
+      .single()
+    if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const { data: member } = await supabase
-    .from('trip_members')
-    .select('id')
-    .eq('trip_id', record.trip_id)
-    .eq('user_id', userId)
-    .single()
-  if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const { data: member } = await supabase
+      .from('trip_members')
+      .select('id')
+      .eq('trip_id', record.trip_id)
+      .eq('user_id', userId)
+      .single()
+    if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { error } = await supabase
-    .from('transportation')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+    const { error } = await supabase
+      .from('transportation')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) {
+      logger.error('api/transportation', 'Supabase error on DELETE', { error: error.message, recordId: id })
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    logger.critical('api/transportation', 'Unhandled exception in DELETE handler', { error: err instanceof Error ? err.message : String(err) })
+    return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 })
+  }
 }
