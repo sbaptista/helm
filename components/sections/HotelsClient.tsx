@@ -266,7 +266,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       await refetch()
       closeSheet()
     } catch {
-      toast.show('Something went wrong', 'neutral')
+      toast.show('Something went wrong. Please try again.', 'error')
     } finally {
       setSaving(false)
     }
@@ -282,7 +282,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       await refetch()
       closeSheet()
     } catch {
-      toast.show('Something went wrong', 'neutral')
+      toast.show('Something went wrong. Please try again.', 'error')
     } finally {
       setDeleting(false)
     }

@@ -334,7 +334,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       await refetch()
       setDaySheetOpen(false)
     } catch {
-      toast.show('Something went wrong', 'error')
+      toast.show('Something went wrong. Please try again.', 'error')
     } finally {
       setSaving(false)
     }
@@ -350,7 +350,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       await refetch()
       setDaySheetOpen(false)
     } catch {
-      toast.show('Something went wrong', 'error')
+      toast.show('Something went wrong. Please try again.', 'error')
     } finally {
       setDeleting(false)
     }
@@ -468,7 +468,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       router.refresh()
       setRowSheetOpen(false)
     } catch {
-      toast.show('Something went wrong', 'error')
+      toast.show('Something went wrong. Please try again.', 'error')
     } finally {
       setSaving(false)
     }
@@ -484,7 +484,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       await refetch()
       setRowSheetOpen(false)
     } catch {
-      toast.show('Something went wrong', 'error')
+      toast.show('Something went wrong. Please try again.', 'error')
     } finally {
       setDeleting(false)
     }

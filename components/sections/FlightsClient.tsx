@@ -5,6 +5,7 @@ import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
 import { AIRPORT_LOOKUP } from '@/lib/gcal/timezones';
+import { useToast } from '@/components/ui/Toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -190,8 +191,8 @@ export function FlightsClient({
   const [editFlight, setEditFlight] = useState<Flight | null>(null);
   const [form, setForm] = useState<FlightForm>(EMPTY_FORM);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -208,7 +209,6 @@ export function FlightsClient({
   const openAdd = () => {
     setEditFlight(null);
     setForm(EMPTY_FORM);
-    setSaveError(null);
     setDeleteConfirm(false);
     setSheetOpen(true);
   };
@@ -216,7 +216,6 @@ export function FlightsClient({
   const openEdit = (f: Flight) => {
     setEditFlight(f);
     setForm(flightToForm(f));
-    setSaveError(null);
     setDeleteConfirm(false);
     setSheetOpen(true);
   };
@@ -224,7 +223,6 @@ export function FlightsClient({
   const closeSheet = () => {
     setSheetOpen(false);
     setDeleteConfirm(false);
-    setSaveError(null);
   };
 
   const refetch = async () => {
@@ -239,7 +237,6 @@ export function FlightsClient({
 
   const handleSave = async () => {
     setSaving(true);
-    setSaveError(null);
     try {
       const body = {
         flight_number:       form.flight_number       || null,
@@ -281,8 +278,8 @@ export function FlightsClient({
       window.dispatchEvent(new CustomEvent('gcal:dirty'));
       await refetch();
       closeSheet();
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Something went wrong.');
+    } catch {
+      toast.show('Something went wrong. Please try again.', 'error');
     } finally {
       setSaving(false);
     }
@@ -291,15 +288,14 @@ export function FlightsClient({
   const handleDelete = async () => {
     if (!editFlight) return;
     setDeleting(true);
-    setSaveError(null);
     try {
       const res = await fetch(`/api/flights/${editFlight.id}`, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Something went wrong.');
       await refetch();
       closeSheet();
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Something went wrong.');
+    } catch {
+      toast.show('Something went wrong. Please try again.', 'error');
     } finally {
       setDeleting(false);
     }
@@ -317,6 +313,7 @@ export function FlightsClient({
       });
     } catch {
       setFlights(prev => prev.map(fl => fl.id === f.id ? { ...fl, action_required: f.action_required } : fl));
+      toast.show('Could not update. Please try again.', 'error');
     }
   };
 
@@ -860,18 +857,6 @@ export function FlightsClient({
               placeholder="Optional notes…"
             />
           </FormField>
-
-          {/* Error */}
-          {saveError && (
-            <p style={{
-              fontFamily: "'Lato', sans-serif",
-              fontSize: 'var(--fs-sm)',
-              color: 'var(--red)',
-              lineHeight: 1.5,
-            }}>
-              {saveError}
-            </p>
-          )}
 
           {/* Delete — edit mode only */}
           {!isAdd && (

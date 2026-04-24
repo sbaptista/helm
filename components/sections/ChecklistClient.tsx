@@ -276,7 +276,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
       setRecords(prev => prev.map(item =>
         item.id === r.id ? { ...item, status: r.status } : item
       ))
-      toast.show('Could not update status.', 'error')
+      toast.show('Could not update. Please try again.', 'error')
     } finally {
       setTogglingId(null)
     }

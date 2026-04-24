@@ -220,6 +220,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
       if (!res.ok) throw new Error()
     } catch {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, owned: item.owned } : i))
+      toast.show('Could not update. Please try again.', 'error')
     }
   }
 
@@ -235,6 +236,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
       if (!res.ok) throw new Error()
     } catch {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, packed: item.packed } : i))
+      toast.show('Could not update. Please try again.', 'error')
     }
   }
 

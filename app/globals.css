@@ -43,6 +43,8 @@
   --red: #8B2020;
   --action: #D4700A;
   --action-text: #ffffff;
+  --critical: #C0390B;
+  --critical-text: #ffffff;
 
   /* Borders */
   --border: rgba(184, 137, 42, 0.18);
