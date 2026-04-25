@@ -36,9 +36,9 @@ export function PersistentMessage({ variant, message, onAction }: PersistentMess
         textAlign: 'center',
       }}>
         <p style={{ fontSize: 'var(--fs-lg)', fontWeight: 'var(--fw-bold)' }}>
-          Something went seriously wrong
+          App error
         </p>
-        <p style={{ fontSize: 'var(--fs-base)' }}>{message}</p>
+        <p style={{ fontSize: 'var(--fs-base)' }}>Something went wrong. Please reload the page.</p>
         <button
           onClick={handleAction}
           style={{
@@ -72,7 +72,12 @@ export function PersistentMessage({ variant, message, onAction }: PersistentMess
       fontSize: 'var(--fs-sm)',
       fontWeight: 'var(--fw-medium)',
     }}>
-      <span>{message}</span>
+      <div>
+        <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', margin: 0 }}>
+          Feature unavailable
+        </p>
+        <p style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>Something went wrong. Please try again.</p>
+      </div>
       {onAction && (
         <button
           onClick={handleAction}

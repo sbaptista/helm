@@ -6,8 +6,8 @@ import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
-import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
+import WarnBadge from '@/components/ui/WarnBadge'
 import { TabNavigationContext } from '@/components/advisor/TripDetailView'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -373,6 +373,17 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
     return result
   }, [filtered, sortedGroups])
 
+  function getChecklistWarns(item: ChecklistItem): string[] {
+    const warns: string[] = [];
+    if (item.action_required) warns.push('Action Required');
+    if (item.status !== 'completed' && item.due_date && new Date(item.due_date) < new Date()) {
+      warns.push('Past Due');
+    }
+    return warns;
+  }
+
+  const warnCount = records.filter(r => getChecklistWarns(r).length > 0).length;
+
   const totalCompleted = records.filter(r => r.status === 'completed').length
 
   const iconBtnStyle: React.CSSProperties = {
@@ -465,6 +476,21 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
         </p>
       )}
 
+      {/* Warn banner */}
+      {warnCount > 0 && (
+        <div style={{
+          backgroundColor: 'var(--action)',
+          color: 'var(--action-text)',
+          fontSize: 'var(--fs-sm)',
+          fontWeight: 'var(--fw-medium)',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
+        </div>
+      )}
+
       {/* Grouped list */}
       {Array.from(grouped.entries()).map(([groupName, items]) => {
         const groupCompleted = items.filter(r => r.status === 'completed').length
@@ -535,11 +561,9 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
                       <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)', fontWeight: 'var(--fw-bold)', letterSpacing: '0.03em' }}>
                         #{r.item_number}
                       </span>
-                      {r.action_required && (
-                        <Badge color={{ bg: 'rgba(184,137,42,0.1)', text: 'var(--gold-text)', border: 'rgba(184,137,42,0.2)' }}>
-                          Attention Required
-                        </Badge>
-                      )}
+                      {getChecklistWarns(r).map(w => (
+                        <WarnBadge key={w} label={w} />
+                      ))}
                     </div>
                     <span style={{
                       fontFamily: "'Lato', sans-serif",

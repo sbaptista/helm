@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
+import WarnBadge from '@/components/ui/WarnBadge'
 import { TabNavigationContext } from '@/components/advisor/TripDetailView'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -490,6 +491,14 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
     }
   }
 
+  function getItineraryWarns(record: ItineraryRow): string[] {
+    const warns: string[] = [];
+    if (record.action_required) warns.push('Action Required');
+    return warns;
+  }
+
+  const warnCount = rows.filter(r => getItineraryWarns(r).length > 0).length;
+
   const sortedDays = useMemo(
     () => [...days].sort((a, b) => a.day_date.localeCompare(b.day_date)),
     [days]
@@ -527,6 +536,21 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
         <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
           No itinerary data yet.
         </p>
+      )}
+
+      {/* Warn banner */}
+      {warnCount > 0 && (
+        <div style={{
+          backgroundColor: 'var(--action)',
+          color: 'var(--action-text)',
+          fontSize: 'var(--fs-sm)',
+          fontWeight: 'var(--fw-medium)',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
+        </div>
       )}
 
       {sortedDays.map(day => {
@@ -672,14 +696,17 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                       </span>
                       {row.category && <Badge color={categoryColor(row.category)}>{row.category}</Badge>}
                     </div>
-                    {row.action_required && (
-                      <div style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '5px',
-                        borderLeft: '3px solid #B85900', padding: '2px 8px',
-                        marginTop: '5px', fontSize: 'var(--fs-xs)', color: '#B85900',
-                        fontWeight: 600, background: 'rgba(184,89,0,0.08)',
-                        borderRadius: '0 3px 3px 0'
-                      }}>🚩{row.action_note ? ` ${row.action_note}` : ''}</div>
+                    {getItineraryWarns(row).length > 0 && (
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                        {getItineraryWarns(row).map(w => (
+                          <WarnBadge key={w} label={w} />
+                        ))}
+                      </div>
+                    )}
+                    {row.action_required && row.action_note && (
+                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '3px' }}>
+                        {row.action_note}
+                      </div>
                     )}
                     {row.description && (
                       <p className="line-clamp-3" style={{ fontSize: 'var(--fs-sm)', color: 'var(--text2)', lineHeight: 1.5, marginTop: '6px' }}>

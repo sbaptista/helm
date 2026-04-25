@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { FormField } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
+import WarnBadge from '@/components/ui/WarnBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,6 +28,7 @@ type Hotel = {
   notes: string | null
   sort_order: number
   action_required: boolean
+  action_note?: string | null
   room_type: string | null
   gcal_include: boolean
   province: string | null
@@ -67,6 +69,7 @@ const EMPTY_FORM = {
   website_url: '',
   notes: '',
   action_required: false,
+  action_note: '',
   gcal_include: false,
   province: '',
   postal_code: '',
@@ -166,6 +169,14 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const toast = useToast()
 
+  function getHotelWarns(hotel: Hotel): string[] {
+    const warns: string[] = [];
+    if (hotel.action_required) warns.push('Action Required');
+    return warns;
+  }
+
+  const warnCount = hotels.filter(h => getHotelWarns(h).length > 0).length;
+
   // Group nearby dining by hotel_id
   const diningByHotel = nearbyDining.reduce<Record<string, NearbyDining[]>>((acc, row) => {
     if (!acc[row.hotel_id]) acc[row.hotel_id] = []
@@ -205,6 +216,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       website_url: hotel.website_url ?? '',
       notes: hotel.notes ?? '',
       action_required: hotel.action_required,
+      action_note: hotel.action_note ?? '',
       gcal_include: hotel.gcal_include ?? false,
       province: hotel.province ?? '',
       postal_code: hotel.postal_code ?? '',
@@ -238,6 +250,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
         website_url: form.website_url.trim() || null,
         notes: form.notes.trim() || null,
         action_required: form.action_required,
+        action_note: form.action_note.trim() || null,
         gcal_include: form.gcal_include,
         province: form.province.trim() || null,
         postal_code: form.postal_code.trim() || null,
@@ -313,6 +326,21 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
         </Button>
       </div>
 
+      {/* Warn banner */}
+      {warnCount > 0 && (
+        <div style={{
+          backgroundColor: 'var(--action)',
+          color: 'var(--action-text)',
+          fontSize: 'var(--fs-sm)',
+          fontWeight: 'var(--fw-medium)',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
+        </div>
+      )}
+
       {/* Empty state */}
       {hotels.length === 0 && (
         <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>No hotels added yet.</p>
@@ -350,6 +378,15 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                         <Badge color={{ bg: 'var(--bg3)', text: 'var(--text2)' }}>{hotel.room_type}</Badge>
                       )}
                     </div>
+
+                    {/* Warn badges */}
+                    {getHotelWarns(hotel).length > 0 && (
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                        {getHotelWarns(hotel).map(w => (
+                          <WarnBadge key={w} label={w} />
+                        ))}
+                      </div>
+                    )}
 
                     {/* Address / city / province / postal code */}
                     {(hotel.address || hotel.city || hotel.province || hotel.postal_code) && (
@@ -607,16 +644,29 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
             />
           </FormField>
 
-          {/* Action Required toggle */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
-            <input
-              type="checkbox"
-              checked={form.action_required}
-              onChange={e => setField('action_required', e.target.checked)}
-              style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0, appearance: 'auto', WebkitAppearance: 'auto' as any }}
-            />
-            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
-          </label>
+          {/* Action Required */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
+              <input
+                type="checkbox"
+                checked={form.action_required}
+                onChange={e => setField('action_required', e.target.checked)}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0, appearance: 'auto', WebkitAppearance: 'auto' as any }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
+            </label>
+            {form.action_required && (
+              <FormField label="Action Note">
+                <input
+                  type="text"
+                  value={form.action_note}
+                  onChange={e => setField('action_note', e.target.value)}
+                  placeholder="e.g. Verify check-in time"
+                  style={inputStyle}
+                />
+              </FormField>
+            )}
+          </div>
 
           {/* Google Calendar */}
           <div style={{ marginBottom: 'var(--sp-md)' }}>

@@ -6,6 +6,7 @@ import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormFiel
 import { Button } from '@/components/ui/Button';
 import { AIRPORT_LOOKUP } from '@/lib/gcal/timezones';
 import { useToast } from '@/components/ui/Toast';
+import WarnBadge from '@/components/ui/WarnBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -198,6 +199,16 @@ export function FlightsClient({
 
   const isAdd = editFlight === null;
 
+  function getFlightWarns(flight: Flight): string[] {
+    const warns: string[] = [];
+    if (flight.action_required) warns.push('Action Required');
+    if (!flight.departure_time) warns.push('Missing Departure Time');
+    if (!flight.arrival_time) warns.push('Missing Arrival Time');
+    return warns;
+  }
+
+  const warnCount = flights.filter(f => getFlightWarns(f).length > 0).length;
+
   function fieldStyle(name: string): React.CSSProperties {
     return focusedField === name ? inputFocusStyle() : inputStyle();
   }
@@ -236,6 +247,33 @@ export function FlightsClient({
   };
 
   const handleSave = async () => {
+    if (!form.flight_number?.trim()) {
+      toast.error('Flight number is required.');
+      return;
+    }
+    if (!form.airline?.trim()) {
+      toast.error('Airline name is required.');
+      return;
+    }
+    if (form.departure_time_val && !form.departure_date) {
+      toast.error('A departure date is required when departure time is set.');
+      return;
+    }
+    if (form.arrival_time_val && !form.arrival_date) {
+      toast.error('An arrival date is required when arrival time is set.');
+      return;
+    }
+    if (
+      form.departure_date && form.departure_time_val &&
+      form.arrival_date && form.arrival_time_val
+    ) {
+      const dep = new Date(`${form.departure_date}T${form.departure_time_val}`);
+      const arr = new Date(`${form.arrival_date}T${form.arrival_time_val}`);
+      if (arr <= dep) {
+        toast.error('Arrival must be after departure.');
+        return;
+      }
+    }
     setSaving(true);
     try {
       const body = {
@@ -327,6 +365,21 @@ export function FlightsClient({
         </Button>
       </div>
 
+      {/* Warn banner */}
+      {warnCount > 0 && (
+        <div style={{
+          backgroundColor: 'var(--action)',
+          color: 'var(--action-text)',
+          fontSize: 'var(--fs-sm)',
+          fontWeight: 'var(--fw-medium)',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
+        </div>
+      )}
+
       {/* Flight list */}
       {flights.length === 0 ? (
         <p style={{
@@ -410,6 +463,15 @@ export function FlightsClient({
                   🚩
                 </button>
               </div>
+
+              {/* Warn badges */}
+              {getFlightWarns(f).length > 0 && (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {getFlightWarns(f).map(w => (
+                    <WarnBadge key={w} label={w} />
+                  ))}
+                </div>
+              )}
 
               {/* Route */}
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>

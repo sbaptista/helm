@@ -11,6 +11,7 @@ import { RestaurantsSection }    from '@/components/sections/RestaurantsSection'
 import { ChecklistSection }      from '@/components/sections/ChecklistSection';
 import { PackingSection }        from '@/components/sections/PackingSection';
 import { KeyInfoSection }        from '@/components/sections/KeyInfoSection';
+import { LogsSection }           from '@/components/sections/LogsSection';
 import type { Trip, TripStatus } from '@/types/trips';
 
 export default async function TripDetailPage({
@@ -115,6 +116,7 @@ export default async function TripDetailPage({
       checklistContent={<ChecklistSection      tripId={id} />}
       packingContent={<PackingSection          tripId={id} />}
       keyInfoContent={<KeyInfoSection          tripId={id} />}
+      logsContent={<LogsSection               tripId={id} />}
       days={days}
       flightsData={flightsData || []}
       hotelsData={hotelsData || []}

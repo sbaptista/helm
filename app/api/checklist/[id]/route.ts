@@ -62,6 +62,16 @@ export async function PATCH(
       logger.error('api/checklist', 'Supabase error on PATCH', { error: error.message, recordId: id })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+    if (data) {
+      const record = Array.isArray(data) ? data[0] : data;
+      const isPastDue = record.status !== 'completed' && record.due_date && new Date(record.due_date) < new Date();
+      if (isPastDue) {
+        await logger.warn('checklist', `Checklist item ${record.id} is past due`, { id: record.id, due_date: record.due_date });
+      }
+      if (record.action_required) {
+        await logger.warn('checklist', `Checklist item ${record.id} has action_required set`, { id: record.id });
+      }
+    }
     return NextResponse.json(data)
   } catch (err) {
     logger.critical('api/checklist', 'Unhandled exception in PATCH handler', { error: err instanceof Error ? err.message : String(err) })

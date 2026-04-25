@@ -48,6 +48,12 @@ export async function PATCH(
       logger.error('api/hotels', 'Supabase error on PATCH', { error: error.message, recordId: id })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+    if (data) {
+      const record = Array.isArray(data) ? data[0] : data;
+      if (record.action_required) {
+        await logger.warn('hotels', `Hotel ${record.id} has action_required set`, { id: record.id });
+      }
+    }
     return NextResponse.json(data)
   } catch (err) {
     logger.critical('api/hotels', 'Unhandled exception in PATCH handler', { error: err instanceof Error ? err.message : String(err) })

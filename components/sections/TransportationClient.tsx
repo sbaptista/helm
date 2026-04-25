@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
+import WarnBadge from '@/components/ui/WarnBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ export type Transportation = {
   sort_order: number
   included: boolean
   action_required: boolean
+  action_note?: string | null
   phone: string | null
   website_url: string | null
   cost: string | null
@@ -73,6 +75,7 @@ const EMPTY_FORM = {
   notes: '',
   included: false,
   action_required: false,
+  action_note: '',
   gcal_include: false,
   departure_timezone: '',
   arrival_timezone: '',
@@ -127,6 +130,7 @@ function recordToForm(r: Transportation) {
     notes: r.notes ?? '',
     included: r.included,
     action_required: r.action_required,
+    action_note: r.action_note ?? '',
     gcal_include: r.gcal_include ?? false,
     departure_timezone: r.departure_timezone ?? '',
     arrival_timezone: r.arrival_timezone ?? '',
@@ -146,6 +150,14 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const toast = useToast()
+
+  function getTransportationWarns(record: Transportation): string[] {
+    const warns: string[] = [];
+    if (record.action_required) warns.push('Action Required');
+    return warns;
+  }
+
+  const warnCount = records.filter(r => getTransportationWarns(r).length > 0).length;
 
   const refetch = useCallback(async () => {
     const res = await fetch(`/api/trips/${tripId}/transportation`)
@@ -193,6 +205,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
         notes: form.notes.trim() || null,
         included: form.included,
         action_required: form.action_required,
+        action_note: form.action_note.trim() || null,
         gcal_include: form.gcal_include,
         departure_timezone: form.departure_timezone || null,
         arrival_timezone: form.arrival_timezone || null,
@@ -267,6 +280,21 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
         </Button>
       </div>
 
+      {/* Warn banner */}
+      {warnCount > 0 && (
+        <div style={{
+          backgroundColor: 'var(--action)',
+          color: 'var(--action-text)',
+          fontSize: 'var(--fs-sm)',
+          fontWeight: 'var(--fw-medium)',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
+        </div>
+      )}
+
       {/* Empty state */}
       {records.length === 0 && (
         <p style={{
@@ -304,9 +332,9 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
                 ? <Badge color={{ bg: 'rgba(45,90,61,0.1)', text: 'var(--green)', border: 'rgba(45,90,61,0.2)' }}>Included</Badge>
                 : <Badge color={{ bg: 'rgba(90,109,122,0.1)', text: 'var(--slate)', border: 'rgba(90,109,122,0.2)' }}>Self-Arranged</Badge>
               }
-              {r.action_required && (
-                <Badge color={{ bg: 'rgba(184,137,42,0.1)', text: 'var(--gold-text)', border: 'rgba(184,137,42,0.2)' }}>Action Required</Badge>
-              )}
+              {getTransportationWarns(r).map(w => (
+                <WarnBadge key={w} label={w} />
+              ))}
             </div>
 
             {/* Row 2: type (if provider was shown above) */}
@@ -546,16 +574,29 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Included (provided by operator)</span>
           </label>
 
-          {/* Action Required toggle */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
-            <input
-              type="checkbox"
-              checked={form.action_required}
-              onChange={e => setField('action_required', e.target.checked)}
-              style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
-            />
-            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
-          </label>
+          {/* Action Required */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minHeight: '44px' }}>
+              <input
+                type="checkbox"
+                checked={form.action_required}
+                onChange={e => setField('action_required', e.target.checked)}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>Action Required</span>
+            </label>
+            {form.action_required && (
+              <FormField label="Action Note">
+                <input
+                  type="text"
+                  value={form.action_note}
+                  onChange={e => setField('action_note', e.target.value)}
+                  placeholder="e.g. Verify pickup location"
+                  style={inputStyle()}
+                />
+              </FormField>
+            )}
+          </div>
 
           {/* Google Calendar */}
           <div style={{ marginBottom: 'var(--sp-md)' }}>

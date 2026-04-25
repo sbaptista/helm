@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
+import WarnBadge from '@/components/ui/WarnBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -175,6 +176,14 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const toast = useToast()
 
+  function getRestaurantWarns(record: Restaurant): string[] {
+    const warns: string[] = [];
+    if (record.action_required) warns.push('Action Required');
+    return warns;
+  }
+
+  const warnCount = records.filter(r => getRestaurantWarns(r).length > 0).length;
+
   const refetch = useCallback(async () => {
     const res = await fetch(`/api/trips/${tripId}/restaurants`)
     if (res.ok) setRecords(await res.json())
@@ -290,6 +299,21 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
           Add Restaurant
         </Button>
       </div>
+
+      {/* Warn banner */}
+      {warnCount > 0 && (
+        <div style={{
+          backgroundColor: 'var(--action)',
+          color: 'var(--action-text)',
+          fontSize: 'var(--fs-sm)',
+          fontWeight: 'var(--fw-medium)',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
+        </div>
+      )}
 
       {/* Empty state */}
       {records.length === 0 && (
@@ -434,8 +458,17 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
               </p>
             )}
 
-            {/* Action Required footer */}
-            {r.action_required && (
+            {/* Warn badges */}
+            {getRestaurantWarns(r).length > 0 && (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                {getRestaurantWarns(r).map(w => (
+                  <WarnBadge key={w} label={w} />
+                ))}
+              </div>
+            )}
+
+            {/* Action note (shown separately when present) */}
+            {r.action_required && r.action_note && (
               <div style={{
                 padding: '8px 10px',
                 background: 'rgba(184,137,42,0.08)',
@@ -443,9 +476,6 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
                 borderRadius: '6px',
                 marginTop: '4px',
               }}>
-                <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', fontWeight: 'var(--fw-bold)', color: 'var(--gold-text)' }}>
-                  🚩 Action Required
-                </span>
                 {r.action_note && (
                   <p style={{
                     fontFamily: "'Lato', sans-serif",

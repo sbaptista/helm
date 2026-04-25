@@ -27,6 +27,7 @@ const TABS = [
   'Checklist',
   'Packing',
   'Key Info',
+  'Logs',
 ] as const;
 
 type Tab = typeof TABS[number];
@@ -61,6 +62,7 @@ interface TripDetailViewProps {
   checklistContent?:      React.ReactNode;
   packingContent?:        React.ReactNode;
   keyInfoContent?:        React.ReactNode;
+  logsContent?:           React.ReactNode;
   days?: { id: string; day_number: number; day_date: string; title: string }[];
   flightsData?: any[];
   hotelsData?: any[];
@@ -83,6 +85,7 @@ function TripDetailViewInner({
   checklistContent,
   packingContent,
   keyInfoContent,
+  logsContent,
   days = [],
   flightsData = [],
   hotelsData = [],
@@ -768,6 +771,7 @@ const handleImportClose = () => {
             Checklist:      checklistContent,
             Packing:        packingContent,
             'Key Info':     keyInfoContent,
+            Logs:           logsContent,
           };
           const content = tabContents[activeTab];
           return content ? (

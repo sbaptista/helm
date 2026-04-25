@@ -45,6 +45,10 @@
   --action-text: #ffffff;
   --critical: #C0390B;
   --critical-text: #ffffff;
+  --error: #B45309;
+  --error-text: #ffffff;
+  --fatal: #7F1D1D;
+  --fatal-text: #ffffff;
 
   /* Borders */
   --border: rgba(184, 137, 42, 0.18);
