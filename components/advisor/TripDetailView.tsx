@@ -9,6 +9,7 @@ import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { PrintExportModal } from '@/components/advisor/PrintExportModal';
 import { CalendarButton } from '@/components/advisor/CalendarButton';
+import { LogsClient } from '@/components/sections/LogsClient';
 import type { Trip } from '@/types/trips';
 
 export const TabNavigationContext = React.createContext<{
@@ -27,7 +28,6 @@ const TABS = [
   'Checklist',
   'Packing',
   'Key Info',
-  'Logs',
 ] as const;
 
 type Tab = typeof TABS[number];
@@ -62,7 +62,6 @@ interface TripDetailViewProps {
   checklistContent?:      React.ReactNode;
   packingContent?:        React.ReactNode;
   keyInfoContent?:        React.ReactNode;
-  logsContent?:           React.ReactNode;
   days?: { id: string; day_number: number; day_date: string; title: string }[];
   flightsData?: any[];
   hotelsData?: any[];
@@ -85,7 +84,6 @@ function TripDetailViewInner({
   checklistContent,
   packingContent,
   keyInfoContent,
-  logsContent,
   days = [],
   flightsData = [],
   hotelsData = [],
@@ -150,6 +148,9 @@ function TripDetailViewInner({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirming, setDeleteConfirming] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Logs modal
+  const [logsOpen, setLogsOpen] = useState(false);
 
   // Clear modal
   const [clearOpen, setClearOpen] = useState(false);
@@ -579,6 +580,26 @@ const handleImportClose = () => {
               </button>
               <button
                 type="button"
+                onClick={() => setLogsOpen(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: "'Lato', sans-serif",
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--text3)',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '2px',
+                  padding: '6px 0',
+                  minHeight: '44px',
+                  textAlign: 'right',
+                }}
+              >
+                Logs
+              </button>
+              <button
+                type="button"
                 onClick={() => { setDeleteError(null); setDeleteOpen(true); }}
                 style={{
                   background: 'none',
@@ -771,7 +792,6 @@ const handleImportClose = () => {
             Checklist:      checklistContent,
             Packing:        packingContent,
             'Key Info':     keyInfoContent,
-            Logs:           logsContent,
           };
           const content = tabContents[activeTab];
           return content ? (
@@ -1162,11 +1182,15 @@ const handleImportClose = () => {
         </span>
       </footer>
 
-      {/* Clear trip data modal */}
-      <Modal open={clearOpen} onClose={() => setClearOpen(false)}>
-        <>
-          {/* ... existing clear modal content ... */}
-        </>
+      {/* Logs modal */}
+      <Modal open={logsOpen} onClose={() => setLogsOpen(false)}>
+        <ModalHeader title="Logs" onClose={() => setLogsOpen(false)} />
+        <ModalBody>
+          <LogsClient tripId={localTrip.id} />
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setLogsOpen(false)}>Close</Button>
+        </ModalFooter>
       </Modal>
 
       {/* Print modal */}

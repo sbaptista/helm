@@ -1,5 +1,7 @@
 'use client'
 
+import { ShieldX } from 'lucide-react'
+
 type PersistentMessageVariant = 'critical' | 'fatal'
 
 interface PersistentMessageProps {
@@ -24,37 +26,80 @@ export function PersistentMessage({ variant, message, onAction }: PersistentMess
       <div style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'var(--red)',
-        color: 'var(--action-text)',
+        background: '#111111',
+        zIndex: 9999,
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 'var(--sp-lg)',
-        zIndex: 9999,
-        padding: 'var(--sp-2xl)',
-        textAlign: 'center',
       }}>
-        <p style={{ fontSize: 'var(--fs-lg)', fontWeight: 'var(--fw-bold)' }}>
-          App error
-        </p>
-        <p style={{ fontSize: 'var(--fs-base)' }}>Something went wrong. Please reload the page.</p>
-        <button
-          onClick={handleAction}
-          style={{
-            marginTop: 'var(--sp-md)',
-            padding: 'var(--sp-sm) var(--sp-xl)',
-            backgroundColor: 'var(--action-text)',
-            color: 'var(--red)',
-            fontWeight: 'var(--fw-bold)',
-            fontSize: 'var(--fs-base)',
-            borderRadius: 'var(--r-md)',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          Reload
-        </button>
+        <div style={{
+          maxWidth: '480px',
+          width: '90%',
+          borderRadius: '16px',
+          border: '1px solid rgba(255,255,255,0.1)',
+          background: 'rgba(255,255,255,0.05)',
+          overflow: 'hidden',
+        }}>
+          {/* Card header */}
+          <div style={{
+            padding: '24px',
+            borderBottom: '1px solid rgba(255,255,255,0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+          }}>
+            <ShieldX size={24} color="var(--fatal)" style={{ flexShrink: 0 }} />
+            <div>
+              <p style={{
+                margin: 0,
+                fontSize: '11px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color: 'var(--fatal)',
+              }}>
+                Fatal error
+              </p>
+              <p style={{
+                margin: 0,
+                fontSize: 'var(--fs-xl)',
+                fontWeight: 'var(--fw-bold)',
+                color: '#ffffff',
+              }}>
+                App error
+              </p>
+            </div>
+          </div>
+
+          {/* Card body */}
+          <div style={{ padding: '24px' }}>
+            <p style={{
+              margin: 0,
+              fontSize: 'var(--fs-sm)',
+              color: 'rgba(255,255,255,0.6)',
+              lineHeight: 1.6,
+            }}>
+              Something went wrong. Please reload the page.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                marginTop: '24px',
+                width: '100%',
+                padding: '12px 24px',
+                background: '#ffffff',
+                color: '#111111',
+                fontWeight: 'var(--fw-bold)',
+                fontSize: 'var(--fs-sm)',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              Reload
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
