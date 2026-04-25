@@ -204,7 +204,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
 
   const router = useRouter()
-  const { pendingItemId, clearPendingItem } = useContext(TabNavigationContext)
+  const { pendingItemId, clearPendingItem, pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -236,6 +236,13 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       setTimeout(() => setHighlightedId(null), 1500)
     }
   }, [pendingItemId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!pendingSheetRecordId) return
+    const row = rows.find((r) => r.id === pendingSheetRecordId)
+    clearPendingSheetRecord()
+    if (row) openEditRow(row)
+  }, [pendingSheetRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleDay(dayId: string) {
     setExpandedDays(prev => {

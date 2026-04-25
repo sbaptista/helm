@@ -10,13 +10,16 @@ import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { PrintExportModal } from '@/components/advisor/PrintExportModal';
 import { CalendarButton } from '@/components/advisor/CalendarButton';
 import { LogsClient } from '@/components/sections/LogsClient';
+import { SearchBar } from '@/components/search/SearchBar';
 import type { Trip } from '@/types/trips';
 
 export const TabNavigationContext = React.createContext<{
   navigateTo: (tab: string, itemId?: string) => void
   pendingItemId: string | null
   clearPendingItem: () => void
-}>({ navigateTo: () => {}, pendingItemId: null, clearPendingItem: () => {} })
+  pendingSheetRecordId: string | null
+  clearPendingSheetRecord: () => void
+}>({ navigateTo: () => {}, pendingItemId: null, clearPendingItem: () => {}, pendingSheetRecordId: null, clearPendingSheetRecord: () => {} })
 
 const TABS = [
   'Overview',
@@ -29,6 +32,17 @@ const TABS = [
   'Packing',
   'Key Info',
 ] as const;
+
+const SECTION_TO_TAB: Record<string, Tab> = {
+  flights:        'Flights',
+  hotels:         'Hotels',
+  transportation: 'Transportation',
+  restaurants:    'Restaurants',
+  checklist:      'Checklist',
+  key_info:       'Key Info',
+  itinerary:      'Itinerary',
+  packing:        'Packing',
+};
 
 type Tab = typeof TABS[number];
 
@@ -96,6 +110,7 @@ function TripDetailViewInner({
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const [pendingItemId, setPendingItemId] = useState<string | null>(null);
+  const [pendingSheetRecordId, setPendingSheetRecordId] = useState<string | null>(null);
 
   const tabRowRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -149,8 +164,8 @@ function TripDetailViewInner({
   const [deleteConfirming, setDeleteConfirming] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Logs modal
-  const [logsOpen, setLogsOpen] = useState(false);
+  // Logs view
+  const [showLogs, setShowLogs] = useState(false);
 
   // Clear modal
   const [clearOpen, setClearOpen] = useState(false);
@@ -166,10 +181,24 @@ function TripDetailViewInner({
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
+    const sectionParam = params.get('section');
+    const recordParam = params.get('record');
+
     if (tabParam && (TABS as readonly string[]).includes(tabParam)) {
       setActiveTab(tabParam as Tab);
+    } else if (sectionParam) {
+      const mappedTab = SECTION_TO_TAB[sectionParam];
+      if (mappedTab) setActiveTab(mappedTab);
     }
-  }, []);
+
+    if (recordParam) {
+      setPendingSheetRecordId(recordParam);
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete('section');
+      clean.searchParams.delete('record');
+      router.replace(clean.pathname + (clean.search || ''));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 const handleImportClose = () => {
     if (importPhase !== 'idle') toast.show('Import cancelled', 'neutral');
@@ -353,6 +382,8 @@ const handleImportClose = () => {
       },
       pendingItemId,
       clearPendingItem: () => setPendingItemId(null),
+      pendingSheetRecordId,
+      clearPendingSheetRecord: () => setPendingSheetRecordId(null),
     }}>
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
 
@@ -427,6 +458,14 @@ const handleImportClose = () => {
           >
             Helm
           </span>
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+
+          {/* Search */}
+          <React.Suspense>
+            <SearchBar />
+          </React.Suspense>
         </div>
         <style>{`
           @media (max-width: 1023px) { .helm-header-inner { padding: 0 24px !important; } }
@@ -580,7 +619,7 @@ const handleImportClose = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setLogsOpen(true)}
+                onClick={() => setShowLogs(true)}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -643,6 +682,36 @@ const handleImportClose = () => {
           </div>
         )}
 
+        {showLogs ? (
+          <div>
+            <div style={{ paddingTop: '24px', paddingBottom: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setShowLogs(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: "'Lato', sans-serif",
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: 'var(--text3)',
+                  padding: '4px 0',
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Back
+              </button>
+            </div>
+            <LogsClient tripId={localTrip.id} />
+          </div>
+        ) : (
+          <>
         {/* Tab row */}
         <div style={{ position: 'relative' }}>
           <style>{`
@@ -831,6 +900,8 @@ const handleImportClose = () => {
             </div>
           );
         })()}
+          </>
+        )}
       </main>
 
       {/* Import Document modal */}
@@ -1181,17 +1252,6 @@ const handleImportClose = () => {
           v{VERSION}
         </span>
       </footer>
-
-      {/* Logs modal */}
-      <Modal open={logsOpen} onClose={() => setLogsOpen(false)}>
-        <ModalHeader title="Logs" onClose={() => setLogsOpen(false)} />
-        <ModalBody>
-          <LogsClient tripId={localTrip.id} />
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="ghost" onClick={() => setLogsOpen(false)}>Close</Button>
-        </ModalFooter>
-      </Modal>
 
       {/* Print modal */}
       <PrintExportModal

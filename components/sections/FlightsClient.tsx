@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
+import { TabNavigationContext } from '@/components/advisor/TripDetailView';
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
@@ -196,6 +197,14 @@ export function FlightsClient({
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext);
+
+  useEffect(() => {
+    if (!pendingSheetRecordId) return;
+    const flight = flights.find((f) => f.id === pendingSheetRecordId);
+    clearPendingSheetRecord();
+    if (flight) openEdit(flight);
+  }, [pendingSheetRecordId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isAdd = editFlight === null;
 

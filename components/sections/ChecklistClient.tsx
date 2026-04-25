@@ -116,7 +116,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
 
   const toast = useToast()
   const router = useRouter()
-  const { pendingItemId, clearPendingItem } = useContext(TabNavigationContext)
+  const { pendingItemId, clearPendingItem, pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -131,6 +131,13 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
     }, 80)
     setTimeout(() => setHighlightedId(null), 1500)
   }, [pendingItemId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!pendingSheetRecordId) return
+    const record = records.find((r) => r.id === pendingSheetRecordId)
+    clearPendingSheetRecord()
+    if (record) openEdit(record)
+  }, [pendingSheetRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Fetch ────────────────────────────────────────────────────────────────
 

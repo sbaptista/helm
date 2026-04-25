@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useContext } from 'react'
+import { TabNavigationContext } from '@/components/advisor/TripDetailView'
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
@@ -55,6 +56,14 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const toast = useToast()
+  const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
+
+  useEffect(() => {
+    if (!pendingSheetRecordId) return
+    const item = items.find((i) => i.id === pendingSheetRecordId)
+    clearPendingSheetRecord()
+    if (item) openEditItem(item)
+  }, [pendingSheetRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Item BottomSheet
   const [itemSheetOpen, setItemSheetOpen] = useState(false)

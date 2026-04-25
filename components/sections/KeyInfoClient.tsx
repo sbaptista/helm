@@ -45,7 +45,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const toast = useToast()
   const router = useRouter()
-  const { pendingItemId, clearPendingItem } = useContext(TabNavigationContext)
+  const { pendingItemId, clearPendingItem, pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -60,6 +60,13 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
     }, 80)
     setTimeout(() => setHighlightedId(null), 1500)
   }, [pendingItemId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!pendingSheetRecordId) return
+    const item = items.find((i) => i.id === pendingSheetRecordId)
+    clearPendingSheetRecord()
+    if (item) openEditItem(item)
+  }, [pendingSheetRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Item BottomSheet
   const [itemSheetOpen, setItemSheetOpen] = useState(false)

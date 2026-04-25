@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useContext, useEffect } from 'react'
+import { TabNavigationContext } from '@/components/advisor/TripDetailView'
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
@@ -150,6 +151,14 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const toast = useToast()
+  const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
+
+  useEffect(() => {
+    if (!pendingSheetRecordId) return
+    const record = records.find((r) => r.id === pendingSheetRecordId)
+    clearPendingSheetRecord()
+    if (record) openEdit(record)
+  }, [pendingSheetRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function getTransportationWarns(record: Transportation): string[] {
     const warns: string[] = [];

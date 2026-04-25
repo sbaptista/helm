@@ -1,7 +1,8 @@
 // components/sections/HotelsClient.tsx
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useContext, useEffect } from 'react'
+import { TabNavigationContext } from '@/components/advisor/TripDetailView'
 import { ChevronDown, ChevronUp, ExternalLink, Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
@@ -168,6 +169,14 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const toast = useToast()
+  const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
+
+  useEffect(() => {
+    if (!pendingSheetRecordId) return
+    const hotel = hotels.find((h) => h.id === pendingSheetRecordId)
+    clearPendingSheetRecord()
+    if (hotel) openEdit(hotel)
+  }, [pendingSheetRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function getHotelWarns(hotel: Hotel): string[] {
     const warns: string[] = [];
