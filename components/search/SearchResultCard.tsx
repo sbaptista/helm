@@ -15,7 +15,26 @@ const SECTION_LABELS: Record<string, string> = {
   logs:           'Logs',
 };
 
-export function SearchResultCard({ result }: { result: SearchResult }) {
+interface Props {
+  result: SearchResult;
+  q: string;
+  wholeWord: boolean;
+}
+
+function highlight(text: string, q: string, wholeWord: boolean): React.ReactNode {
+  if (!text || !q) return text;
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = wholeWord ? `\\b${escaped}\\b` : escaped;
+  const regex = new RegExp(`(${pattern})`, 'gi');
+  const parts = text.split(regex);
+  return parts.map((part, i) =>
+    regex.test(part)
+      ? <mark key={i} style={{ background: 'rgba(180,130,30,0.2)', color: 'var(--gold-text)', borderRadius: '2px', padding: '0 1px' }}>{part}</mark>
+      : part
+  );
+}
+
+export function SearchResultCard({ result, q, wholeWord }: Props) {
   const href =
     result.section === 'logs'
       ? `/advisor/trips/${result.trip_id}?section=${result.section}`
@@ -75,7 +94,7 @@ export function SearchResultCard({ result }: { result: SearchResult }) {
               whiteSpace: 'nowrap',
             }}
           >
-            {result.title}
+            <span>{highlight(result.title, q, wholeWord)}</span>
           </p>
           {result.subtitle && (
             <p
@@ -89,8 +108,20 @@ export function SearchResultCard({ result }: { result: SearchResult }) {
                 whiteSpace: 'nowrap',
               }}
             >
-              {result.subtitle}
+              <span>{highlight(result.subtitle, q, wholeWord)}</span>
             </p>
+          )}
+          {result.matched_field && (
+            <span style={{
+              fontFamily: "'Lato', sans-serif",
+              fontSize: '11px',
+              color: 'var(--text3)',
+              fontStyle: 'italic',
+              marginTop: '2px',
+              display: 'block',
+            }}>
+              matched in: {result.matched_field.replace(/_/g, ' ')}
+            </span>
           )}
         </div>
       </div>

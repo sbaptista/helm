@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
-import { TabNavigationContext } from '@/components/advisor/TripDetailView'
+import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -390,6 +390,11 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
   }
 
   const warnCount = records.filter(r => getChecklistWarns(r).length > 0).length;
+
+  const { setWarnCount } = useTabNavigation();
+  useEffect(() => {
+    setWarnCount('checklist', warnCount);
+  }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalCompleted = records.filter(r => r.status === 'completed').length
 

@@ -184,6 +184,16 @@ export function OverviewClient({
   ]
 
   return (
+    <>
+    <h2 style={{
+      fontFamily: "'Cormorant Garamond', serif",
+      fontSize: '24px',
+      fontWeight: 600,
+      color: 'var(--navy)',
+      margin: '0 0 20px 0',
+    }}>
+      Overview
+    </h2>
     <div className="overview-layout">
       <div className="overview-col">
 
@@ -455,5 +465,6 @@ export function OverviewClient({
 
       </div>
     </div>
+    </>
   )
 }

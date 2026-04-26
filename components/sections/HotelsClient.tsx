@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useCallback, useContext, useEffect } from 'react'
-import { TabNavigationContext } from '@/components/advisor/TripDetailView'
+import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
 import { ChevronDown, ChevronUp, ExternalLink, Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
@@ -185,6 +185,11 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
   }
 
   const warnCount = hotels.filter(h => getHotelWarns(h).length > 0).length;
+
+  const { setWarnCount } = useTabNavigation();
+  useEffect(() => {
+    setWarnCount('hotels', warnCount);
+  }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Group nearby dining by hotel_id
   const diningByHotel = nearbyDining.reduce<Record<string, NearbyDining[]>>((acc, row) => {

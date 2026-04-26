@@ -115,6 +115,37 @@
    Within touch: min-width 768px = iPad tier, max-width 767px = iPhone tier
    ══════════════════════════════════════════════════════════ */
 
+/* ── TRIP HERO META ── */
+.trip-hero-meta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  font-size: var(--fs-sm);
+}
+
+.trip-hero-separator {
+  display: inline;
+  color: var(--text-secondary, var(--text3));
+  padding: 0 6px;
+}
+
+.trip-hero-meta-dest {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 16px;
+  color: var(--text2);
+}
+
+.trip-hero-meta-dates {
+  font-size: 15px;
+  color: var(--gold-text);
+  font-weight: 700;
+  font-family: 'Lato', sans-serif;
+}
+
 /* ── LAYOUT BREAKPOINTS (width only — no type rules here) ── */
 @media (max-width: 900px) {
   .time-hst { display: none; }
@@ -290,6 +321,29 @@ button {
 }
 .pack-item-text { flex: 1; font-size: var(--fs-base); }
 
+.pack-cb-col {
+  min-width: 64px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pack-col-headers {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 2px;
+}
+
+.pack-col-header-label {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary, var(--text3));
+  text-align: center;
+  display: block;
+  width: 100%;
+}
+
 .pack-cb {
   width: 22px;
   height: 22px;
@@ -355,10 +409,10 @@ button {
   }
 }
 
-/* Overview stats grid — responsive auto-fit */
+/* Overview stats grid — single column */
 .overview-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 

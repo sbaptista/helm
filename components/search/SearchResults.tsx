@@ -31,18 +31,20 @@ export function SearchResults({ q, section: initialSection, logs: initialLogs }:
   const [loading, setLoading] = useState(false);
   const [logsEnabled, setLogsEnabled] = useState(initialLogs === 'true');
   const [activeSection, setActiveSection] = useState(initialSection ?? '');
+  const [wholeWord, setWholeWord] = useState(false);
 
   const prevFetchKey = useRef('');
 
   useEffect(() => {
     if (!q || q.length < 2) return;
-    const fetchKey = `${q}|${logsEnabled}`;
+    const fetchKey = `${q}|${logsEnabled}|${wholeWord}`;
     if (fetchKey === prevFetchKey.current) return;
     prevFetchKey.current = fetchKey;
 
     setLoading(true);
     const params = new URLSearchParams({ q });
     if (logsEnabled) params.set('logs', 'true');
+    if (wholeWord) params.set('mode', 'whole_word');
 
     fetch(`/api/search?${params.toString()}`)
       .then((r) => r.json())
@@ -51,7 +53,7 @@ export function SearchResults({ q, section: initialSection, logs: initialLogs }:
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [q, logsEnabled]);
+  }, [q, logsEnabled, wholeWord]);
 
   // When logs toggled, update URL and re-fetch
   function toggleLogs() {
@@ -116,6 +118,26 @@ export function SearchResults({ q, section: initialSection, logs: initialLogs }:
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
+        {/* Whole Word toggle */}
+        <button
+          onClick={() => { setWholeWord(w => !w); prevFetchKey.current = ''; }}
+          style={{
+            padding: '4px 12px',
+            borderRadius: '999px',
+            border: wholeWord ? '1.5px solid var(--navy)' : '1.5px solid var(--border)',
+            background: wholeWord ? 'var(--navy)' : 'transparent',
+            color: wholeWord ? '#fff' : 'var(--text3)',
+            fontFamily: "'Lato', sans-serif",
+            fontSize: '12px',
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            cursor: 'pointer',
+            transition: 'all var(--transition)',
+          }}
+        >
+          Whole Word
+        </button>
+
         {/* Logs toggle */}
         <button
           onClick={toggleLogs}
@@ -141,6 +163,7 @@ export function SearchResults({ q, section: initialSection, logs: initialLogs }:
       {!loading && (
         <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text3)', marginBottom: '16px' }}>
           {displayed.length} result{displayed.length !== 1 ? 's' : ''}
+          {wholeWord && ' — whole word'}
         </p>
       )}
 
@@ -162,7 +185,7 @@ export function SearchResults({ q, section: initialSection, logs: initialLogs }:
       {!loading && displayed.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {displayed.map((r) => (
-            <SearchResultCard key={r.id + r.section} result={r} />
+            <SearchResultCard key={r.id + r.section} result={r} q={q} wholeWord={wholeWord} />
           ))}
         </div>
       )}

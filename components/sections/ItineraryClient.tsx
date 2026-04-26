@@ -9,7 +9,7 @@ import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
-import { TabNavigationContext } from '@/components/advisor/TripDetailView'
+import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -506,6 +506,11 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
   const warnCount = rows.filter(r => getItineraryWarns(r).length > 0).length;
 
+  const { setWarnCount } = useTabNavigation();
+  useEffect(() => {
+    setWarnCount('itinerary', warnCount);
+  }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const sortedDays = useMemo(
     () => [...days].sort((a, b) => a.day_date.localeCompare(b.day_date)),
     [days]
@@ -578,52 +583,55 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 borderRight: '1px solid var(--border2)',
                 borderBottom: '1px solid var(--border2)',
                 display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: '16px',
+                flexDirection: 'column',
+                gap: '4px',
                 width: '100%',
                 textAlign: 'left',
               }}
             >
-              {/* Day number — large, muted, fixed width */}
+              {/* Row 1: day number badge */}
               <div style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: 'var(--fs-display)',
-                fontWeight: 700,
-                color: 'rgba(13,30,53,0.15)',
-                minWidth: '52px',
-                textAlign: 'center',
-                lineHeight: 1,
-                flexShrink: 0,
+                fontFamily: "'Lato', sans-serif",
+                fontSize: 'var(--fs-xs)',
+                fontWeight: 'var(--fw-bold)',
+                color: 'var(--text-secondary, var(--text3))',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
               }}>
-                {day.day_number === 0 ? (
-                  <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(13,30,53,0.25)' }}>PRE<br/>TRIP</span>
-                ) : (
-                  day.day_number
-                )}
+                {day.day_number === 0 ? 'Pre-Trip' : `Day ${day.day_number}`}
               </div>
 
-              {/* Main content — left aligned, fills space */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '18px' }}>{DAY_TYPE_ICONS[day.type] ?? '📅'}</span>
-                  <div suppressHydrationWarning style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', lineHeight: 1.2 }}>
-                    {formatDayDate(day.day_date)}
-                  </div>
-                </div>
-                <div style={{ fontSize: 'var(--fs-base)', fontWeight: 400, color: 'var(--text2)', lineHeight: 1.4, marginTop: '2px' }}>
-                  {day.title}
-                </div>
-                {day.location && (
-                  <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', marginTop: '4px' }}>
-                    📍 {day.location}
-                  </div>
-                )}
+              {/* Row 2: date heading — full width, no truncation */}
+              <div suppressHydrationWarning style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: 'var(--fs-xl)',
+                fontWeight: 'var(--fw-bold)',
+                color: 'var(--navy)',
+                lineHeight: 1.2,
+                width: '100%',
+                whiteSpace: 'normal',
+                overflow: 'visible',
+                marginBottom: '2px',
+              }}>
+                {formatDayDate(day.day_date)}
               </div>
 
-              {/* Right controls — Edit button + chevron */}
+              {/* Row 3: type icon + subtitle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--fs-base)', fontWeight: 400, color: 'var(--text2)', lineHeight: 1.4 }}>
+                <span style={{ fontSize: '16px', flexShrink: 0 }}>{DAY_TYPE_ICONS[day.type] ?? '📅'}</span>
+                {day.title}
+              </div>
+
+              {/* Row 4: location */}
+              {day.location && (
+                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', marginTop: '2px' }}>
+                  📍 {day.location}
+                </div>
+              )}
+
+              {/* Row 5: Edit + ▶ buttons right-aligned */}
               <div
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}
                 onClick={e => e.stopPropagation()}
               >
                 <button

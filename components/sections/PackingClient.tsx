@@ -435,27 +435,42 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
         style={{ opacity: fullyDone ? 0.4 : item.packed ? 0.45 : 1 }}
         onClick={() => openEditItem(item)}
       >
-        <button
-          className={`pack-cb${item.owned ? ' owned' : ''}`}
-          onClick={e => { e.stopPropagation(); toggleOwned(item) }}
-          title="Toggle Owned"
-          aria-label="Toggle owned"
-        />
+        <div style={{ width: '4px', alignSelf: 'stretch', background: 'var(--gold)', borderRadius: '2px', flexShrink: 0 }} />
         <span className="pack-item-text">{item.text}</span>
-        <button
-          className={`pack-cb packed-cb${item.packed ? ' checked' : ''}`}
-          onClick={e => { e.stopPropagation(); togglePacked(item) }}
-          title="Toggle Packed"
-          aria-label="Toggle packed"
-        />
+        <div
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '48px', flexShrink: 0 }}
+          onClick={e => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={item.owned}
+            onChange={() => toggleOwned(item)}
+            title="Toggle Owned"
+            aria-label="Toggle owned"
+            style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', cursor: 'pointer', accentColor: 'var(--gold)', flexShrink: 0 }}
+          />
+        </div>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '48px', flexShrink: 0 }}
+          onClick={e => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={item.packed}
+            onChange={() => togglePacked(item)}
+            title="Toggle Packed"
+            aria-label="Toggle packed"
+            style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', cursor: 'pointer', accentColor: 'var(--navy)', flexShrink: 0 }}
+          />
+        </div>
       </div>
     )
   }
 
   return (
     <div>
-      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
+      <div className="section-header" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+        <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)', width: '100%' }}>
           Packing List
         </h2>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -512,6 +527,13 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                 >
                   Manage Sub-groups
                 </Button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                <div style={{ width: '4px', flexShrink: 0 }} />
+                <span style={{ flex: 1 }} />
+                <div style={{ minWidth: '48px', flexShrink: 0, textAlign: 'center', fontSize: 'var(--fs-xs)', color: 'var(--text-secondary, var(--text3))' }}>Owned</div>
+                <div style={{ minWidth: '48px', flexShrink: 0, textAlign: 'center', fontSize: 'var(--fs-xs)', color: 'var(--text-secondary, var(--text3))' }}>Packed</div>
               </div>
 
               {groupItems

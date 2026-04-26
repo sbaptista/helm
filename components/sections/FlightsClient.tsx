@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useContext, useEffect } from 'react';
-import { TabNavigationContext } from '@/components/advisor/TripDetailView';
+import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView';
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
@@ -218,6 +218,11 @@ export function FlightsClient({
 
   const warnCount = flights.filter(f => getFlightWarns(f).length > 0).length;
 
+  const { setWarnCount } = useTabNavigation();
+  useEffect(() => {
+    setWarnCount('flights', warnCount);
+  }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function fieldStyle(name: string): React.CSSProperties {
     return focusedField === name ? inputFocusStyle() : inputStyle();
   }
@@ -367,8 +372,11 @@ export function FlightsClient({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-      {/* Add button */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      {/* Section header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+        <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
+          Flights
+        </h2>
         <Button variant="secondary" size="sm" onClick={openAdd}>
           Add Flight
         </Button>

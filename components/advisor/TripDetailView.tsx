@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { VERSION } from '@/lib/version';
 import { Button } from '@/components/ui/Button';
@@ -8,9 +8,11 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Moda
 import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { PrintExportModal } from '@/components/advisor/PrintExportModal';
-import { CalendarButton } from '@/components/advisor/CalendarButton';
+import { CalendarModal } from '@/components/advisor/CalendarModal';
 import { LogsClient } from '@/components/sections/LogsClient';
-import { SearchBar } from '@/components/search/SearchBar';
+import { DashboardBar } from '@/components/ui/DashboardBar';
+import { TripTopBar } from '@/components/ui/TripTopBar';
+import { TripSidebar } from '@/components/ui/TripSidebar';
 import type { Trip } from '@/types/trips';
 
 export const TabNavigationContext = React.createContext<{
@@ -19,7 +21,21 @@ export const TabNavigationContext = React.createContext<{
   clearPendingItem: () => void
   pendingSheetRecordId: string | null
   clearPendingSheetRecord: () => void
-}>({ navigateTo: () => {}, pendingItemId: null, clearPendingItem: () => {}, pendingSheetRecordId: null, clearPendingSheetRecord: () => {} })
+  warnCounts: Record<string, number>
+  setWarnCount: (section: string, count: number) => void
+}>({
+  navigateTo: () => {},
+  pendingItemId: null,
+  clearPendingItem: () => {},
+  pendingSheetRecordId: null,
+  clearPendingSheetRecord: () => {},
+  warnCounts: {},
+  setWarnCount: () => {},
+})
+
+export function useTabNavigation() {
+  return useContext(TabNavigationContext)
+}
 
 const TABS = [
   'Overview',
@@ -34,14 +50,27 @@ const TABS = [
 ] as const;
 
 const SECTION_TO_TAB: Record<string, Tab> = {
+  overview:       'Overview',
+  itinerary:      'Itinerary',
   flights:        'Flights',
   hotels:         'Hotels',
   transportation: 'Transportation',
   restaurants:    'Restaurants',
   checklist:      'Checklist',
   key_info:       'Key Info',
-  itinerary:      'Itinerary',
   packing:        'Packing',
+};
+
+const TAB_TO_SECTION: Record<string, string> = {
+  'Overview':       'overview',
+  'Itinerary':      'itinerary',
+  'Flights':        'flights',
+  'Hotels':         'hotels',
+  'Transportation': 'transportation',
+  'Restaurants':    'restaurants',
+  'Checklist':      'checklist',
+  'Packing':        'packing',
+  'Key Info':       'key_info',
 };
 
 type Tab = typeof TABS[number];
@@ -111,23 +140,21 @@ function TripDetailViewInner({
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const [pendingItemId, setPendingItemId] = useState<string | null>(null);
   const [pendingSheetRecordId, setPendingSheetRecordId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [warnCounts, setWarnCountsState] = useState<Record<string, number>>({});
 
-  const tabRowRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-
-  const updateScrollState = () => {
-    const el = tabRowRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 0);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  const setWarnCount = (section: string, count: number) => {
+    setWarnCountsState(prev => ({ ...prev, [section]: count }));
   };
 
   useEffect(() => {
-    setTimeout(updateScrollState, 50);
-    window.addEventListener('resize', updateScrollState);
-    return () => window.removeEventListener('resize', updateScrollState);
-  }, []);
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [sidebarOpen]);
 
   // Import modal
   const [importOpen, setImportOpen] = useState(false);
@@ -166,6 +193,16 @@ function TripDetailViewInner({
 
   // Logs view
   const [showLogs, setShowLogs] = useState(false);
+
+  // Calendar overlay
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarStatus, setCalendarStatus] = useState<'loading' | 'unconnected' | 'connected' | 'update_required'>('loading');
+
+  useEffect(() => {
+    if (calendarStatus === 'update_required') {
+      toast.show('Calendar update required — tap the calendar icon to sync.', 'neutral');
+    }
+  }, [calendarStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Clear modal
   const [clearOpen, setClearOpen] = useState(false);
@@ -384,99 +421,66 @@ const handleImportClose = () => {
       clearPendingItem: () => setPendingItemId(null),
       pendingSheetRecordId,
       clearPendingSheetRecord: () => setPendingSheetRecordId(null),
+      warnCounts,
+      setWarnCount,
     }}>
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
 
-      {/* Header */}
-      <header
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 100,
-          height: 'calc(64px + var(--sat))',
-          paddingTop: 'var(--sat)',
-          background: 'var(--bg2)',
-          borderBottom: '1px solid var(--border2)',
-          boxShadow: 'var(--shadow)',
-          display: 'flex',
-          alignItems: 'flex-end',
+      <DashboardBar onSearch={() => router.push('/search')} />
+
+      <TripTopBar
+        onOpenSidebar={() => setSidebarOpen(true)}
+        tripName={localTrip.title}
+        onShowCalendar={() => { setShowCalendar(true) }}
+        calendarStatus={calendarStatus}
+      />
+
+      <TripSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeSection={TAB_TO_SECTION[activeTab] ?? 'overview'}
+        onNavigate={(section) => {
+          const tab = SECTION_TO_TAB[section];
+          if (tab) setActiveTab(tab);
+          setSidebarOpen(false);
         }}
-      >
-        <div
-          style={{
-            width: '100%',
-            maxWidth: '1200px',
-            margin: '0 auto',
-            padding: '0 48px',
-            height: '64px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '20px',
-          }}
-          className="helm-header-inner"
-        >
-          {/* Back button */}
-          <button
-            onClick={() => router.push('/advisor/dashboard')}
-            aria-label="Back to dashboard"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text3)',
-              fontFamily: "'Lato', sans-serif",
-              fontSize: '14px',
-              padding: '4px 0',
-              flexShrink: 0,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Dashboard
-          </button>
+        tripName={localTrip.title}
+        tripDates={formatDateRange(localTrip.departure_date, localTrip.return_date)}
+        warnCounts={warnCounts}
+        tripId={trip.id}
+        onPrint={() => setPrintOpen(true)}
+        onImport={() => {
+          if (importDone && hasSectionData) {
+            setReimportConfirmOpen(true);
+          } else {
+            setImportOpen(true);
+          }
+        }}
+        onEditTrip={() => {
+          setEditTitle(localTrip.title);
+          setEditDestination(localTrip.destination ?? '');
+          setEditDepartureDate(localTrip.departure_date ?? '');
+          setEditReturnDate(localTrip.return_date ?? '');
+          setEditError(null);
+          setEditOpen(true);
+        }}
+        onClearTrip={() => { setClearAction(null); setClearError(null); setClearOpen(true); }}
+        onShowLogs={() => { setShowLogs(true); setSidebarOpen(false); }}
+        onShowCalendar={() => { setShowCalendar(true); setSidebarOpen(false); }}
+        calendarStatus={calendarStatus}
+      />
 
-          {/* Divider */}
-          <span aria-hidden="true" style={{ color: 'var(--border)', fontSize: '18px', lineHeight: 1, userSelect: 'none' }}>/</span>
-
-          {/* Wordmark */}
-          <span
-            style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: '24px',
-              fontWeight: 400,
-              color: 'var(--navy)',
-              letterSpacing: '3px',
-              textTransform: 'uppercase',
-              userSelect: 'none',
-            }}
-          >
-            Helm
-          </span>
-
-          {/* Spacer */}
-          <div style={{ flex: 1 }} />
-
-          {/* Search */}
-          <React.Suspense>
-            <SearchBar />
-          </React.Suspense>
-        </div>
-        <style>{`
-          @media (max-width: 1023px) { .helm-header-inner { padding: 0 24px !important; } }
-          @media (max-width: 767px)  { .helm-header-inner { padding: 0 16px !important; } }
-        `}</style>
-      </header>
+      <CalendarModal
+        tripId={localTrip.id}
+        tripName={localTrip.title}
+        open={showCalendar}
+        onOpenChange={setShowCalendar}
+        onStatusChange={setCalendarStatus}
+      />
 
       {/* Main */}
       <main
         style={{
-          paddingTop: 'calc(64px + var(--sat))',
           maxWidth: '1200px',
           margin: '0 auto',
           paddingLeft: '48px',
@@ -494,170 +498,19 @@ const handleImportClose = () => {
         {/* Trip hero */}
         <div
           style={{
-            padding: '40px 0 32px',
+            padding: '24px 0 20px',
             borderBottom: '1px solid var(--border2)',
-            marginBottom: '0',
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: '24px',
           }}
         >
-          {/* Left: title + meta */}
-          <div>
-            <h1
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: '40px',
-                fontWeight: 600,
-                color: 'var(--navy)',
-                lineHeight: 1.15,
-                marginBottom: '8px',
-              }}
-            >
-              {localTrip.title}
-            </h1>
-
-            <p
-              style={{
-                fontSize: '16px',
-                color: 'var(--text2)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                marginBottom: '10px',
-              }}
-            >
-              <span aria-hidden="true" style={{ fontSize: '14px' }}>📍</span>
+          <div className="trip-hero-meta" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+            <span className="trip-hero-meta-dest">
+              <span aria-hidden="true">📍</span>
               {localTrip.destination}
-            </p>
-
-            <p
-              style={{
-                fontSize: '15px',
-                color: 'var(--gold-text)',
-                fontWeight: 700,
-                fontFamily: "'Lato', sans-serif",
-              }}
-            >
+            </span>
+            <span style={{ display: 'inline-block', margin: '0 6px', color: 'var(--text3)' }}>|</span>
+            <span className="trip-hero-meta-dates">
               {formatDateRange(localTrip.departure_date, localTrip.return_date)}
-            </p>
-
-          </div>
-
-          {/* Right: actions */}
-          <div style={{ flexShrink: 0, paddingTop: '6px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  if (importDone && hasSectionData) {
-                    setReimportConfirmOpen(true);
-                  } else {
-                    setImportOpen(true);
-                  }
-                }}
-                disabled={importPhase === 'reading' || importPhase === 'mapping' || importPhase === 'parsing' || importPhase === 'navigating'}
-              >
-                Import Document
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setPrintOpen(true)}
-              >
-                Print Trip
-              </Button>
-              <CalendarButton tripId={trip.id} tripName={trip.title} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditTitle(localTrip.title);
-                  setEditDestination(localTrip.destination ?? '');
-                  setEditDepartureDate(localTrip.departure_date ?? '');
-                  setEditReturnDate(localTrip.return_date ?? '');
-                  setEditError(null);
-                  setEditOpen(true);
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: "'Lato', sans-serif",
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'var(--text3)',
-                  textDecoration: 'underline',
-                  textUnderlineOffset: '2px',
-                  padding: '6px 0',
-                  minHeight: '44px',
-                  textAlign: 'right',
-                }}
-              >
-                Edit trip
-              </button>
-              <button
-                type="button"
-                onClick={() => { setClearAction(null); setClearError(null); setClearOpen(true); }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: "'Lato', sans-serif",
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'var(--text3)',
-                  textDecoration: 'underline',
-                  textUnderlineOffset: '2px',
-                  padding: '6px 0',
-                  minHeight: '44px',
-                  textAlign: 'right',
-                }}
-              >
-                Clear trip data
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLogs(true)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: "'Lato', sans-serif",
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'var(--text3)',
-                  textDecoration: 'underline',
-                  textUnderlineOffset: '2px',
-                  padding: '6px 0',
-                  minHeight: '44px',
-                  textAlign: 'right',
-                }}
-              >
-                Logs
-              </button>
-              <button
-                type="button"
-                onClick={() => { setDeleteError(null); setDeleteOpen(true); }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: "'Lato', sans-serif",
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'var(--red)',
-                  textDecoration: 'underline',
-                  textUnderlineOffset: '2px',
-                  padding: '6px 0',
-                  minHeight: '44px',
-                  textAlign: 'right',
-                }}
-              >
-                Delete trip
-              </button>
-            </div>
+            </span>
           </div>
         </div>
 
@@ -684,172 +537,11 @@ const handleImportClose = () => {
 
         {showLogs ? (
           <div>
-            <div style={{ paddingTop: '24px', paddingBottom: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setShowLogs(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: "'Lato', sans-serif",
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  color: 'var(--text3)',
-                  padding: '4px 0',
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Back
-              </button>
-            </div>
             <LogsClient tripId={localTrip.id} />
           </div>
         ) : (
           <>
-        {/* Tab row */}
-        <div style={{ position: 'relative' }}>
-          <style>{`
-            .helm-tab-row::-webkit-scrollbar { display: none; }
-          `}</style>
-
-          <button
-            type="button"
-            aria-label="Scroll tabs left"
-            onClick={() => tabRowRef.current?.scrollBy({ left: -200, behavior: 'smooth' })}
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              left: 0,
-              width: '44px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'var(--bg)',
-              border: 'none',
-              cursor: 'pointer',
-              zIndex: 2,
-              fontSize: '34px',
-              fontWeight: 700,
-              color: 'var(--text3)',
-              padding: 0,
-              opacity: canScrollLeft ? 1 : 0,
-              pointerEvents: canScrollLeft ? 'auto' : 'none',
-              transition: 'opacity 0.2s',
-            }}
-          >
-            ‹
-          </button>
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              left: '44px',
-              width: '24px',
-              background: 'linear-gradient(to right, var(--bg), transparent)',
-              pointerEvents: 'none',
-              zIndex: 1,
-              opacity: canScrollLeft ? 1 : 0,
-              transition: 'opacity 0.2s',
-            }}
-          />
-          <button
-            type="button"
-            aria-label="Scroll tabs right"
-            onClick={() => tabRowRef.current?.scrollBy({ left: 200, behavior: 'smooth' })}
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              right: 0,
-              width: '44px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'var(--bg)',
-              border: 'none',
-              cursor: 'pointer',
-              zIndex: 2,
-              fontSize: '34px',
-              fontWeight: 700,
-              color: 'var(--text3)',
-              padding: 0,
-              opacity: canScrollRight ? 1 : 0,
-              pointerEvents: canScrollRight ? 'auto' : 'none',
-              transition: 'opacity 0.2s',
-            }}
-          >
-            ›
-          </button>
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              right: '44px',
-              width: '24px',
-              background: 'linear-gradient(to left, var(--bg), transparent)',
-              pointerEvents: 'none',
-              zIndex: 1,
-              opacity: canScrollRight ? 1 : 0,
-              transition: 'opacity 0.2s',
-            }}
-          />
-
-        <div
-          ref={tabRowRef}
-          onScroll={updateScrollState}
-          style={{
-            display: 'flex',
-            gap: '0',
-            borderBottom: '1px solid var(--border2)',
-            overflowX: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none',
-          }}
-          className="helm-tab-row"
-        >
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                aria-selected={isActive}
-                role="tab"
-                style={{
-                  padding: '14px 18px',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: isActive ? '2px solid var(--navy)' : '2px solid transparent',
-                  cursor: 'pointer',
-                  fontFamily: "'Lato', sans-serif",
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                  color: isActive ? 'var(--navy)' : 'var(--text3)',
-                  whiteSpace: 'nowrap',
-                  transition: 'color var(--transition), border-color var(--transition)',
-                  marginBottom: '-1px',
-                  flexShrink: 0,
-                }}
-              >
-                {tab}
-              </button>
-            );
-          })}
-        </div>
-        </div>
-
-        {/* Tab content */}
+        {/* Section content */}
         {(() => {
           const tabContents: Partial<Record<Tab, React.ReactNode>> = {
             Overview:       overviewContent,

@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { SearchResults } from '@/components/search/SearchResults';
+import { SearchBackButton } from '@/components/search/SearchBackButton';
 
 export default async function SearchPage({
   searchParams,
@@ -9,33 +10,19 @@ export default async function SearchPage({
   const { q = '', section, logs } = await searchParams;
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--bg)',
-        paddingTop: '48px',
-        paddingBottom: '64px',
-      }}
-    >
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      <SearchBackButton />
+
       <div
         style={{
           maxWidth: '720px',
           margin: '0 auto',
           paddingLeft: '24px',
           paddingRight: '24px',
+          paddingTop: '32px',
+          paddingBottom: '64px',
         }}
       >
-        <h1
-          style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: '32px',
-            fontWeight: 600,
-            color: 'var(--navy)',
-            marginBottom: '8px',
-          }}
-        >
-          Search
-        </h1>
         {q && (
           <p
             style={{

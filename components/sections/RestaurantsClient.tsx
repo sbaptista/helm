@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useContext, useEffect } from 'react'
-import { TabNavigationContext } from '@/components/advisor/TripDetailView'
+import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
@@ -192,6 +192,11 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
   }
 
   const warnCount = records.filter(r => getRestaurantWarns(r).length > 0).length;
+
+  const { setWarnCount } = useTabNavigation();
+  useEffect(() => {
+    setWarnCount('restaurants', warnCount);
+  }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refetch = useCallback(async () => {
     const res = await fetch(`/api/trips/${tripId}/restaurants`)
