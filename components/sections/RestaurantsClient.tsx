@@ -175,6 +175,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [touched, setTouched] = useState<Set<string>>(new Set())
   const toast = useToast()
   const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
 
@@ -207,10 +208,14 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
     setForm(f => ({ ...f, [key]: value }))
   }
 
+  function touchField(name: string) { setTouched(prev => new Set(prev).add(name)) }
+  const nameError = touched.has('name') && !form.name.trim()
+
   function openAdd() {
     setEditingRecord(null)
     setForm(EMPTY_FORM)
     setConfirmDelete(false)
+    setTouched(new Set())
     setSheetOpen(true)
   }
 
@@ -218,6 +223,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
     setEditingRecord(r)
     setForm(recordToForm(r))
     setConfirmDelete(false)
+    setTouched(new Set())
     setSheetOpen(true)
   }
 
@@ -228,6 +234,8 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
   }
 
   async function handleSave() {
+    setTouched(prev => new Set([...prev, 'name']))
+    if (!form.name.trim()) return
     setSaving(true)
     try {
       const payload = {
@@ -520,7 +528,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
           label: editingRecord ? 'Save' : 'Add',
           onClick: handleSave,
           loading: saving,
-          disabled: saving,
+          disabled: saving || nameError,
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
@@ -528,13 +536,15 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
           {/* ── Group: Restaurant ── */}
           <GroupHeader label="Restaurant" first />
 
-          <FormField label="Name">
+          <FormField label="Name" required error={nameError ? 'Required' : undefined}>
             <input
               type="text"
               value={form.name}
               onChange={e => setField('name', e.target.value)}
+              onBlur={() => touchField('name')}
               placeholder="e.g. The Keg"
-              style={inputStyle()}
+              title="Full restaurant name"
+              style={inputStyle(nameError)}
             />
           </FormField>
 
@@ -542,6 +552,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
             <input
               type="text"
               value={form.display_label}
+              title="Short label shown on the card, e.g. Oct 5 – Dinner (choice A)"
               onChange={e => setField('display_label', e.target.value)}
               placeholder="e.g. Oct 5 – Dinner (choice A)"
               style={inputStyle()}
@@ -563,6 +574,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
               value={form.style}
               onChange={e => setField('style', e.target.value)}
               placeholder="e.g. Classic seafood & oyster bar. Vancouver landmark."
+              title="Brief description of the vibe or cuisine style"
               rows={2}
               style={{ ...inputStyle(), resize: 'vertical' }}
             />
@@ -660,6 +672,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
               value={form.reservation_status}
               onChange={e => setField('reservation_status', e.target.value)}
               style={{ ...inputStyle(), cursor: 'pointer' }}
+              title="Whether a reservation is needed or has been made"
             >
               {RESERVATION_STATUS_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -701,6 +714,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
               value={form.party_size}
               onChange={e => setField('party_size', e.target.value)}
               placeholder="e.g. 2"
+              title="Number of guests including yourself"
               style={inputStyle()}
             />
           </FormField>
@@ -712,6 +726,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
                 value={form.confirmation_number}
                 onChange={e => setField('confirmation_number', e.target.value)}
                 placeholder="e.g. RES-123456"
+                title="Booking reference from the restaurant or booking platform"
                 style={inputStyle()}
               />
             </FormField>
@@ -724,6 +739,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
                 value={form.booking_source}
                 onChange={e => setField('booking_source', e.target.value)}
                 placeholder="e.g. OpenTable"
+                title="Where the reservation was made, e.g. OpenTable"
                 style={inputStyle()}
               />
             </FormField>
@@ -784,7 +800,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
                 checked={form.gcal_include ?? false}
                 disabled={!form.reservation_date}
                 onChange={e => setField('gcal_include', e.target.checked)}
-                style={{ width: '16px', height: '16px' }}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
               />
               <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
             </label>

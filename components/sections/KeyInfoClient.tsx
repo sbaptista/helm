@@ -72,7 +72,9 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
   const [itemSheetOpen, setItemSheetOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<KeyInfoItem | null>(null)
   
+  const [labelTouched, setLabelTouched] = useState(false)
   const [itemLabel, setItemLabel] = useState('')
+  const labelError = labelTouched && !itemLabel.trim()
   const [itemGroupId, setItemGroupId] = useState('')
   const [itemValue, setItemValue] = useState('')
   const [itemUrl, setItemUrl] = useState('')
@@ -113,6 +115,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
   function openAddItem() {
     setEditingItem(null)
     setConfirmDelete(false)
+    setLabelTouched(false)
     setItemLabel('')
     setItemGroupId(sortedGroups[0]?.id ?? '')
     setItemValue('')
@@ -127,6 +130,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
   function openEditItem(item: KeyInfoItem) {
     setEditingItem(item)
     setConfirmDelete(false)
+    setLabelTouched(false)
     setItemLabel(item.label)
     setItemGroupId(item.group_id ?? '')
     setItemValue(item.value ?? '')
@@ -145,10 +149,8 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
   }
 
   async function handleSaveItem() {
-    if (!itemLabel.trim()) {
-      toast.show('Label is required.', 'error')
-      return
-    }
+    setLabelTouched(true)
+    if (!itemLabel.trim()) return
     setSaving(true)
     try {
       const payload = {
@@ -364,17 +366,19 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
           label: editingItem ? 'Save' : 'Add',
           onClick: handleSaveItem,
           loading: saving,
-          disabled: saving,
+          disabled: saving || labelError,
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
-          <FormField label="Label" required>
+          <FormField label="Label" required error={labelError ? 'Required' : undefined}>
             <input
               type="text"
               value={itemLabel}
               onChange={e => setItemLabel(e.target.value)}
+              onBlur={() => setLabelTouched(true)}
               placeholder="e.g. WiFi Password"
-              style={inputStyle()}
+              title="Short name for this piece of information, e.g. WiFi Password"
+              style={inputStyle(labelError)}
             />
           </FormField>
 
@@ -396,6 +400,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
               value={itemValue}
               onChange={e => setItemValue(e.target.value)}
               placeholder="Detailed information..."
+              title="The full information or details"
               rows={4}
               style={{ ...inputStyle(), resize: 'vertical' }}
             />
@@ -417,6 +422,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
                 value={itemUrlLabel}
                 onChange={e => setItemUrlLabel(e.target.value)}
                 placeholder="Visit Website"
+                title="Short link text shown to the user, e.g. Visit Website"
                 style={inputStyle()}
               />
             </FormField>

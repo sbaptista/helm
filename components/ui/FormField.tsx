@@ -80,20 +80,21 @@ export function FormField({ label, error, hint, required, children, htmlFor }: F
  */
 export function inputStyle(hasError = false): React.CSSProperties {
   const borderColor = hasError ? 'var(--red)' : 'var(--border2)';
+  const borderWidth = hasError ? '3px' : '1px';
   return {
     width: '100%',
     fontSize: '16px', /* 16px minimum — prevents iOS auto-zoom on focus */
     fontFamily: "'Lato', sans-serif",
     color: 'var(--text)',
     background: 'var(--bg2)',
-    borderTop: `1px solid ${borderColor}`,
-    borderRight: `1px solid ${borderColor}`,
-    borderBottom: `1px solid ${borderColor}`,
-    borderLeft: `1px solid ${borderColor}`,
+    borderTop: `${borderWidth} solid ${borderColor}`,
+    borderRight: `${borderWidth} solid ${borderColor}`,
+    borderBottom: `${borderWidth} solid ${borderColor}`,
+    borderLeft: `${borderWidth} solid ${borderColor}`,
     borderRadius: 'var(--r)',
     padding: '12px 14px',
     outline: 'none',
-    transition: 'border-color var(--transition), box-shadow var(--transition)',
+    transition: 'border-color var(--transition), border-width var(--transition), box-shadow var(--transition)',
     WebkitAppearance: 'none',
     appearance: 'none',
     minHeight: '44px',
@@ -106,12 +107,13 @@ export function inputStyle(hasError = false): React.CSSProperties {
  */
 export function inputFocusStyle(hasError = false): React.CSSProperties {
   const borderColor = hasError ? 'var(--red)' : 'var(--gold)';
+  const borderWidth = hasError ? '3px' : '1px';
   return {
     ...inputStyle(hasError),
-    borderTop: `1px solid ${borderColor}`,
-    borderRight: `1px solid ${borderColor}`,
-    borderBottom: `1px solid ${borderColor}`,
-    borderLeft: `1px solid ${borderColor}`,
+    borderTop: `${borderWidth} solid ${borderColor}`,
+    borderRight: `${borderWidth} solid ${borderColor}`,
+    borderBottom: `${borderWidth} solid ${borderColor}`,
+    borderLeft: `${borderWidth} solid ${borderColor}`,
     boxShadow: hasError
       ? '0 0 0 3px rgba(139,32,32,0.1)'
       : '0 0 0 3px rgba(184,137,42,0.12)',

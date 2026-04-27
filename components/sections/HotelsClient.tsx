@@ -168,6 +168,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [touched, setTouched] = useState<Set<string>>(new Set())
   const toast = useToast()
   const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
 
@@ -207,10 +208,14 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
     setForm(f => ({ ...f, [key]: value }))
   }
 
+  function touchField(name: string) { setTouched(prev => new Set(prev).add(name)) }
+  const nameError = touched.has('name') && !form.name.trim()
+
   function openAdd() {
     setEditingHotel(null)
     setForm(EMPTY_FORM)
     setConfirmDelete(false)
+    setTouched(new Set())
     setSheetOpen(true)
   }
 
@@ -247,6 +252,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
   }
 
   async function handleSave() {
+    setTouched(prev => new Set([...prev, 'name']))
     if (!form.name.trim()) return
     setSaving(true)
     try {
@@ -507,13 +513,15 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       <ResponsiveSheet open={sheetOpen} onClose={closeSheet} title={editingHotel ? 'Edit Hotel' : 'Add Hotel'}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
 
-          <FormField label="Hotel Name *">
+          <FormField label="Hotel Name" required error={nameError ? 'Required' : undefined}>
             <input
               type="text"
               value={form.name}
               onChange={e => setField('name', e.target.value)}
+              onBlur={() => touchField('name')}
               placeholder="e.g. Fairmont Banff Springs"
-              style={inputStyle}
+              title="Full property name as it appears on your booking"
+              style={nameError ? { ...inputStyle, border: '3px solid var(--red)' } : inputStyle}
             />
           </FormField>
 
@@ -524,6 +532,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                 value={form.city}
                 onChange={e => setField('city', e.target.value)}
                 placeholder="Banff"
+                title="City where the hotel is located"
                 style={inputStyle}
               />
             </FormField>
@@ -533,6 +542,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                 value={form.room_type}
                 onChange={e => setField('room_type', e.target.value)}
                 placeholder="Deluxe King"
+                title="Room category from your booking, e.g. Deluxe King"
                 style={inputStyle}
               />
             </FormField>
@@ -549,12 +559,13 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
           </FormField>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <FormField label="Province">
+            <FormField label="State / Province">
               <input
                 type="text"
                 value={form.province}
                 onChange={e => setField('province', e.target.value)}
-                placeholder="e.g. BC"
+                placeholder="e.g. BC or WA"
+                title="Province or state abbreviation, e.g. BC or AB"
                 style={inputStyle}
               />
             </FormField>
@@ -585,6 +596,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                 type="date"
                 value={form.check_in_date}
                 onChange={e => setField('check_in_date', e.target.value)}
+                title="Date from your booking confirmation"
                 style={inputStyle}
               />
             </FormField>
@@ -604,6 +616,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
                 type="date"
                 value={form.check_out_date}
                 onChange={e => setField('check_out_date', e.target.value)}
+                title="Date from your booking confirmation"
                 style={inputStyle}
               />
             </FormField>
@@ -623,6 +636,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
               value={form.confirmation_number}
               onChange={e => setField('confirmation_number', e.target.value)}
               placeholder="ABC123"
+              title="Booking reference from the hotel or booking site"
               style={inputStyle}
             />
           </FormField>
@@ -684,15 +698,21 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
 
           {/* Google Calendar */}
           <div style={{ marginBottom: 'var(--sp-md)' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: form.check_in_date ? 1 : 0.4 }}>
               <input
                 type="checkbox"
                 checked={form.gcal_include ?? false}
+                disabled={!form.check_in_date}
                 onChange={e => setField('gcal_include', e.target.checked)}
-                style={{ width: '16px', height: '16px' }}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
               />
               <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
             </label>
+            {!form.check_in_date && (
+              <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 20px)' }}>
+                Set a check-in date to enable calendar sync
+              </p>
+            )}
           </div>
 
           {/* Save */}
@@ -700,7 +720,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
             variant="primary"
             size="default"
             onClick={handleSave}
-            disabled={saving || !form.name.trim()}
+            disabled={saving || !form.name.trim() || nameError}
             loading={saving}
           >
             {editingHotel ? 'Save Changes' : 'Add Hotel'}

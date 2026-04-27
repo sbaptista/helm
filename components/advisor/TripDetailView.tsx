@@ -10,6 +10,8 @@ import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { PrintExportModal } from '@/components/advisor/PrintExportModal';
 import { CalendarModal } from '@/components/advisor/CalendarModal';
 import { LogsClient } from '@/components/sections/LogsClient';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import OfflinePage from '@/components/ui/OfflinePage';
 import { DashboardBar } from '@/components/ui/DashboardBar';
 import { TripTopBar } from '@/components/ui/TripTopBar';
 import { TripSidebar } from '@/components/ui/TripSidebar';
@@ -106,12 +108,6 @@ interface TripDetailViewProps {
   packingContent?:        React.ReactNode;
   keyInfoContent?:        React.ReactNode;
   days?: { id: string; day_number: number; day_date: string; title: string }[];
-  flightsData?: any[];
-  hotelsData?: any[];
-  keyInfoData?: any[];
-  itinRowsData?: any[];
-  transportationData?: any[];
-  restaurantsData?: any[];
 }
 
 function TripDetailViewInner({
@@ -128,15 +124,13 @@ function TripDetailViewInner({
   packingContent,
   keyInfoContent,
   days = [],
-  flightsData = [],
-  hotelsData = [],
-  keyInfoData = [],
-  itinRowsData = [],
-  transportationData = [],
-  restaurantsData = [],
 }: TripDetailViewProps) {
   const router = useRouter();
   const toast = useToast();
+
+  useEffect(() => {
+    router.prefetch('/advisor/dashboard');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const [pendingItemId, setPendingItemId] = useState<string | null>(null);
   const [pendingSheetRecordId, setPendingSheetRecordId] = useState<string | null>(null);
@@ -952,12 +946,6 @@ const handleImportClose = () => {
         tripId={localTrip.id}
         tripTitle={localTrip.title}
         days={days}
-        initialFlights={flightsData}
-        initialHotels={hotelsData}
-        initialKeyInfo={keyInfoData}
-        initialItinRows={itinRowsData}
-        initialTransportation={transportationData}
-        initialRestaurants={restaurantsData}
       />
 
     </div>
@@ -966,6 +954,8 @@ const handleImportClose = () => {
 }
 
 export function TripDetailView(props: TripDetailViewProps) {
+  const isOnline = useOnlineStatus();
+  if (!isOnline) return <OfflinePage />;
   return (
     <ToastProvider>
       <TripDetailViewInner {...props} />

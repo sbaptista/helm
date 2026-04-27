@@ -288,6 +288,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
   const [deleting, setDeleting] = useState(false)
   const [confirmDeleteDay, setConfirmDeleteDay] = useState(false)
   const [confirmDeleteRow, setConfirmDeleteRow] = useState(false)
+  const [rowTitleTouched, setRowTitleTouched] = useState(false)
 
   const toast = useToast()
 
@@ -378,6 +379,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       sort_order: dayRows.length
     })
     setConfirmDeleteRow(false)
+    setRowTitleTouched(false)
     setRowSheetOpen(true)
   }
 
@@ -385,18 +387,18 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
     setEditingRow(r)
     setRowForm(rowToForm(r))
     setConfirmDeleteRow(false)
+    setRowTitleTouched(false)
     setRowSheetOpen(true)
   }
 
+  const rowTitleError = rowTitleTouched && !rowForm.title.trim()
+
   async function handleSaveRow() {
+    setRowTitleTouched(true)
+    if (!rowForm.title.trim()) return
     setSaving(true)
 
     // ── Validation ────────────────────────────────────────────────
-    if (!rowForm.title.trim()) {
-      toast.show('Title is required', 'error')
-      setSaving(false)
-      return
-    }
 
     if (!rowForm.is_all_day) {
       // Start fields: all three required together or none
@@ -840,7 +842,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
         open={rowSheetOpen}
         onClose={() => setRowSheetOpen(false)}
         title={editingRow ? 'Edit Item' : 'Add Item'}
-        primaryAction={{ label: editingRow ? 'Save' : 'Add', onClick: handleSaveRow, loading: saving, disabled: saving }}
+        primaryAction={{ label: editingRow ? 'Save' : 'Add', onClick: handleSaveRow, loading: saving, disabled: saving || rowTitleError }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
 
@@ -859,14 +861,15 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
             </select>
           </FormField>
 
-          {/* Title — required */}
-          <FormField label="Title *">
+          <FormField label="Title" required error={rowTitleError ? 'Required' : undefined}>
             <input
               type="text"
               value={rowForm.title}
               onChange={e => setRowForm(f => ({ ...f, title: e.target.value }))}
+              onBlur={() => setRowTitleTouched(true)}
               placeholder="e.g. 🚂 Depart Vancouver"
-              style={inputStyle()}
+              title="Short name for this activity or event"
+              style={inputStyle(rowTitleError)}
             />
           </FormField>
 
@@ -1010,6 +1013,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               value={rowForm.location}
               onChange={e => setRowForm(f => ({ ...f, location: e.target.value }))}
               placeholder="e.g. Vancouver Airport"
+              title="Venue, address, or area name"
               style={inputStyle()}
             />
             <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '4px', display: 'block' }}>
@@ -1023,6 +1027,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               value={rowForm.description}
               onChange={e => setRowForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Additional details about this item..."
+              title="Additional detail about what this involves"
               rows={3}
               style={{ ...inputStyle(), resize: 'vertical' }}
             />
@@ -1082,7 +1087,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 checked={rowForm.gcal_include ?? false}
                 disabled={!rowForm.start_date}
                 onChange={e => setRowForm(f => ({ ...f, gcal_include: e.target.checked }))}
-                style={{ width: '16px', height: '16px' }}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
               />
               <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
             </label>

@@ -52,24 +52,13 @@ export default async function TripDetailPage({
     serviceClient.from('transportation').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('restaurants').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('itinerary_rows').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
-    serviceClient.from('checklist_items').select('id', { count: 'exact', head: true }).eq('trip_id', id),
+    serviceClient.from('checklist').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('packing').select('id', { count: 'exact', head: true }).eq('trip_id', id),
     serviceClient.from('key_info').select('id, label, value').eq('trip_id', id),
     serviceClient.from('itinerary_days').select('id, day_number, day_date, title').eq('trip_id', id).is('deleted_at', null).order('day_number'),
-    serviceClient.from('flights').select('*').eq('trip_id', id).is('deleted_at', null).order('departure_time'),
-    serviceClient.from('hotels').select('*').eq('trip_id', id).is('deleted_at', null).order('check_in_date'),
-    serviceClient.from('itinerary_rows').select('*').eq('trip_id', id).is('deleted_at', null).order('sort_order'),
-    serviceClient.from('transportation').select('*').eq('trip_id', id).is('deleted_at', null).order('departure_time'),
-    serviceClient.from('restaurants').select('*').eq('trip_id', id).is('deleted_at', null).order('reservation_time'),
   ]);
 
   const days = sectionChecks[8].data ?? [];
-  const keyInfo = sectionChecks[7].data ?? [];
-  const flightsData = sectionChecks[9].data ?? [];
-  const hotelsData = sectionChecks[10].data ?? [];
-  const itinRowsData = sectionChecks[11].data ?? [];
-  const transData = sectionChecks[12].data ?? [];
-  const restData = sectionChecks[13].data ?? [];
 
   if (!row) {
     return (
@@ -116,12 +105,6 @@ export default async function TripDetailPage({
       packingContent={<PackingSection          tripId={id} />}
       keyInfoContent={<KeyInfoSection          tripId={id} />}
       days={days}
-      flightsData={flightsData || []}
-      hotelsData={hotelsData || []}
-      keyInfoData={keyInfo || []}
-      itinRowsData={itinRowsData || []}
-      transportationData={transData || []}
-      restaurantsData={restData || []}
     />
   );
 }

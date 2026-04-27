@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { DevDebugPanel } from '@/components/ui/DevDebugPanel';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
+import ServiceWorkerKiller from '@/components/ui/ServiceWorkerKiller';
 
 export const metadata: Metadata = {
   title: "Helm",
@@ -19,7 +21,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="min-h-full flex flex-col">
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
+        <ServiceWorkerKiller />
         {process.env.NODE_ENV === 'development' && <DevDebugPanel />}
       </body>
     </html>

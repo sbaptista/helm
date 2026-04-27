@@ -101,6 +101,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [touched, setTouched] = useState<Set<string>>(new Set())
 
   // Manage groups sheet
   const [manageGroupsOpen, setManageGroupsOpen] = useState(false)
@@ -163,12 +164,16 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
 
   // ─── Sheet open/close ─────────────────────────────────────────────────────
 
+  function touchField(name: string) { setTouched(prev => new Set(prev).add(name)) }
+  const taskError = touched.has('task') && !form.task.trim()
+
   function openAdd() {
     setEditingRecord(null)
     setForm(EMPTY_FORM)
     setConfirmDelete(false)
     setShowNewGroupInput(false)
     setNewGroupName('')
+    setTouched(new Set())
     setSheetOpen(true)
   }
 
@@ -178,6 +183,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
     setConfirmDelete(false)
     setShowNewGroupInput(false)
     setNewGroupName('')
+    setTouched(new Set())
     setSheetOpen(true)
   }
 
@@ -290,6 +296,8 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
   }
 
   async function handleSave() {
+    setTouched(prev => new Set([...prev, 'task']))
+    if (!form.task.trim()) return
     setSaving(true)
     try {
       const payload = {
@@ -614,18 +622,20 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
           label: editingRecord ? 'Save' : 'Add',
           onClick: handleSave,
           loading: saving,
-          disabled: saving,
+          disabled: saving || taskError,
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
 
-          <FormField label="Task" required>
+          <FormField label="Task" required error={taskError ? 'Required' : undefined}>
             <input
               type="text"
               value={form.task}
               onChange={e => setField('task', e.target.value)}
+              onBlur={() => touchField('task')}
               placeholder="e.g. Check in online"
-              style={inputStyle()}
+              title="Brief description of the action item"
+              style={inputStyle(taskError)}
             />
           </FormField>
 
@@ -706,6 +716,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
               value={form.ref}
               onChange={e => setField('ref', e.target.value)}
               placeholder="e.g. Booking #DIR1117775"
+              title="Booking number, document, or related reference"
               style={inputStyle()}
             />
           </FormField>
@@ -727,6 +738,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
               value={form.resolution}
               onChange={e => setField('resolution', e.target.value)}
               placeholder="e.g. Done — confirmed via email"
+              title="How this item was completed, e.g. Done — confirmed via email"
               style={inputStyle()}
             />
           </FormField>
@@ -774,7 +786,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
                 checked={form.gcal_include ?? false}
                 disabled={!form.due_date}
                 onChange={e => setField('gcal_include', e.target.checked)}
-                style={{ width: '16px', height: '16px' }}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
               />
               <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
             </label>

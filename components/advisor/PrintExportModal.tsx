@@ -5,18 +5,13 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Moda
 import { Button } from '@/components/ui/Button';
 import { stripEmojiForPrint, generate3x5CardPDF, chunkArray } from '@/lib/printing/printing-service';
 import { CardWrapper, CardHeader, CardRow } from '@/components/advisor/print/CardTemplates';
+import { createClient } from '@/lib/supabase/client';
 
 interface PrintExportModalProps {
   open: boolean;
   onClose: () => void;
   tripId: string;
   days: { id: string; day_number: number; day_date: string; title: string }[];
-  initialFlights?: any[];
-  initialHotels?: any[];
-  initialKeyInfo?: any[];
-  initialItinRows?: any[];
-  initialTransportation?: any[];
-  initialRestaurants?: any[];
   tripTitle: string;
 }
 
@@ -50,18 +45,12 @@ const PRESETS: Record<string, PacketSections> = {
   },
 };
 
-export function PrintExportModal({ 
-  open, 
-  onClose, 
-  tripId, 
-  tripTitle, 
+export function PrintExportModal({
+  open,
+  onClose,
+  tripId,
+  tripTitle,
   days,
-  initialFlights = [],
-  initialHotels = [],
-  initialKeyInfo = [],
-  initialItinRows = [],
-  initialTransportation = [],
-  initialRestaurants = [],
 }: PrintExportModalProps) {
   const [activeTab, setActiveTab] = useState<PrintTab>('packet');
   const [isIPad, setIsIPad] = useState(false);
@@ -71,35 +60,39 @@ export function PrintExportModal({
   const [isGenerating, setIsGenerating] = useState(false);
   const captureLayerRef = useRef<HTMLDivElement>(null);
 
-  const [cardData, setCardData] = useState<{
+  const [printData, setPrintData] = useState<{
     flights: any[];
     hotels: any[];
     keyInfo: any[];
     itinRows: any[];
     transportation: any[];
     restaurants: any[];
-  }>({ 
-    flights: initialFlights, 
-    hotels: initialHotels, 
-    keyInfo: initialKeyInfo, 
-    itinRows: initialItinRows,
-    transportation: initialTransportation,
-    restaurants: initialRestaurants
-  });
+  } | null>(null);
+  const [printLoading, setPrintLoading] = useState(false);
 
-  // Keep state in sync with props when modal opens
   useEffect(() => {
-    if (open) {
-      setCardData({
-        flights: initialFlights,
-        hotels: initialHotels,
-        keyInfo: initialKeyInfo,
-        itinRows: initialItinRows,
-        transportation: initialTransportation,
-        restaurants: initialRestaurants,
+    if (!open || printData) return;
+    setPrintLoading(true);
+    const supabase = createClient();
+    Promise.all([
+      supabase.from('flights').select('*').eq('trip_id', tripId).is('deleted_at', null).order('departure_time'),
+      supabase.from('hotels').select('*').eq('trip_id', tripId).is('deleted_at', null).order('check_in_date'),
+      supabase.from('key_info').select('id, label, value').eq('trip_id', tripId),
+      supabase.from('itinerary_rows').select('*').eq('trip_id', tripId).is('deleted_at', null).order('sort_order'),
+      supabase.from('transportation').select('*').eq('trip_id', tripId).is('deleted_at', null).order('departure_time'),
+      supabase.from('restaurants').select('*').eq('trip_id', tripId).is('deleted_at', null).order('reservation_time'),
+    ]).then(([f, h, k, i, t, r]) => {
+      setPrintData({
+        flights:        f.data ?? [],
+        hotels:         h.data ?? [],
+        keyInfo:        k.data ?? [],
+        itinRows:       i.data ?? [],
+        transportation: t.data ?? [],
+        restaurants:    r.data ?? [],
       });
-    }
-  }, [open, initialFlights, initialHotels, initialKeyInfo, initialItinRows, initialTransportation, initialRestaurants]);
+      setPrintLoading(false);
+    });
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const checkIPad = () => {
@@ -145,18 +138,15 @@ export function PrintExportModal({
   const handleGenerateCard = async () => {
     if (!captureLayerRef.current) return;
     setIsGenerating(true);
-    
-    // We render the card into the capture layer momentarily
-    // Note: In a production app, we'd use a dedicated offscreen renderer
-    // For this implementation, we'll reach into the DOM nodes created by the card components
+
     const pages = Array.from(captureLayerRef.current.querySelectorAll<HTMLElement>('.card-page'));
-    
+
     if (pages.length > 0) {
       await downloadCard(selectedCard, pages);
     } else {
       alert('No card content generated to capture.');
     }
-    
+
     setIsGenerating(false);
   };
 
@@ -168,6 +158,12 @@ export function PrintExportModal({
           <div style={{ background: 'var(--gold3)', color: 'var(--gold-text)', padding: '12px 16px', borderRadius: 'var(--r)', fontSize: '13px', fontWeight: 600, marginBottom: '20px', border: '1px solid var(--gold)' }}>
             ⚠️ Print / PDF is not supported on iPad. Please use your Mac to print or save as PDF.
           </div>
+        )}
+
+        {printLoading && (
+          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text3)', padding: '32px', textAlign: 'center' }}>
+            Loading print data…
+          </p>
         )}
 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
@@ -217,9 +213,9 @@ export function PrintExportModal({
 
         {/* Hidden capture area (off-screen) */}
         <div style={{ position: 'fixed', left: '-9999px', top: 0, pointerEvents: 'none' }} ref={captureLayerRef}>
-          {selectedCard === 'flights' && cardData.flights.length > 0 && (
+          {selectedCard === 'flights' && (printData?.flights ?? []).length > 0 && (
             <>
-              {chunkArray(cardData.flights, 4).map((chunk, idx, all) => (
+              {chunkArray(printData?.flights ?? [], 4).map((chunk, idx, all) => (
                 <React.Fragment key={idx}>
                   <CardWrapper side="FRONT" page={idx + 1} total={all.length}>
                     <CardHeader title="✈️ Flights" sub={tripTitle} pageLabel={all.length > 1 ? `${idx + 1}/${all.length}` : undefined} />
@@ -253,9 +249,9 @@ export function PrintExportModal({
             </>
           )}
 
-          {selectedCard === 'hotels' && cardData.hotels.length > 0 && (
+          {selectedCard === 'hotels' && (printData?.hotels ?? []).length > 0 && (
             <>
-              {chunkArray(cardData.hotels, 3).map((chunk, idx, all) => (
+              {chunkArray(printData?.hotels ?? [], 3).map((chunk, idx, all) => (
                 <React.Fragment key={idx}>
                   <CardWrapper side="FRONT" page={idx + 1} total={all.length}>
                     <CardHeader title="🏨 Hotels" sub={tripTitle} pageLabel={all.length > 1 ? `${idx + 1}/${all.length}` : undefined} />
@@ -282,9 +278,9 @@ export function PrintExportModal({
             </>
           )}
 
-          {selectedCard === 'transportation' && cardData.transportation.length > 0 && (
+          {selectedCard === 'transportation' && (printData?.transportation ?? []).length > 0 && (
             <>
-              {chunkArray(cardData.transportation, 3).map((chunk, idx, all) => (
+              {chunkArray(printData?.transportation ?? [], 3).map((chunk, idx, all) => (
                 <React.Fragment key={idx}>
                   <CardWrapper side="FRONT" page={idx + 1} total={all.length}>
                     <CardHeader title="🚍 Transportation" sub={tripTitle} pageLabel={all.length > 1 ? `${idx + 1}/${all.length}` : undefined} />
@@ -319,9 +315,9 @@ export function PrintExportModal({
             </>
           )}
 
-          {selectedCard === 'restaurants' && cardData.restaurants.length > 0 && (
+          {selectedCard === 'restaurants' && (printData?.restaurants ?? []).length > 0 && (
             <>
-              {chunkArray(cardData.restaurants, 3).map((chunk, idx, all) => (
+              {chunkArray(printData?.restaurants ?? [], 3).map((chunk, idx, all) => (
                 <React.Fragment key={idx}>
                   <CardWrapper side="FRONT" page={idx + 1} total={all.length}>
                     <CardHeader title="🍽️ Restaurants" sub={tripTitle} pageLabel={all.length > 1 ? `${idx + 1}/${all.length}` : undefined} />
@@ -359,8 +355,8 @@ export function PrintExportModal({
             <CardWrapper side="FRONT">
               <CardHeader title="📋 Key Contacts" sub={tripTitle} />
               <div style={{ marginTop: '10px' }}>
-                {cardData.keyInfo.length > 0 ? (
-                  cardData.keyInfo.map((k) => (
+                {(printData?.keyInfo ?? []).length > 0 ? (
+                  (printData?.keyInfo ?? []).map((k) => (
                     <CardRow key={k.id} label={k.label} value={k.value} />
                   ))
                 ) : (
@@ -372,7 +368,7 @@ export function PrintExportModal({
 
           {selectedCard.startsWith('day-') && (
             <>
-              {chunkArray(cardData.itinRows, 6).map((chunk, idx, all) => (
+              {chunkArray(printData?.itinRows ?? [], 6).map((chunk, idx, all) => (
                 <React.Fragment key={idx}>
                   <CardWrapper side="FRONT" page={idx + 1} total={all.length}>
                     <CardHeader title={`Day ${selectedCard.split('-')[1]}`} sub={tripTitle} pageLabel={all.length > 1 ? `${idx + 1}/${all.length}` : undefined} />

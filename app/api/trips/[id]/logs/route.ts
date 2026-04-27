@@ -62,12 +62,26 @@ export async function DELETE(
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
+    const supabase = serviceClient();
+
+    if (searchParams.get('all') === 'true') {
+      const { error } = await supabase
+        .from('helm_logs')
+        .delete()
+        .or(`trip_id.eq.${tripId},trip_id.is.null`);
+
+      if (error) {
+        await logger.error('logs', 'Failed to clear all logs', { error: error.message });
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     const days = parseInt(searchParams.get('days') ?? '30', 10);
     if (![7, 30, 90].includes(days)) {
       return NextResponse.json({ error: 'Invalid days value' }, { status: 400 });
     }
 
-    const supabase = serviceClient();
     const threshold = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
     const { error } = await supabase

@@ -39,7 +39,7 @@ export function LogsClient({ tripId }: { tripId: string }) {
   const [sourceFilter, setSourceFilter] = useState<string>('ALL');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [clearDays, setClearDays] = useState<number>(30);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmMode, setConfirmMode] = useState<null | 'days' | 'all'>(null);
   const [clearing, setClearing] = useState(false);
   const toast = useToast();
 
@@ -73,14 +73,17 @@ export function LogsClient({ tripId }: { tripId: string }) {
 
   async function handleClear() {
     setClearing(true);
-    const res = await fetch(`/api/trips/${tripId}/logs?days=${clearDays}`, { method: 'DELETE' });
+    const url = confirmMode === 'all'
+      ? `/api/trips/${tripId}/logs?all=true`
+      : `/api/trips/${tripId}/logs?days=${clearDays}`;
+    const res = await fetch(url, { method: 'DELETE' });
     if (res.ok) {
       await refetch();
     } else {
       toast.error('Failed to clear logs.');
     }
     setClearing(false);
-    setShowConfirm(false);
+    setConfirmMode(null);
   }
 
   const selectStyle: React.CSSProperties = {
@@ -125,7 +128,7 @@ export function LogsClient({ tripId }: { tripId: string }) {
         </div>
 
         {/* Clear — right */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <select
             value={clearDays}
             onChange={e => setClearDays(Number(e.target.value))}
@@ -137,7 +140,7 @@ export function LogsClient({ tripId }: { tripId: string }) {
           </select>
           <button
             type="button"
-            onClick={() => setShowConfirm(true)}
+            onClick={() => setConfirmMode('days')}
             style={{
               fontFamily: "'Lato', sans-serif",
               fontSize: 'var(--fs-sm)',
@@ -153,11 +156,29 @@ export function LogsClient({ tripId }: { tripId: string }) {
           >
             Clear Logs
           </button>
+          <button
+            type="button"
+            onClick={() => setConfirmMode('all')}
+            style={{
+              fontFamily: "'Lato', sans-serif",
+              fontSize: 'var(--fs-sm)',
+              fontWeight: 'var(--fw-medium)',
+              color: 'var(--red)',
+              background: 'rgba(139,32,32,0.06)',
+              border: '1px solid rgba(139,32,32,0.4)',
+              borderRadius: 'var(--r)',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Clear All
+          </button>
         </div>
       </div>
 
       {/* Confirm inline */}
-      {showConfirm && (
+      {confirmMode && (
         <div style={{
           padding: '12px 16px',
           background: 'rgba(139,32,32,0.05)',
@@ -169,7 +190,9 @@ export function LogsClient({ tripId }: { tripId: string }) {
           flexWrap: 'wrap',
         }}>
           <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--red)', flex: 1 }}>
-            Delete logs older than {clearDays} days? This cannot be undone.
+            {confirmMode === 'all'
+              ? 'Delete ALL logs? Every entry will be permanently removed. This cannot be undone.'
+              : `Delete logs older than ${clearDays} days? This cannot be undone.`}
           </span>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
@@ -195,7 +218,7 @@ export function LogsClient({ tripId }: { tripId: string }) {
             </button>
             <button
               type="button"
-              onClick={() => setShowConfirm(false)}
+              onClick={() => setConfirmMode(null)}
               style={{
                 fontFamily: "'Lato', sans-serif",
                 fontSize: 'var(--fs-sm)',

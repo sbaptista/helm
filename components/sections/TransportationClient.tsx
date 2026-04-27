@@ -150,6 +150,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [touched, setTouched] = useState<Set<string>>(new Set())
   const toast = useToast()
   const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
 
@@ -182,10 +183,14 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
     setForm(f => ({ ...f, [key]: value }))
   }
 
+  function touchField(name: string) { setTouched(prev => new Set(prev).add(name)) }
+  const typeError = touched.has('type') && !form.type.trim()
+
   function openAdd() {
     setEditingRecord(null)
     setForm(EMPTY_FORM)
     setConfirmDelete(false)
+    setTouched(new Set())
     setSheetOpen(true)
   }
 
@@ -193,6 +198,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
     setEditingRecord(r)
     setForm(recordToForm(r))
     setConfirmDelete(false)
+    setTouched(new Set())
     setSheetOpen(true)
   }
 
@@ -203,6 +209,8 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
   }
 
   async function handleSave() {
+    setTouched(prev => new Set([...prev, 'type']))
+    if (!form.type.trim()) return
     setSaving(true)
     try {
       const payload = {
@@ -406,18 +414,20 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
           label: editingRecord ? 'Save' : 'Add',
           onClick: handleSave,
           loading: saving,
-          disabled: saving,
+          disabled: saving || typeError,
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
 
           {/* Type + Provider */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <FormField label="Type">
+            <FormField label="Type" required error={typeError ? 'Required' : undefined}>
               <select
                 value={form.type}
                 onChange={e => setField('type', e.target.value)}
-                style={{ ...inputStyle(), cursor: 'pointer' }}
+                onBlur={() => touchField('type')}
+                style={{ ...inputStyle(typeError), cursor: 'pointer' }}
+                title="Category of transportation"
               >
                 <option value="">Select…</option>
                 {TRANSPORT_TYPES.map(t => (
@@ -431,6 +441,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
                 value={form.provider}
                 onChange={e => setField('provider', e.target.value)}
                 placeholder="e.g. Rocky Mountaineer"
+                title="Company or operator name, e.g. Rocky Mountaineer"
                 style={inputStyle()}
               />
             </FormField>
@@ -444,6 +455,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
                 value={form.origin}
                 onChange={e => setField('origin', e.target.value)}
                 placeholder="e.g. Vancouver"
+                title="City or station name"
                 style={inputStyle()}
               />
             </FormField>
@@ -453,6 +465,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
                 value={form.destination}
                 onChange={e => setField('destination', e.target.value)}
                 placeholder="e.g. Kamloops"
+                title="City or station name"
                 style={inputStyle()}
               />
             </FormField>
@@ -529,6 +542,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
               value={form.confirmation_number}
               onChange={e => setField('confirmation_number', e.target.value)}
               placeholder="e.g. RM-123456"
+              title="Booking reference from the provider"
               style={inputStyle()}
             />
           </FormField>
@@ -562,6 +576,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
               value={form.cost}
               onChange={e => setField('cost', e.target.value)}
               placeholder="e.g. $45 CAD"
+              title="Total cost including any fees, e.g. $45 CAD"
               style={inputStyle()}
             />
           </FormField>
@@ -620,7 +635,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
                 checked={form.gcal_include ?? false}
                 disabled={!form.departure_date}
                 onChange={e => setField('gcal_include', e.target.checked)}
-                style={{ width: '16px', height: '16px' }}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
               />
               <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
             </label>

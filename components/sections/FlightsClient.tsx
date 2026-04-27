@@ -193,6 +193,7 @@ export function FlightsClient({
   const [editFlight, setEditFlight] = useState<Flight | null>(null);
   const [form, setForm] = useState<FlightForm>(EMPTY_FORM);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [touched, setTouched] = useState<Set<string>>(new Set());
   const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -223,8 +224,15 @@ export function FlightsClient({
     setWarnCount('flights', warnCount);
   }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function fieldStyle(name: string): React.CSSProperties {
-    return focusedField === name ? inputFocusStyle() : inputStyle();
+  function touchField(name: string) {
+    setTouched(prev => new Set(prev).add(name));
+  }
+
+  const flightNumberError = touched.has('flight_number') && !form.flight_number.trim();
+  const airlineError      = touched.has('airline') && !form.airline.trim();
+
+  function fieldStyle(name: string, hasError = false): React.CSSProperties {
+    return focusedField === name ? inputFocusStyle(hasError) : inputStyle(hasError);
   }
 
   function setField<K extends keyof FlightForm>(key: K, value: FlightForm[K]) {
@@ -235,6 +243,7 @@ export function FlightsClient({
     setEditFlight(null);
     setForm(EMPTY_FORM);
     setDeleteConfirm(false);
+    setTouched(new Set());
     setSheetOpen(true);
   };
 
@@ -242,6 +251,7 @@ export function FlightsClient({
     setEditFlight(f);
     setForm(flightToForm(f));
     setDeleteConfirm(false);
+    setTouched(new Set());
     setSheetOpen(true);
   };
 
@@ -261,14 +271,8 @@ export function FlightsClient({
   };
 
   const handleSave = async () => {
-    if (!form.flight_number?.trim()) {
-      toast.error('Flight number is required.');
-      return;
-    }
-    if (!form.airline?.trim()) {
-      toast.error('Airline name is required.');
-      return;
-    }
+    setTouched(prev => new Set([...prev, 'flight_number', 'airline']));
+    if (!form.flight_number?.trim() || !form.airline?.trim()) return;
     if (form.departure_time_val && !form.departure_date) {
       toast.error('A departure date is required when departure time is set.');
       return;
@@ -587,37 +591,39 @@ export function FlightsClient({
           label:    isAdd ? 'Add Flight' : 'Save Changes',
           onClick:  handleSave,
           loading:  saving,
-          disabled: saving || deleting,
+          disabled: saving || deleting || flightNumberError || airlineError,
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
           {/* Flight Number */}
-          <FormField label="Flight Number" htmlFor="fl-flight-number">
+          <FormField label="Flight Number" htmlFor="fl-flight-number" required error={flightNumberError ? 'Required' : undefined}>
             <input
               id="fl-flight-number"
               type="text"
               value={form.flight_number}
               onChange={(e) => setField('flight_number', e.target.value)}
               onFocus={() => setFocusedField('flight_number')}
-              onBlur={() => setFocusedField(null)}
-              style={fieldStyle('flight_number')}
+              onBlur={() => { setFocusedField(null); touchField('flight_number'); }}
+              style={fieldStyle('flight_number', flightNumberError)}
               placeholder="e.g. UA 1234"
+              title="Enter the airline-assigned flight code, e.g. UA 1234"
               autoComplete="off"
             />
           </FormField>
 
           {/* Airline */}
-          <FormField label="Airline" htmlFor="fl-airline">
+          <FormField label="Airline" htmlFor="fl-airline" required error={airlineError ? 'Required' : undefined}>
             <input
               id="fl-airline"
               type="text"
               value={form.airline}
               onChange={(e) => setField('airline', e.target.value)}
               onFocus={() => setFocusedField('airline')}
-              onBlur={() => setFocusedField(null)}
-              style={fieldStyle('airline')}
+              onBlur={() => { setFocusedField(null); touchField('airline'); }}
+              style={fieldStyle('airline', airlineError)}
               placeholder="e.g. United Airlines"
+              title="Full airline name, e.g. United Airlines"
               autoComplete="off"
             />
           </FormField>
@@ -638,6 +644,7 @@ export function FlightsClient({
                   }}
                   style={{ ...fieldStyle('origin_airport'), textTransform: 'uppercase' }}
                   placeholder="JFK"
+                  title="3-letter IATA code — city and timezone will fill automatically"
                   maxLength={4}
                   autoComplete="off"
                 />
@@ -657,6 +664,7 @@ export function FlightsClient({
                   }}
                   style={{ ...fieldStyle('destination_airport'), textTransform: 'uppercase' }}
                   placeholder="LHR"
+                  title="3-letter IATA code — city and timezone will fill automatically"
                   maxLength={4}
                   autoComplete="off"
                 />
@@ -785,6 +793,7 @@ export function FlightsClient({
               onFocus={() => setFocusedField('cabin_class')}
               onBlur={() => setFocusedField(null)}
               style={{ ...fieldStyle('cabin_class'), cursor: 'pointer' }}
+              title="Your ticket class for this flight"
             >
               <option value="">Select…</option>
               <option value="Economy">Economy</option>
@@ -805,6 +814,7 @@ export function FlightsClient({
               onBlur={() => setFocusedField(null)}
               style={fieldStyle('seat_number')}
               placeholder="e.g. 3A Cathleen / 3B Stanley"
+              title="Include both seats if travelling together, e.g. 3A Cathleen / 3B Stanley"
               autoComplete="off"
             />
           </FormField>
@@ -820,6 +830,7 @@ export function FlightsClient({
               onBlur={() => setFocusedField(null)}
               style={fieldStyle('confirmation_number')}
               placeholder="e.g. ABC123"
+              title="The booking reference from your airline or travel agent"
               autoComplete="off"
             />
           </FormField>
@@ -913,7 +924,7 @@ export function FlightsClient({
                 checked={form.gcal_include ?? false}
                 disabled={!form.departure_date}
                 onChange={e => setField('gcal_include', e.target.checked)}
-                style={{ width: '16px', height: '16px' }}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
               />
               <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
             </label>
