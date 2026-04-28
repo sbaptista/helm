@@ -436,6 +436,7 @@ const handleImportClose = () => {
         onNavigate={(section) => {
           const tab = SECTION_TO_TAB[section];
           if (tab) setActiveTab(tab);
+          setShowLogs(false);
           setSidebarOpen(false);
         }}
         tripName={localTrip.title}

@@ -2,12 +2,10 @@
 
 import { useEffect } from 'react';
 
-export default function ServiceWorkerKiller() {
+export default function ServiceWorkerRegistrar() {
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .getRegistrations()
-        .then((registrations) => registrations.forEach((r) => r.unregister()));
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
   }, []);
 

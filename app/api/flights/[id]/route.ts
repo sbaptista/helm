@@ -42,18 +42,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       logger.error('api/flights', 'Supabase error on PATCH', { error: error.message, recordId: id });
       return Response.json({ error: error.message }, { status: 500 });
     }
-    if (data) {
-      const record = Array.isArray(data) ? data[0] : data;
-      if (record.action_required) {
-        await logger.warn('flights', `Flight ${record.id} has action_required set`, { id: record.id });
-      }
-      if (!record.departure_time) {
-        await logger.warn('flights', `Flight ${record.id} missing departure_time`, { id: record.id });
-      }
-      if (!record.arrival_time) {
-        await logger.warn('flights', `Flight ${record.id} missing arrival_time`, { id: record.id });
-      }
-    }
     return Response.json({ flight: data });
   } catch (err) {
     logger.critical('api/flights', 'Unhandled exception in PATCH handler', { error: err instanceof Error ? err.message : String(err) });

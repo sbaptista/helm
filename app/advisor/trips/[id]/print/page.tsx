@@ -3,6 +3,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { PrintStyles } from '@/components/advisor/print/PrintStyles';
 import { stripEmojiForPrint, formatPrintDateRange } from '@/lib/printing/printing-service';
+import { OfflineGuard } from '@/components/ui/OfflineGuard';
 
 export default async function TripPrintPage({
   params,
@@ -58,6 +59,7 @@ export default async function TripPrintPage({
   const itinFull = sp.detail === 'full';
 
   return (
+    <OfflineGuard>
     <div className="print-preview-root">
       <PrintStyles />
       
@@ -285,5 +287,6 @@ export default async function TripPrintPage({
         }
       ` }} />
     </div>
+    </OfflineGuard>
   );
 }

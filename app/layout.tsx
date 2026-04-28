@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { DevDebugPanel } from '@/components/ui/DevDebugPanel';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
-import ServiceWorkerKiller from '@/components/ui/ServiceWorkerKiller';
+import ServiceWorkerRegistrar from '@/components/ui/ServiceWorkerKiller';
 
 export const metadata: Metadata = {
   title: "Helm",
@@ -24,7 +24,7 @@ export default function RootLayout({
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
-        <ServiceWorkerKiller />
+        <ServiceWorkerRegistrar />
         {process.env.NODE_ENV === 'development' && <DevDebugPanel />}
       </body>
     </html>
