@@ -1,5 +1,5 @@
-const SHELL = 'helm-shell-v1';
-const ASSETS = 'helm-assets-v1';
+const SHELL = 'helm-shell-v2';
+const ASSETS = 'helm-assets-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 

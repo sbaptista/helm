@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 interface LoginFormProps {
   initialError: boolean;
 }
@@ -50,7 +52,6 @@ export function LoginForm({ initialError }: LoginFormProps) {
   const [emailError, setEmailError] = useState<string | undefined>(undefined);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -64,7 +65,13 @@ export function LoginForm({ initialError }: LoginFormProps) {
 
     setLoading(true);
     try {
-      // Check if the email exists in the users table (server-side)
+      const supabase = createClient();
+
+      if (isDev && email.trim() === process.env.NEXT_PUBLIC_DEV_EMAIL!) {
+        router.push('/advisor/dashboard');
+        return;
+      }
+
       const res = await fetch('/api/auth/check-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,19 +83,13 @@ export function LoginForm({ initialError }: LoginFormProps) {
       const data: CheckEmailResponse = await res.json();
 
       if (data.exists) {
-        // Known user — send sign-in link
-        const supabase = createClient();
-        const redirectTo = `${window.location.origin}/auth/callback`;
         const { error } = await supabase.auth.signInWithOtp({
           email: email.trim(),
-          options: {
-            emailRedirectTo: redirectTo,
-          },
+          options: { shouldCreateUser: false },
         });
         if (error) throw new Error(error.message);
-        setEmailSent(true);
+        router.push(`/auth/verify-otp?email=${encodeURIComponent(email.trim())}`);
       } else {
-        // Unknown user — collect account details
         router.push(`/auth/create-account?email=${encodeURIComponent(email.trim())}`);
       }
     } catch (err) {
@@ -98,77 +99,6 @@ export function LoginForm({ initialError }: LoginFormProps) {
     } finally {
       setLoading(false);
     }
-  }
-
-  if (emailSent) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '16px',
-          textAlign: 'center',
-          padding: '8px 0',
-        }}
-      >
-        <span
-          role="img"
-          aria-label="Envelope"
-          style={{ fontSize: '48px', lineHeight: 1 }}
-        >
-          ✉️
-        </span>
-        <h1
-          style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: '32px',
-            fontWeight: 400,
-            color: 'var(--navy)',
-            lineHeight: 1.2,
-          }}
-        >
-          Check your inbox
-        </h1>
-        <p
-          style={{
-            fontSize: '15px',
-            color: 'var(--text3)',
-            fontFamily: "'Lato', sans-serif",
-            lineHeight: 1.6,
-            maxWidth: '320px',
-          }}
-        >
-          We sent a sign-in link to{' '}
-          <strong style={{ color: 'var(--text2)', fontWeight: 700 }}>{email}</strong>. Click the
-          link in the email to sign in — no password needed.
-        </p>
-        <button
-          type="button"
-          onClick={() => {
-            setEmailSent(false);
-            setEmail('');
-            setGeneralError(null);
-            setEmailError(undefined);
-          }}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--gold)',
-            fontFamily: "'Lato', sans-serif",
-            fontSize: '14px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            textDecoration: 'underline',
-            textUnderlineOffset: '2px',
-            padding: '4px 0',
-            minHeight: '44px',
-          }}
-        >
-          Wrong email? Start over
-        </button>
-      </div>
-    );
   }
 
   return (
@@ -188,7 +118,7 @@ export function LoginForm({ initialError }: LoginFormProps) {
             lineHeight: 1.2,
           }}
         >
-          Welcome back
+          Welcome to Helm
         </h1>
         <p
           style={{
@@ -252,6 +182,35 @@ export function LoginForm({ initialError }: LoginFormProps) {
       >
         Continue
       </Button>
+
+      {isDev && (
+        <div
+          style={{
+            padding: '12px 16px',
+            background: 'rgba(184,137,42,0.06)',
+            border: '1px solid rgba(184,137,42,0.2)',
+            borderRadius: 'var(--r)',
+            fontSize: '13px',
+            color: 'var(--gold)',
+            fontFamily: "'Lato', sans-serif",
+            lineHeight: 1.5,
+            textAlign: 'center',
+          }}
+        >
+          <strong>Dev:</strong> use{' '}
+          <code
+            style={{
+              background: 'rgba(184,137,42,0.1)',
+              padding: '1px 6px',
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+            }}
+          >
+            {process.env.NEXT_PUBLIC_DEV_EMAIL}
+          </code>{' '}
+          to bypass OTP
+        </div>
+      )}
     </form>
   );
 }

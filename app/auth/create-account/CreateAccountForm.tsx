@@ -76,7 +76,6 @@ export function CreateAccountForm({ email }: CreateAccountFormProps) {
   const [errors, setErrors] = useState<CreateAccountErrors>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
 
   const setField =
     (field: keyof Pick<CreateAccountValues, 'firstName' | 'lastName'>) =>
@@ -109,7 +108,6 @@ export function CreateAccountForm({ email }: CreateAccountFormProps) {
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
           data: {
             first_name: values.firstName.trim(),
             last_name:  values.lastName.trim(),
@@ -119,7 +117,7 @@ export function CreateAccountForm({ email }: CreateAccountFormProps) {
 
       if (otpError) throw new Error(otpError.message);
 
-      setEmailSent(true);
+      router.push(`/auth/verify-otp?email=${encodeURIComponent(email)}`);
     } catch (err) {
       setGeneralError(
         err instanceof Error ? err.message : 'Something went wrong. Please try again.'
@@ -127,68 +125,6 @@ export function CreateAccountForm({ email }: CreateAccountFormProps) {
     } finally {
       setLoading(false);
     }
-  }
-
-  if (emailSent) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '16px',
-          textAlign: 'center',
-          padding: '8px 0',
-        }}
-      >
-        <span role="img" aria-label="Envelope" style={{ fontSize: '48px', lineHeight: 1 }}>
-          ✉️
-        </span>
-        <h1
-          style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: '32px',
-            fontWeight: 400,
-            color: 'var(--navy)',
-            lineHeight: 1.2,
-          }}
-        >
-          Check your inbox
-        </h1>
-        <p
-          style={{
-            fontSize: '15px',
-            color: 'var(--text3)',
-            fontFamily: "'Lato', sans-serif",
-            lineHeight: 1.6,
-            maxWidth: '320px',
-          }}
-        >
-          We sent a sign-in link to{' '}
-          <strong style={{ color: 'var(--text2)', fontWeight: 700 }}>{email}</strong>. Click the
-          link in the email to sign in — no password needed.
-        </p>
-        <button
-          type="button"
-          onClick={() => router.push('/auth/login')}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--gold)',
-            fontFamily: "'Lato', sans-serif",
-            fontSize: '14px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            textDecoration: 'underline',
-            textUnderlineOffset: '2px',
-            padding: '4px 0',
-            minHeight: '44px',
-          }}
-        >
-          Back to sign in
-        </button>
-      </div>
-    );
   }
 
   return (

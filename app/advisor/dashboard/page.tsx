@@ -56,10 +56,10 @@ async function fetchTrips(userId: string): Promise<Trip[]> {
 export default async function AdvisorDashboardPage() {
   const supabase = await getDataClient();
 
-  const BYPASS = process.env.BYPASS_AUTH_USER_ID
-  const user = BYPASS
-    ? { id: BYPASS, email: '' }
-    : (await supabase.auth.getUser()).data.user
+  const bypassId = process.env.BYPASS_AUTH_USER_ID;
+  const user = bypassId
+    ? { id: bypassId, email: '' }
+    : (await supabase.auth.getUser()).data.user;
   if (!user) redirect('/auth/login');
 
   let trips: Trip[] = [];
@@ -77,7 +77,7 @@ export default async function AdvisorDashboardPage() {
         trips={trips}
         userEmail={user.email ?? ''}
         fetchError={fetchError}
-        showSignOut={!process.env.BYPASS_AUTH_USER_ID}
+        showSignOut={true}
       />
     </OfflineGuard>
   );
