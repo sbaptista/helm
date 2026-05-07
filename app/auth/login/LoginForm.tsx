@@ -67,7 +67,7 @@ export function LoginForm({ initialError }: LoginFormProps) {
     try {
       const supabase = createClient();
 
-      if (isDev && email.trim() === process.env.NEXT_PUBLIC_DEV_EMAIL!) {
+      if (isDev && email.trim() === 'dev@dev.local') {
         router.push('/advisor/dashboard');
         return;
       }
@@ -107,31 +107,6 @@ export function LoginForm({ initialError }: LoginFormProps) {
       noValidate
       style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}
     >
-      {/* Heading */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <h1
-          style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: '32px',
-            fontWeight: 400,
-            color: 'var(--navy)',
-            lineHeight: 1.2,
-          }}
-        >
-          Welcome to Helm
-        </h1>
-        <p
-          style={{
-            fontSize: '15px',
-            color: 'var(--text3)',
-            fontFamily: "'Lato', sans-serif",
-            lineHeight: 1.5,
-          }}
-        >
-          Enter your email to continue.
-        </p>
-      </div>
-
       {/* Callback error banner */}
       {initialError && !generalError && (
         <div role="alert" style={errorBannerStyle}>
@@ -180,7 +155,7 @@ export function LoginForm({ initialError }: LoginFormProps) {
         loading={loading}
         style={{ width: '100%', fontSize: '15px' }}
       >
-        Continue
+        Send Verification Code
       </Button>
 
       {isDev && (
@@ -206,7 +181,7 @@ export function LoginForm({ initialError }: LoginFormProps) {
               fontFamily: 'monospace',
             }}
           >
-            {process.env.NEXT_PUBLIC_DEV_EMAIL}
+            dev@dev.local
           </code>{' '}
           to bypass OTP
         </div>

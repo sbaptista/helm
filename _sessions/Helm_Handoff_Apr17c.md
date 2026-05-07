@@ -1,4 +1,4 @@
-# Helm Handoff — Apr 19
+# Helm Handoff — Apr 17c
 
 ## Working Rules
 0. **Never build without Stan's explicit go-ahead.**
@@ -44,7 +44,7 @@ Replacing CAN26 for October 2026 Canadian Rockies / Rocky Mountaineer trip.
 ---
 
 ## Current Version
-`00.01.0103` — pushed to production
+`00.01.0096` — local only, not yet pushed to production
 
 ---
 
@@ -62,7 +62,6 @@ Replacing CAN26 for October 2026 Canadian Rockies / Rocky Mountaineer trip.
 | Restaurants | ✅ Functional + section-row styling | 00.01.0058 |
 | Itinerary | ✅ Stages 1–3 complete + typography pass | 00.01.0084 |
 | Printing | ✅ 3x5 cards overhauled | 00.01.0059 |
-| Calendar | 🔜 Next | — |
 
 ---
 
@@ -70,109 +69,36 @@ Replacing CAN26 for October 2026 Canadian Rockies / Rocky Mountaineer trip.
 
 | # | Area | Issue | Status |
 |---|---|---|---|
-| 1 | Auth | Max sessions per user capped at 1 in Supabase — requires Pro plan upgrade. | Known / deferred |
+| 1 | Auth | Max sessions per user capped at 1 in Supabase — requires Pro plan upgrade. Still capped; now inconvenient for multi-device only. | Known / deferred |
 | 2 | 3x5 Cards | Content-aware card splitting (Option B) deferred | Future |
-| 3 | Key Info strip | If item has a URL, clicking should open externally; if no URL, navigate internally | Future enhancement |
-| 4 | Itinerary row typography | Further refinement possible. Stan happy with current state. | Future / optional |
-| 5 | Mobile — text size | Body text readable but Stan would prefer larger. Deferred pending Calendar work. | Future |
-| 6 | iPad magic link | OTP / magic link investigation set aside. Auth bypass in place instead. | Set aside |
+| 3 | Key Info strip | If item has a URL, clicking should open externally; if no URL, navigate to Key Info tab and scroll to item. Currently always navigates internally | Future enhancement |
+| 4 | Itinerary row typography | Further refinement possible. Stan happy with current state but flagged as potentially revisitable. | Future / optional |
+| 5 | Mobile review | Full mobile review pass (iPad + iPhone in Comet) — paused pending iPad login confirmation | Resume after iPad login confirmed |
 
 ---
 
 ## Next Session
-**START HERE: Calendar implementation**
+**START HERE: Confirm iPad magic link, then git push, then resume mobile review**
 
-No prior decisions made on Calendar. Start fresh with architecture and design discussion before any planning or build.
+1. **Confirm iPad magic link** — Supabase email rate limit hit at end of Apr 17c session. Wait ~1 hour from end of session before retrying. Then test login via `http://192.168.86.90:3000` on iPad in Comet.
+   - Fresh magic link email should show `redirect_to=http://192.168.86.90:3000` (not Vercel URL)
+   - Console log `[LoginForm] emailRedirectTo:` should print `http://192.168.86.90:3000/auth/callback`
+   - A temporary diagnostic `console.log` is in `LoginForm.tsx` at line 81 — **remove it once login is confirmed working**
 
----
+2. **Git push** — `00.01.0084` through `00.01.0096` accumulated. Push to production once iPad login is confirmed. Remove the diagnostic log before pushing.
 
-## Auth Bypass System (completed Apr 19, v00.01.0098–0103)
+3. **Resume mobile review** — systematic pass on iPad and iPhone (Comet). Criteria locked:
+   - Scope: all sections
+   - Devices: iPhone 14 Pro + iPad (Comet)
+   - Bar: hard breaks + polish issues
+   - North star: legibility for aging eyes
+   - Fix as we find them, section by section
+   - **Resume at Overview** (tab bar already approved, no changes needed)
+   - Font size adjustments are a single-line change in globals.css (token architecture complete)
 
-### Why
-Supabase free tier email rate limits (3/hour) were blocking all local and production testing. Login was removed as a gate until the app matures enough to warrant re-enabling it.
+4. **Google Calendar integration (design session)** — after mobile review complete
 
-### How it works
-A single environment variable — `BYPASS_AUTH_USER_ID` — set to Stan's Supabase user UUID (`fdde29b2-a314-4587-940c-373005f79fd5`) activates the bypass across three seams:
-
-**1. Middleware (`middleware.ts`)**
-Unconditional early return — no Supabase client created, no redirect to `/auth/login`:
-```ts
-// AUTH BYPASS — remove to re-enable login
-return NextResponse.next();
-```
-
-**2. API routes — `getAuthUserId()` (23 files under `app/api/`)**
-All 23 route files share an identical `getAuthUserId()` function body, bulk-patched with perl. Each now checks the bypass variable before hitting the cookie session:
-```ts
-if (process.env.BYPASS_AUTH_USER_ID) {
-  return process.env.BYPASS_AUTH_USER_ID;
-}
-```
-
-**3. Server components — `getDataClient()` (`lib/supabase/data-client.ts`)**
-A new shared helper replaces direct `createClient()` (SSR client) calls in server components. When bypass is active, returns a service role client (bypasses RLS). When not active, returns the SSR client as before:
-```ts
-export async function getDataClient() {
-  if (process.env.BYPASS_AUTH_USER_ID) {
-    return createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SECRET_KEY!
-    );
-  }
-  return createSSRClient();
-}
-```
-Adopted by: `app/advisor/dashboard/page.tsx`, `app/advisor/trips/[id]/page.tsx`, `app/advisor/trips/[id]/print/page.tsx`, `app/auth/callback/route.ts`.
-
-**4. Sign out button (`components/advisor/DashboardView.tsx`)**
-- `handleSignOut` body replaced with a no-op comment
-- Button hidden via `showSignOut` prop (passed as `false` from dashboard when bypass is active)
-
-### Re-enabling auth
-1. Remove `BYPASS_AUTH_USER_ID` from `.env.local` and Vercel environment variables
-2. Restore `middleware.ts` to its original auth redirect logic
-3. Restore `handleSignOut` body in `DashboardView.tsx`
-4. All other bypass guards will self-deactivate (env var absent = falsy)
-
-### Vercel env var
-`BYPASS_AUTH_USER_ID=fdde29b2-a314-4587-940c-373005f79fd5` set in Vercel dashboard → Project → Settings → Environment Variables (Production + Preview) ✅
-
----
-
-## iOS Usability Review (completed Apr 19, v00.01.0103)
-
-### Scope
-Production (`helm-gilt.vercel.app`) tested on iPad and iPhone. Spot-check of navigation, section views, and CRUD operations. No exhaustive section-by-section testing.
-
-### Results
-- **iPad:** Navigation, section views, itinerary rows, checklist items all working well. Touch targets, contrast, and bottom sheet behavior all good.
-- **iPhone:** Working after auth bypass was fully implemented. Same positive assessment.
-- **Text size:** Readable but Stan would prefer larger. Deferred — not blocking.
-
----
-
-## HTTPS / mkcert Setup (completed Apr 17d)
-
-### What was done
-- Homebrew installed on Mac
-- mkcert installed via Homebrew
-- Local CA installed: `mkcert -install`
-- Certificate generated in Helm project root: `mkcert localhost 192.168.86.90`
-  - Files: `localhost+1.pem`, `localhost+1-key.pem` (in project root, gitignored)
-  - Expiry: 17 July 2028
-- Root CA location: `/Users/stanleybaptista/Library/Application Support/mkcert/rootCA.pem`
-- Root CA AirDropped and trusted on iPad ✅
-- Root CA AirDropped and trusted on iPhone ✅
-- `https://192.168.86.90:3000/**` added to Supabase Redirect URL allowlist ✅
-- `package.json` dev script updated to serve HTTPS with cert/key files, bind to `0.0.0.0:3000`
-- `next.config.js` `allowedDevOrigins` updated to include HTTPS origin
-- `.env.local` `NEXT_PUBLIC_SITE_URL` updated to `https://192.168.86.90:3000`
-- `LoginForm.tsx` cleaned up — no `alert()`, no `console.log`
-
-### Known limitation
-- Comet on Mac shows certificate warning for `https://192.168.86.90:3000` — mkcert CA not recognized by Chromium store despite `nss` being installed
-- **Workaround: use Safari on Mac for local dev testing**
-- Comet remains the browser for production (`helm-gilt.vercel.app`)
+5. **Multi-vendor AI architecture** — deferred until Helm reaches CAN26 parity
 
 ---
 
@@ -188,25 +114,34 @@ Production (`helm-gilt.vercel.app`) tested on iPad and iPhone. Spot-check of nav
 - Planning only. Mobile review criteria defined. CSS token refactor approved. No code changes.
 
 ### Apr 17b
-- CSS Token Refactor — 10 passes, all sections. Full token set defined. Mobile dev access setup. Magic link dynamic redirect implemented. Version `00.01.0095`.
+- CSS Token Refactor — 10 passes, all sections. Full token set defined. Mobile dev access setup. Magic link dynamic redirect implemented (`window.location.origin`). `http://192.168.86.90:3000/**` added to Supabase allowlist for Helm. Version `00.01.0095`.
 
-### Apr 17c
-- Auth callback origin fix (`request.nextUrl.origin`). iPad login investigation begun. Version `00.01.0096`.
+### Apr 17c (this session)
 
-### Apr 17d
-- Diagnostic alert confirmed client-side code computes correct origin. Supabase logs confirmed OTP requests arriving with wrong referer regardless of device/browser. HTTPS/mkcert setup completed on Mac, iPad, iPhone. Dev script updated. Version `00.01.0097`. Magic link still broken — suspected service worker interference.
+**Starting version:** `00.01.0095`
 
-### Apr 19
-- OTP/magic link investigation set aside. Auth bypass implemented across middleware, all 23 API route `getAuthUserId()` functions, and all server component data fetches via new `getDataClient()` helper. Sign out button neutralized and hidden. iOS usability review completed on iPad and iPhone — app working well on both devices. Versions `00.01.0098` through `00.01.0103` pushed to production.
+**Auth callback origin fix (00.01.0096):**
+- `app/auth/callback/route.ts` updated: both `Response.redirect` calls now use `request.nextUrl.origin` instead of `getURL()`
+- `getURL` import removed from route.ts
+- Root cause: callback was always redirecting to production URL regardless of where the request originated
+
+**iPad login investigation:**
+- Hydration errors in Comet confirmed as browser extension noise (`__gchrome_*` attributes) — not a code issue
+- Magic link emails still showed `redirect_to=https://helm-gilt.vercel.app` despite `window.location.origin` fix in LoginForm.tsx
+- Root cause found: Helm Supabase project was missing `http://192.168.86.90:3000/**` from Redirect URL allowlist — added manually by Stan
+- Temporary diagnostic `console.log` added to `LoginForm.tsx` line 81 to confirm `emailRedirectTo` value at runtime
+- Could not confirm fix — Supabase email rate limit hit before fresh test email could be sent
+- **Status: unconfirmed — retry first thing next session**
 
 ---
 
 ## Key Technical Notes
 
-### Auth Bypass — Current State (post 00.01.0103)
-- Bypass active in production and local via `BYPASS_AUTH_USER_ID` env var
-- See "Auth Bypass System" section above for full documentation
-- To re-enable auth: remove env var + restore middleware + restore handleSignOut
+### iPad Login — Current State (post 00.01.0096)
+- `LoginForm.tsx`: uses `window.location.origin` for `emailRedirectTo` ✅
+- `route.ts` (auth callback): uses `request.nextUrl.origin` for both redirects ✅
+- Supabase Helm project Redirect URL allowlist: `http://localhost:3000/**`, `https://helm-gilt.vercel.app/**`, `http://192.168.86.90:3000/**` ✅
+- Temporary diagnostic log at `LoginForm.tsx:81` — **remove before git push**
 
 ### CSS Token Architecture (post 00.01.0094)
 - All font sizes now use CSS custom properties (`--fs-*`) — single-line change in `:root` propagates everywhere
@@ -245,6 +180,11 @@ Production (`helm-gilt.vercel.app`) tested on iPad and iPhone. Spot-check of nav
 - `var(--surface)` is NOT defined in `globals.css` — do not use.
 - Use `var(--bg)` for tab row background color.
 
+### Font Size Architecture (current state)
+- globals.css class-based rules: fully tokenized
+- All section client components: fully tokenized (inline styles use var() references)
+- To adjust all font sizes globally: edit token values in `:root` in globals.css only
+
 ### Itinerary Day Card Typography (post 00.01.0083–0084, now tokenized)
 - Date: Cormorant Garamond, var(--fs-xl), weight var(--fw-medium), var(--navy)
 - Day title: sans-serif, var(--fs-base), weight var(--fw-normal), var(--text2)
@@ -282,19 +222,16 @@ Production (`helm-gilt.vercel.app`) tested on iPad and iPhone. Spot-check of nav
 
 ### Magic Link Auth Configuration
 - Site URL (Supabase): `https://helm-gilt.vercel.app`
-- Redirect URL allowlist: `http://localhost:3000/**`, `https://helm-gilt.vercel.app/**`, `http://192.168.86.90:3000/**`, `https://192.168.86.90:3000/**`
+- Redirect URL allowlist: `http://localhost:3000/**`, `https://helm-gilt.vercel.app/**`, `http://192.168.86.90:3000/**`
 - Code redirect: `window.location.origin` + `/auth/callback` (dynamic)
 - Callback route redirect: `request.nextUrl.origin` (dynamic)
 - Max sessions per user: capped at 1 (Pro plan required — deferred)
 
 ### Local Network Dev Access
 - Mac IP: `192.168.86.90`
-- Local dev URL: `https://192.168.86.90:3000` (HTTPS)
-- iPad/iPhone access: `https://192.168.86.90:3000` in Safari (Comet shows cert warning on Mac)
-- `next.config.js`: `allowedDevOrigins: ['192.168.86.90', 'https://192.168.86.90:3000']`
-- `package.json`: `"dev": "next dev --experimental-https --experimental-https-cert localhost+1.pem --experimental-https-key localhost+1-key.pem -H 0.0.0.0 -p 3000"`
-- mkcert cert files in project root: `localhost+1.pem`, `localhost+1-key.pem` (gitignored)
-- mkcert CA root: `/Users/stanleybaptista/Library/Application Support/mkcert/rootCA.pem`
+- iPad/iPhone access: `http://192.168.86.90:3000` in Comet
+- `next.config.js`: `allowedDevOrigins: ['192.168.86.90']`
+- `package.json`: `"dev": "next dev -p 3000 -H 0.0.0.0"`
 
 ### Checklist Table
 - Active table: `checklist` (not `checklist_items` — dropped)

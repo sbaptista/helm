@@ -8,7 +8,6 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const hasError = params.error === 'true';
-
   return (
     <AuthShell>
       <LoginForm initialError={hasError} />

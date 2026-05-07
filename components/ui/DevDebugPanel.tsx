@@ -5,11 +5,17 @@ import ReactDOM from 'react-dom';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { PersistentMessage } from '@/components/ui/PersistentMessage';
 
+const VARIANT_KEY = 'helm-auth-variant';
+
 function DevDebugPanelInner() {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [showCritical, setShowCritical] = useState(false);
   const [showFatal, setShowFatal] = useState(false);
+  const [authVariant, setAuthVariant] = useState<'a' | 'b'>(() => {
+    if (typeof window === 'undefined') return 'a';
+    return localStorage.getItem(VARIANT_KEY) === 'b' ? 'b' : 'a';
+  });
 
   async function triggerError() {
     try {
@@ -89,6 +95,8 @@ function DevDebugPanelInner() {
             flexDirection: 'column',
             gap: '6px',
             minWidth: '160px',
+            maxHeight: '70vh',
+            overflowY: 'auto',
           }}>
             <button type="button" style={btnStyle} onClick={triggerError}>
               Trigger Error
@@ -105,6 +113,49 @@ function DevDebugPanelInner() {
             <button type="button" style={btnStyle} onClick={() => setShowFatal(v => !v)}>
               Trigger Fatal
             </button>
+
+            {/* Auth shell variant */}
+            <div style={{
+              borderTop: '1px solid var(--border2)',
+              paddingTop: '8px',
+              marginTop: '2px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+            }}>
+              <span style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: '10px',
+                fontWeight: 700,
+                color: 'var(--text3)',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}>
+                Auth Shell
+              </span>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {(['a', 'b'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem(VARIANT_KEY, v);
+                      setAuthVariant(v);
+                      window.dispatchEvent(new Event('auth-variant-change'));
+                    }}
+                    style={{
+                      ...btnStyle,
+                      textAlign: 'center',
+                      flex: 1,
+                      background: authVariant === v ? 'var(--action)' : 'var(--bg2)',
+                      color: authVariant === v ? 'var(--action-text)' : 'var(--text)',
+                    }}
+                  >
+                    {v.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

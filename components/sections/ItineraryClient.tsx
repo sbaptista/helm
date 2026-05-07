@@ -13,6 +13,8 @@ import { TabNavigationContext, useTabNavigation } from '@/components/advisor/Tri
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type RowErrors = Partial<Record<'title' | 'start_date' | 'start_time_val' | 'start_timezone' | 'end_date' | 'end_time_val', string>>
+
 export type ItineraryDay = {
   id: string
   trip_id: string
@@ -176,6 +178,37 @@ function rowToForm(r: ItineraryRow) {
   }
 }
 
+function validateRowForm(form: ReturnType<typeof rowToForm>): RowErrors {
+  const errs: RowErrors = {}
+  if (!form.title.trim()) errs.title = 'Required'
+  if (!form.is_all_day) {
+    const hasStartDate = !!form.start_date
+    const hasStartTime = !!form.start_time_val
+    const hasStartTz   = !!form.start_timezone
+    const hasEndDate   = !!form.end_date
+    const hasEndTime   = !!form.end_time_val
+    if (hasStartDate || hasStartTime || hasStartTz) {
+      if (!hasStartDate) errs.start_date     = 'Required when start time is set'
+      if (!hasStartTime) errs.start_time_val = 'Required when start date is set'
+      if (!hasStartTz)   errs.start_timezone = 'Required'
+    }
+    if (hasEndDate || hasEndTime) {
+      if (!hasEndDate) errs.end_date     = 'Required when end time is set'
+      if (!hasEndTime) errs.end_time_val = 'Required when end date is set'
+      if (!hasStartDate && !hasStartTime) {
+        if (!errs.start_date)     errs.start_date     = 'Required when end time is set'
+        if (!errs.start_time_val) errs.start_time_val = 'Required when end time is set'
+      }
+      if (hasStartDate && hasStartTime && hasStartTz && hasEndDate && hasEndTime && !errs.end_time_val) {
+        const startUtc = localToUtc(form.start_date, form.start_time_val, form.start_timezone)
+        const endUtc   = localToUtc(form.end_date,   form.end_time_val,   form.end_timezone || form.start_timezone)
+        if (startUtc && endUtc && endUtc <= startUtc) errs.end_time_val = 'Must be after start time'
+      }
+    }
+  }
+  return errs
+}
+
 function categoryColor(cat: string): { bg: string; text: string; border: string } {
   const c = (cat ?? '').toLowerCase();
   if (c === 'flight' || c.includes('air'))
@@ -288,7 +321,11 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
   const [deleting, setDeleting] = useState(false)
   const [confirmDeleteDay, setConfirmDeleteDay] = useState(false)
   const [confirmDeleteRow, setConfirmDeleteRow] = useState(false)
-  const [rowTitleTouched, setRowTitleTouched] = useState(false)
+  const [rowErrors, setRowErrors] = useState<RowErrors>({})
+
+  function clearError(field: keyof RowErrors) {
+    setRowErrors(e => { const next = { ...e }; delete next[field]; return next })
+  }
 
   const toast = useToast()
 
@@ -379,7 +416,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       sort_order: dayRows.length
     })
     setConfirmDeleteRow(false)
-    setRowTitleTouched(false)
+    setRowErrors({})
     setRowSheetOpen(true)
   }
 
@@ -387,59 +424,17 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
     setEditingRow(r)
     setRowForm(rowToForm(r))
     setConfirmDeleteRow(false)
-    setRowTitleTouched(false)
+    setRowErrors({})
     setRowSheetOpen(true)
   }
 
-  const rowTitleError = rowTitleTouched && !rowForm.title.trim()
-
   async function handleSaveRow() {
-    setRowTitleTouched(true)
-    if (!rowForm.title.trim()) return
-    setSaving(true)
-
-    // ── Validation ────────────────────────────────────────────────
-
-    if (!rowForm.is_all_day) {
-      // Start fields: all three required together or none
-      const hasStartDate = !!rowForm.start_date
-      const hasStartTime = !!rowForm.start_time_val
-      const hasStartTz   = !!rowForm.start_timezone
-
-      if (hasStartDate || hasStartTime || hasStartTz) {
-        if (!hasStartDate) { toast.show('Start date is required when start time is set', 'error'); setSaving(false); return }
-        if (!hasStartTime) { toast.show('Start time is required when start date is set', 'error'); setSaving(false); return }
-        if (!hasStartTz)   { toast.show('Start timezone is required when start time is set', 'error'); setSaving(false); return }
-      }
-
-      // End fields: all three required together or none
-      const hasEndDate = !!rowForm.end_date
-      const hasEndTime = !!rowForm.end_time_val
-
-      if (hasEndDate || hasEndTime) {
-        if (!hasEndDate) { toast.show('End date is required when end time is set', 'error'); setSaving(false); return }
-        if (!hasEndTime) { toast.show('End time is required when end date is set', 'error'); setSaving(false); return }
-
-        // End must be after start
-        if (hasStartDate && hasStartTime && hasStartTz) {
-          const startUtc = localToUtc(rowForm.start_date, rowForm.start_time_val, rowForm.start_timezone)
-          const endUtc   = localToUtc(rowForm.end_date, rowForm.end_time_val, rowForm.end_timezone || rowForm.start_timezone)
-          if (startUtc && endUtc && endUtc <= startUtc) {
-            toast.show('End time must be after start time', 'error')
-            setSaving(false)
-            return
-          }
-        }
-
-        // End without any start is not allowed
-        if (!hasStartDate && !hasStartTime) {
-          toast.show('Start time is required when end time is set', 'error')
-          setSaving(false)
-          return
-        }
-      }
+    const errs = validateRowForm(rowForm)
+    if (Object.keys(errs).length > 0) {
+      setRowErrors(errs)
+      return
     }
-    // ── End Validation ────────────────────────────────────────────
+    setSaving(true)
 
     try {
       const payload = {
@@ -842,7 +837,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
         open={rowSheetOpen}
         onClose={() => setRowSheetOpen(false)}
         title={editingRow ? 'Edit Item' : 'Add Item'}
-        primaryAction={{ label: editingRow ? 'Save' : 'Add', onClick: handleSaveRow, loading: saving, disabled: saving || rowTitleError }}
+        primaryAction={{ label: editingRow ? 'Save' : 'Add', onClick: handleSaveRow, loading: saving, disabled: saving }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
 
@@ -861,15 +856,14 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
             </select>
           </FormField>
 
-          <FormField label="Title" required error={rowTitleError ? 'Required' : undefined}>
+          <FormField label="Title" required error={rowErrors.title}>
             <input
               type="text"
               value={rowForm.title}
-              onChange={e => setRowForm(f => ({ ...f, title: e.target.value }))}
-              onBlur={() => setRowTitleTouched(true)}
+              onChange={e => { setRowForm(f => ({ ...f, title: e.target.value })); clearError('title') }}
               placeholder="e.g. 🚂 Depart Vancouver"
               title="Short name for this activity or event"
-              style={inputStyle(rowTitleError)}
+              style={inputStyle(!!rowErrors.title)}
             />
           </FormField>
 
@@ -898,32 +892,32 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
             {/* Start row: Date | Start Time | Start TZ */}
             <div className="timing-grid">
-              <FormField label="Start Date">
+              <FormField label="Start Date" error={rowErrors.start_date}>
                 <input
                   type="date"
                   value={rowForm.start_date}
                   min={tripStartDate}
                   max={tripEndDate}
-                  onChange={e => setRowForm(f => ({ ...f, start_date: e.target.value }))}
+                  onChange={e => { setRowForm(f => ({ ...f, start_date: e.target.value })); clearError('start_date') }}
                   disabled={rowForm.is_all_day}
-                  style={inputStyle()}
+                  style={inputStyle(!!rowErrors.start_date)}
                 />
               </FormField>
-              <FormField label="Start Time">
+              <FormField label="Start Time" error={rowErrors.start_time_val}>
                 <input
                   type="time"
                   value={rowForm.start_time_val}
-                  onChange={e => setRowForm(f => ({ ...f, start_time_val: e.target.value }))}
+                  onChange={e => { setRowForm(f => ({ ...f, start_time_val: e.target.value })); clearError('start_time_val') }}
                   disabled={rowForm.is_all_day}
-                  style={inputStyle()}
+                  style={inputStyle(!!rowErrors.start_time_val)}
                 />
               </FormField>
-              <FormField label="Start Timezone">
+              <FormField label="Start Timezone" error={rowErrors.start_timezone}>
                 <select
                   value={rowForm.start_timezone}
-                  onChange={e => setRowForm(f => ({ ...f, start_timezone: e.target.value }))}
+                  onChange={e => { setRowForm(f => ({ ...f, start_timezone: e.target.value })); clearError('start_timezone') }}
                   disabled={rowForm.is_all_day}
-                  style={inputStyle()}
+                  style={inputStyle(!!rowErrors.start_timezone)}
                 >
                   <option value="">— Select —</option>
                   {TRIP_CITIES.map(c => (
@@ -935,24 +929,24 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
             {/* End row: End Date | End Time | End TZ */}
             <div className="timing-grid">
-              <FormField label="End Date">
+              <FormField label="End Date" error={rowErrors.end_date}>
                 <input
                   type="date"
                   value={rowForm.end_date}
                   min={tripStartDate}
                   max={tripEndDate}
-                  onChange={e => setRowForm(f => ({ ...f, end_date: e.target.value }))}
+                  onChange={e => { setRowForm(f => ({ ...f, end_date: e.target.value })); clearError('end_date') }}
                   disabled={rowForm.is_all_day}
-                  style={inputStyle()}
+                  style={inputStyle(!!rowErrors.end_date)}
                 />
               </FormField>
-              <FormField label="End Time">
+              <FormField label="End Time" error={rowErrors.end_time_val}>
                 <input
                   type="time"
                   value={rowForm.end_time_val}
-                  onChange={e => setRowForm(f => ({ ...f, end_time_val: e.target.value }))}
+                  onChange={e => { setRowForm(f => ({ ...f, end_time_val: e.target.value })); clearError('end_time_val') }}
                   disabled={rowForm.is_all_day}
-                  style={inputStyle()}
+                  style={inputStyle(!!rowErrors.end_time_val)}
                 />
               </FormField>
               <FormField label="End Timezone">

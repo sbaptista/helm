@@ -1,5 +1,5 @@
-const SHELL = 'helm-shell-v2';
-const ASSETS = 'helm-assets-v2';
+const SHELL = 'helm-shell-v4';
+const ASSETS = 'helm-assets-v4';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -35,17 +35,14 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Navigation requests — serve from cache immediately, refresh in background
+  // Navigation requests — network first, fall back to cache only if offline
   if (request.mode === 'navigate') {
     e.respondWith(
       caches.open(SHELL).then((cache) =>
-        cache.match(request).then((cached) => {
-          const fresh = fetch(request).then((res) => {
-            if (res.ok) cache.put(request, res.clone());
-            return res;
-          }).catch(() => cached);
-          return cached || fresh;
-        })
+        fetch(request).then((res) => {
+          if (res.ok) cache.put(request, res.clone());
+          return res;
+        }).catch(() => cache.match(request))
       )
     );
   }
