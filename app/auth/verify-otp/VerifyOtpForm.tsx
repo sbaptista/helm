@@ -81,24 +81,26 @@ export function VerifyOtpForm() {
       noValidate
       style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <h1
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'center' }}>
+        <p
           style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: '32px',
-            fontWeight: 400,
+            fontFamily: "'Lato', sans-serif",
+            fontSize: '15px',
+            fontWeight: 700,
             color: 'var(--navy)',
-            lineHeight: 1.2,
+            lineHeight: 1.4,
+            margin: 0,
           }}
         >
           Check your inbox
-        </h1>
+        </p>
         <p
           style={{
-            fontSize: '15px',
+            fontSize: '14px',
             color: 'var(--text3)',
             fontFamily: "'Lato', sans-serif",
             lineHeight: 1.5,
+            margin: 0,
           }}
         >
           Enter the 8-digit code sent to{' '}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { PersistentMessage } from '@/components/ui/PersistentMessage';
@@ -12,10 +12,12 @@ function DevDebugPanelInner() {
   const [open, setOpen] = useState(false);
   const [showCritical, setShowCritical] = useState(false);
   const [showFatal, setShowFatal] = useState(false);
-  const [authVariant, setAuthVariant] = useState<'a' | 'b'>(() => {
-    if (typeof window === 'undefined') return 'a';
-    return localStorage.getItem(VARIANT_KEY) === 'b' ? 'b' : 'a';
-  });
+  const [authVariant, setAuthVariant] = useState<'a' | 'b'>('a');
+
+  useEffect(() => {
+    const stored = localStorage.getItem(VARIANT_KEY);
+    if (stored === 'b') setAuthVariant('b');
+  }, []);
 
   async function triggerError() {
     try {
