@@ -85,6 +85,8 @@ export async function POST(
       await supabase.from(table).delete().eq('trip_id', id);
     }
 
+    await supabase.from('trips').update({ status: 'archived' }).eq('id', id);
+
     return Response.json({ success: true });
   }
 

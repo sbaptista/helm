@@ -69,8 +69,6 @@ export default async function TripDetailPage({
     serviceClient.from('itinerary_days').select('id, day_number, day_date, title').eq('trip_id', id).is('deleted_at', null).order('day_number'),
   ]);
 
-  const days = sectionChecks[8].data ?? [];
-
   if (!row) {
     return (
       <div
@@ -122,7 +120,6 @@ export default async function TripDetailPage({
       checklistContent={<Suspense fallback={<SectionSkeleton />}><ChecklistSection      tripId={id} /></Suspense>}
       packingContent={<Suspense fallback={<SectionSkeleton />}><PackingSection          tripId={id} /></Suspense>}
       keyInfoContent={<Suspense fallback={<SectionSkeleton />}><KeyInfoSection          tripId={id} /></Suspense>}
-      days={days}
     />
   );
 }
