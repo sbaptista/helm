@@ -19,7 +19,24 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     const { data: trip } = await supabase.from('trips').select('gcal_calendar_id').eq('id', tripId).single()
     if (!trip?.gcal_calendar_id) return new Response('No calendar for trip', { status: 404 })
 
-    const sections = ['flights', 'hotels', 'transportation', 'restaurants', 'itinerary', 'checklist']
+    const sections = ['flights', 'hotels', 'transportation', 'restaurants', 'itinerary', 'checklist'] as const
+    const sectionTables: Record<string, string> = {
+      flights: 'flights', hotels: 'hotels', transportation: 'transportation',
+      restaurants: 'restaurants', itinerary: 'itinerary_rows', checklist: 'checklist',
+    }
+
+    // Count total dirty records upfront so the client can show a real progress bar
+    let totalDirty = 0
+    for (const section of sections) {
+      const { count } = await supabase
+        .from(sectionTables[section])
+        .select('id', { count: 'exact', head: true })
+        .eq('trip_id', tripId)
+        .is('deleted_at', null)
+        .eq('gcal_include', true)
+        .eq('gcal_dirty', true)
+      totalDirty += count ?? 0
+    }
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -28,12 +45,15 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
         }
         try {
           const stats = { creates: 0, updates: 0, deletes: 0 }
+          let current = 0
+          send({ type: 'progress', current: 0, total: totalDirty })
           for (const section of sections) {
             await pushSection({ section, tripId, calendarId: trip.gcal_calendar_id, accessToken, supabase, onEvent: (event) => {
               if (event.action === 'create') stats.creates++
               if (event.action === 'update') stats.updates++
               if (event.action === 'delete') stats.deletes++
-              send({ type: 'progress', ...event })
+              current++
+              send({ type: 'progress', current, total: totalDirty, ...event })
               send({ type: 'stats', ...stats })
             }})
           }

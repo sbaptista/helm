@@ -50,6 +50,7 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const [progressStats, setProgressStats] = useState({ creates: 0, updates: 0, deletes: 0 });
   const [progressDone, setProgressDone] = useState(false);
+  const [progressError, setProgressError] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
   const fetchStatus = async () => {
@@ -118,13 +119,21 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
     setProgressLog([]);
     setProgressStats({ creates: 0, updates: 0, deletes: 0 });
     setProgressDone(false);
+    setProgressError(false);
     setProgressOpen(true);
     onOpenChange(false);
 
     try {
       const res = await fetch(`/api/gcal/push/trip/${tripId}`, { method: 'POST' });
+      if (!res.ok) {
+        setProgressLog(['❌ Server error — could not sync calendar.']);
+        setProgressError(true);
+        setProgressDone(true);
+        return;
+      }
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
+      let receivedComplete = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -148,12 +157,14 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
                 deletes: payload.deletes ?? 0,
               });
             } else if (payload.type === 'complete') {
+              receivedComplete = true;
               setProgressDone(true);
               fetchStatus();
             }
           } catch {}
         }
       }
+      if (!receivedComplete) setProgressDone(true);
     } catch {
       setProgressDone(true);
     }
@@ -339,10 +350,10 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
       )}
 
       {/* Progress Modal */}
-      <Modal open={progressOpen} onClose={() => {}}>
+      <Modal open={progressOpen} onClose={progressDone ? () => setProgressOpen(false) : () => {}}>
         <ModalHeader
-          title={progressDone ? 'Calendar Up to Date' : 'Syncing Calendar…'}
-          onClose={() => {}}
+          title={progressDone ? (progressError ? 'Sync Failed' : 'Calendar Up to Date') : 'Syncing Calendar…'}
+          onClose={progressDone ? () => setProgressOpen(false) : () => {}}
         />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -373,7 +384,7 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
               {progressLog.map((line, i) => (
                 <div key={i}>{line}</div>
               ))}
-              {progressDone && (
+              {progressDone && !progressError && (
                 <div style={{ color: 'var(--gold-text)', fontWeight: 700 }}>✅ Calendar up to date</div>
               )}
             </div>
