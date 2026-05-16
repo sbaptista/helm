@@ -58,8 +58,6 @@ export default async function TripDetailPage({
     serviceClient.from('itinerary_days').select('id, day_number, day_date, title').eq('trip_id', id).is('deleted_at', null).order('day_number'),
   ]);
 
-  const days = sectionChecks[8].data ?? [];
-
   if (!row) {
     return (
       <div
@@ -104,7 +102,6 @@ export default async function TripDetailPage({
       checklistContent={<ChecklistSection      tripId={id} />}
       packingContent={<PackingSection          tripId={id} />}
       keyInfoContent={<KeyInfoSection          tripId={id} />}
-      days={days}
     />
   );
 }

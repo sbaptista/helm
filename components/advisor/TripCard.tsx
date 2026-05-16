@@ -3,16 +3,21 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { TripCardMenu } from '@/components/advisor/TripCardMenu';
 import type { Trip, TripStatus } from '@/types/trips';
 
 interface TripCardProps {
   trip: Trip;
+  onEdit: () => void;
+  onPrint: () => void;
+  onDelete: () => void;
+  onArchive: () => void;
+  onClear: () => void;
+  onStatusChange: (status: TripStatus) => void;
 }
 
 function formatDateRange(departure: string, returnDate: string): string {
-  // Append T00:00:00 to avoid UTC offset shifting the date
   const dep = new Date(departure + 'T00:00:00');
   const ret = new Date(returnDate + 'T00:00:00');
 
@@ -39,14 +44,13 @@ const STATUS_LABELS: Record<TripStatus, string> = {
   archived: 'Archived',
 };
 
-export function TripCard({ trip }: TripCardProps) {
+export function TripCard({ trip, onEdit, onPrint, onDelete, onArchive, onClear, onStatusChange }: TripCardProps) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking a button
     const target = e.target as HTMLElement;
-    if (target.closest('button')) return;
+    if (target.closest('button') || target.closest('[data-menu]')) return;
     router.push(`/advisor/trips/${trip.id}`);
   };
 
@@ -68,7 +72,7 @@ export function TripCard({ trip }: TripCardProps) {
         transition: 'border-color var(--transition)',
       }}
     >
-      {/* Gold accent bar — bleeds to card edges */}
+      {/* Gold accent bar */}
       <div
         aria-hidden="true"
         style={{
@@ -79,9 +83,19 @@ export function TripCard({ trip }: TripCardProps) {
       />
 
       <div style={{ padding: '20px 24px 24px', display: 'flex', flexDirection: 'column', flex: 1, gap: '0' }}>
-        {/* Status badge — top right */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+        {/* Top row: status badge + menu */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <Badge status={trip.status}>{STATUS_LABELS[trip.status]}</Badge>
+          <TripCardMenu
+            tripId={trip.id}
+            currentStatus={trip.status}
+            onEdit={onEdit}
+            onPrint={onPrint}
+            onDelete={onDelete}
+            onArchive={onArchive}
+            onClear={onClear}
+            onStatusChange={onStatusChange}
+          />
         </div>
 
         {/* Trip name */}
@@ -131,29 +145,6 @@ export function TripCard({ trip }: TripCardProps) {
             {trip.traveler_count} {trip.traveler_count === 1 ? 'traveler' : 'travelers'}
           </p>
         )}
-
-        {/* Spacer pushes bottom row down */}
-        <div style={{ flex: 1, minHeight: '16px' }} />
-
-        {/* Bottom row */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: '16px',
-            paddingTop: '16px',
-            borderTop: '1px solid var(--border2)',
-          }}
-        >
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push(`/advisor/trips/${trip.id}`)}
-          >
-            View Trip
-          </Button>
-        </div>
       </div>
     </Card>
     </div>

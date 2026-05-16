@@ -22,7 +22,7 @@ export async function PATCH(
     return Response.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const allowed = ['title', 'destination', 'departure_date', 'return_date'];
+  const allowed = ['title', 'destination', 'departure_date', 'return_date', 'status'];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];

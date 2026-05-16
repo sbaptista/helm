@@ -13,10 +13,7 @@ import {
   Utensils,
   Info,
   ScrollText,
-  Printer,
   FileUp,
-  Pencil,
-  Trash2,
 } from 'lucide-react'
 
 interface TripSidebarProps {
@@ -28,10 +25,7 @@ interface TripSidebarProps {
   tripDates: string
   warnCounts: Record<string, number>
   tripId: string
-  onPrint: () => void
   onImport: () => void
-  onEditTrip: () => void
-  onClearTrip: () => void
   onShowLogs: () => void
   onShowCalendar: () => void
   calendarStatus: 'loading' | 'unconnected' | 'connected' | 'update_required'
@@ -156,10 +150,7 @@ export function TripSidebar({
   tripName,
   tripDates,
   warnCounts,
-  onPrint,
   onImport,
-  onEditTrip,
-  onClearTrip,
   onShowLogs,
   onShowCalendar,
   calendarStatus,
@@ -314,10 +305,7 @@ export function TripSidebar({
               ) : undefined
             }
           />
-          <ActionItem icon={Printer}    label="Print Trip"       onClick={() => { onPrint(); onClose() }} />
           <ActionItem icon={FileUp}     label="Import Document"  onClick={() => { onImport(); onClose() }} />
-          <ActionItem icon={Pencil}     label="Edit Trip"        onClick={() => { onEditTrip(); onClose() }} />
-          <ActionItem icon={Trash2}     label="Clear Trip Data"  onClick={() => { onClearTrip(); onClose() }} danger />
         </div>
       </aside>
     </>
