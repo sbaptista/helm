@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { redirect } from 'next/navigation';
 import { getDataClient } from '@/lib/supabase/data-client';
 import { DashboardView } from '@/components/advisor/DashboardView';
