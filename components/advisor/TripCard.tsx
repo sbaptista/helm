@@ -67,7 +67,7 @@ export function TripCard({ trip, onEdit, onPrint, onDelete, onArchive, onClear, 
         display: 'flex',
         flexDirection: 'column',
         padding: 0,
-        overflow: 'hidden',
+        overflow: 'visible',
         borderLeft: hovered ? '3px solid var(--gold)' : '3px solid transparent',
         transition: 'border-color var(--transition)',
       }}
@@ -79,6 +79,7 @@ export function TripCard({ trip, onEdit, onPrint, onDelete, onArchive, onClear, 
           height: '4px',
           background: 'linear-gradient(90deg, var(--gold), var(--gold2))',
           flexShrink: 0,
+          borderRadius: 'var(--r-lg) var(--r-lg) 0 0',
         }}
       />
 

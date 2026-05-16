@@ -18,8 +18,8 @@ type FilterValue = 'all' | TripStatus;
 const FILTERS: { value: FilterValue; label: string }[] = [
   { value: 'all',      label: 'All'      },
   { value: 'draft',    label: 'Draft'    },
-  { value: 'active',   label: 'Active'   },
   { value: 'upcoming', label: 'Upcoming' },
+  { value: 'active',   label: 'Active'   },
   { value: 'archived', label: 'Archived' },
 ];
 

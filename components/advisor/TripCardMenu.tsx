@@ -16,9 +16,15 @@ interface TripCardMenuProps {
 
 const STATUS_OPTIONS: { value: TripStatus; label: string }[] = [
   { value: 'draft', label: 'Draft' },
-  { value: 'active', label: 'Active' },
   { value: 'upcoming', label: 'Upcoming' },
+  { value: 'active', label: 'Active' },
 ];
+
+const STATUS_PILL_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  active:   { bg: 'rgba(45,90,61,0.1)',   text: 'var(--green)',     border: 'rgba(45,90,61,0.2)' },
+  draft:    { bg: 'rgba(90,109,122,0.1)',  text: 'var(--slate)',     border: 'rgba(90,109,122,0.2)' },
+  upcoming: { bg: 'rgba(184,137,42,0.1)',  text: 'var(--gold-text)', border: 'rgba(184,137,42,0.2)' },
+};
 
 export function TripCardMenu({
   currentStatus,
@@ -79,6 +85,8 @@ export function TripCardMenu({
             right: 0,
             marginTop: '4px',
             width: '200px',
+            maxHeight: '220px',
+            overflowY: 'auto',
             background: 'var(--bg)',
             border: '1px solid var(--border2)',
             borderRadius: 'var(--r-lg)',
@@ -98,28 +106,34 @@ export function TripCardMenu({
           <div style={{ padding: '6px 14px 4px', fontSize: '11px', fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
             Status
           </div>
-          <div style={{ display: 'flex', gap: '6px', padding: '4px 14px 8px' }}>
-            {STATUS_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => { setOpen(false); onStatusChange(opt.value); }}
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  fontFamily: "'Lato', sans-serif",
-                  padding: '4px 10px',
-                  borderRadius: '12px',
-                  border: currentStatus === opt.value ? '1.5px solid var(--navy)' : '1px solid var(--border2)',
-                  background: currentStatus === opt.value ? 'rgba(10,30,60,0.06)' : 'transparent',
-                  color: currentStatus === opt.value ? 'var(--navy)' : 'var(--text2)',
-                  cursor: currentStatus === opt.value ? 'default' : 'pointer',
-                  opacity: currentStatus === opt.value ? 0.7 : 1,
-                }}
-                disabled={currentStatus === opt.value}
-              >
-                {opt.label}
-              </button>
-            ))}
+          <div style={{ display: 'flex', gap: '6px', padding: '4px 14px 8px', flexWrap: 'wrap' }}>
+            {STATUS_OPTIONS.map((opt) => {
+              const isActive = currentStatus === opt.value;
+              const colors = STATUS_PILL_COLORS[opt.value];
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => { if (!isActive) { setOpen(false); onStatusChange(opt.value); } }}
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    fontFamily: "'Lato', sans-serif",
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    padding: '4px 10px',
+                    borderRadius: '12px',
+                    border: `1.5px solid ${isActive ? colors.border : 'var(--border2)'}`,
+                    background: isActive ? colors.bg : 'transparent',
+                    color: isActive ? colors.text : 'var(--text3)',
+                    cursor: isActive ? 'default' : 'pointer',
+                    transition: 'all var(--transition)',
+                  }}
+                  disabled={isActive}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
 
           <div style={{ height: '1px', background: 'var(--border2)', margin: '6px 0' }} />
