@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getDataClient } from '@/lib/supabase/data-client';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
@@ -12,6 +13,16 @@ import { ChecklistSection }      from '@/components/sections/ChecklistSection';
 import { PackingSection }        from '@/components/sections/PackingSection';
 import { KeyInfoSection }        from '@/components/sections/KeyInfoSection';
 import type { Trip, TripStatus } from '@/types/trips';
+
+function SectionSkeleton() {
+  return (
+    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} style={{ height: 64, borderRadius: 8, background: 'var(--border)', opacity: 0.4 - i * 0.1 }} />
+      ))}
+    </div>
+  );
+}
 
 export default async function TripDetailPage({
   params,
@@ -95,15 +106,22 @@ export default async function TripDetailPage({
       trip={trip}
       hasImport={!!importJob}
       hasSectionData={sectionChecks.some((r) => (r.count ?? 0) > 0)}
-      overviewContent={<OverviewSection tripId={id} trip={{ title: trip.title, departure_date: trip.departure_date, return_date: trip.return_date }} />}
-      itineraryContent={<ItinerarySection      tripId={id} />}
-      flightsContent={<FlightsSection          tripId={id} />}
-      hotelsContent={<HotelsSection            tripId={id} />}
-      transportationContent={<TransportationSection tripId={id} />}
-      restaurantsContent={<RestaurantsSection  tripId={id} />}
-      checklistContent={<ChecklistSection      tripId={id} />}
-      packingContent={<PackingSection          tripId={id} />}
-      keyInfoContent={<KeyInfoSection          tripId={id} />}
+      overviewContent={<OverviewSection tripId={id} trip={{ title: trip.title, departure_date: trip.departure_date, return_date: trip.return_date }} sectionCounts={{
+        flights: sectionChecks[0].count ?? 0,
+        hotels: sectionChecks[1].count ?? 0,
+        transportation: sectionChecks[2].count ?? 0,
+        restaurants: sectionChecks[3].count ?? 0,
+        packing: sectionChecks[6].count ?? 0,
+        checklist: sectionChecks[5].count ?? 0,
+      }} />}
+      itineraryContent={<Suspense fallback={<SectionSkeleton />}><ItinerarySection      tripId={id} /></Suspense>}
+      flightsContent={<Suspense fallback={<SectionSkeleton />}><FlightsSection          tripId={id} /></Suspense>}
+      hotelsContent={<Suspense fallback={<SectionSkeleton />}><HotelsSection            tripId={id} /></Suspense>}
+      transportationContent={<Suspense fallback={<SectionSkeleton />}><TransportationSection tripId={id} /></Suspense>}
+      restaurantsContent={<Suspense fallback={<SectionSkeleton />}><RestaurantsSection  tripId={id} /></Suspense>}
+      checklistContent={<Suspense fallback={<SectionSkeleton />}><ChecklistSection      tripId={id} /></Suspense>}
+      packingContent={<Suspense fallback={<SectionSkeleton />}><PackingSection          tripId={id} /></Suspense>}
+      keyInfoContent={<Suspense fallback={<SectionSkeleton />}><KeyInfoSection          tripId={id} /></Suspense>}
       days={days}
     />
   );

@@ -1,21 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 import { OverviewClient } from '@/components/trips/overview/OverviewClient';
 
-export async function OverviewSection({ tripId, trip }: {
+interface OverviewSectionProps {
   tripId: string;
   trip: { title: string; departure_date: string | null; return_date: string | null };
-}) {
+  sectionCounts?: {
+    flights: number;
+    hotels: number;
+    transportation: number;
+    restaurants: number;
+    packing: number;
+    checklist: number;
+  };
+}
+
+export async function OverviewSection({ tripId, trip, sectionCounts }: OverviewSectionProps) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
   );
 
   const [
-    flightsCount,
-    hotelsCount,
-    transportationCount,
-    restaurantsCount,
-    packingCount,
     checklistOpenCount,
     checklistTotalCount,
     checklistAttentionResult,
@@ -24,21 +29,37 @@ export async function OverviewSection({ tripId, trip }: {
     daysResult,
     rowsResult,
     keyInfoFlaggedResult,
+    ...countResults
   ] = await Promise.all([
-    supabase.from('flights').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
-    supabase.from('hotels').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
-    supabase.from('transportation').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
-    supabase.from('restaurants').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
-    supabase.from('packing').select('*', { count: 'exact', head: true }).eq('trip_id', tripId),
     supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).eq('status', 'open'),
-    supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', tripId),
+    sectionCounts
+      ? { count: sectionCounts.checklist }
+      : supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', tripId),
     supabase.from('checklist').select('id, task, action_note').eq('trip_id', tripId).eq('action_required', true).neq('status', 'completed').order('sort_order'),
     supabase.from('itinerary_rows').select('id, title, action_note').eq('trip_id', tripId).eq('action_required', true).is('deleted_at', null).order('sort_order'),
     supabase.from('key_info').select('id, label, action_note').eq('trip_id', tripId).eq('action_required', true).is('deleted_at', null).order('sort_order'),
     supabase.from('itinerary_days').select('id, day_date, day_number, title, location, type').eq('trip_id', tripId).is('deleted_at', null).order('day_date', { ascending: true, nullsFirst: false }).order('day_number', { ascending: true }),
     supabase.from('itinerary_rows').select('id, day_id').eq('trip_id', tripId).is('deleted_at', null),
     supabase.from('key_info').select('id, label, value, url, url_label').eq('trip_id', tripId).eq('show_in_overview', true).order('sort_order'),
+    ...(sectionCounts ? [] : [
+      supabase.from('flights').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
+      supabase.from('hotels').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
+      supabase.from('transportation').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
+      supabase.from('restaurants').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
+      supabase.from('packing').select('*', { count: 'exact', head: true }).eq('trip_id', tripId),
+    ]),
   ]);
+
+  const counts = sectionCounts
+    ? sectionCounts
+    : {
+        flights: countResults[0]?.count ?? 0,
+        hotels: countResults[1]?.count ?? 0,
+        transportation: countResults[2]?.count ?? 0,
+        restaurants: countResults[3]?.count ?? 0,
+        packing: countResults[4]?.count ?? 0,
+        checklist: 0,
+      };
 
   // Build row_count map
   const rowCountMap = new Map<string, number>();
@@ -83,11 +104,11 @@ export async function OverviewSection({ tripId, trip }: {
       tripId={tripId}
       trip={trip}
       counts={{
-        flights: flightsCount.count ?? 0,
-        hotels: hotelsCount.count ?? 0,
-        transportation: transportationCount.count ?? 0,
-        restaurants: restaurantsCount.count ?? 0,
-        packing: packingCount.count ?? 0,
+        flights: counts.flights,
+        hotels: counts.hotels,
+        transportation: counts.transportation,
+        restaurants: counts.restaurants,
+        packing: counts.packing,
         checklist_open: checklistOpenCount.count ?? 0,
         checklist_total: checklistTotalCount.count ?? 0,
       }}

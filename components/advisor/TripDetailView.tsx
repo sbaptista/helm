@@ -132,6 +132,17 @@ function TripDetailViewInner({
     router.prefetch('/advisor/dashboard');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
+  const [visitedTabs, setVisitedTabs] = useState<Set<Tab>>(() => new Set(['Overview']));
+
+  const switchTab = (tab: Tab) => {
+    setActiveTab(tab);
+    setVisitedTabs(prev => {
+      if (prev.has(tab)) return prev;
+      const next = new Set(prev);
+      next.add(tab);
+      return next;
+    });
+  };
   const [pendingItemId, setPendingItemId] = useState<string | null>(null);
   const [pendingSheetRecordId, setPendingSheetRecordId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -216,10 +227,10 @@ function TripDetailViewInner({
     const recordParam = params.get('record');
 
     if (tabParam && (TABS as readonly string[]).includes(tabParam)) {
-      setActiveTab(tabParam as Tab);
+      switchTab(tabParam as Tab);
     } else if (sectionParam) {
       const mappedTab = SECTION_TO_TAB[sectionParam];
-      if (mappedTab) setActiveTab(mappedTab);
+      if (mappedTab) switchTab(mappedTab);
     }
 
     if (recordParam) {
@@ -408,7 +419,7 @@ const handleImportClose = () => {
   return (
     <TabNavigationContext.Provider value={{
       navigateTo: (tab, itemId) => {
-        setActiveTab(tab as Tab)
+        switchTab(tab as Tab)
         if (itemId) setPendingItemId(itemId)
       },
       pendingItemId,
@@ -435,7 +446,7 @@ const handleImportClose = () => {
         activeSection={TAB_TO_SECTION[activeTab] ?? 'overview'}
         onNavigate={(section) => {
           const tab = SECTION_TO_TAB[section];
-          if (tab) setActiveTab(tab);
+          if (tab) switchTab(tab);
           setShowLogs(false);
           setSidebarOpen(false);
         }}
@@ -536,7 +547,7 @@ const handleImportClose = () => {
           </div>
         ) : (
           <>
-        {/* Section content */}
+        {/* Section content — lazy-mounted on first tab visit */}
         {(() => {
           const tabContents: Partial<Record<Tab, React.ReactNode>> = {
             Overview:       overviewContent,
@@ -549,9 +560,24 @@ const handleImportClose = () => {
             Packing:        packingContent,
             'Key Info':     keyInfoContent,
           };
-          const content = tabContents[activeTab];
-          return content ? (
-            <div className="content-container" style={{ paddingTop: '32px' }}>{content}</div>
+          const activeContent = tabContents[activeTab];
+          return activeContent ? (
+            <>
+              {TABS.map(tab => {
+                if (!visitedTabs.has(tab)) return null;
+                const content = tabContents[tab];
+                if (!content) return null;
+                return (
+                  <div
+                    key={tab}
+                    className="content-container"
+                    style={{ paddingTop: '32px', display: tab === activeTab ? undefined : 'none' }}
+                  >
+                    {content}
+                  </div>
+                );
+              })}
+            </>
           ) : (
             <div
               style={{
