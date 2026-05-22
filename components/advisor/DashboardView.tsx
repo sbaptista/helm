@@ -9,7 +9,9 @@ import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { TripCard } from '@/components/advisor/TripCard';
 import { CreateTripModal } from '@/components/advisor/CreateTripModal';
 import { PrintExportModal } from '@/components/advisor/PrintExportModal';
-import { VERSION } from '@/lib/version';
+import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
+import UpdateBanner, { BANNER_HEIGHT } from '@/components/ui/UpdateBanner';
+import WhatsNewSheet from '@/components/ui/WhatsNewSheet';
 import { createClient } from '@/lib/supabase/client';
 import type { Trip, TripStatus } from '@/types/trips';
 
@@ -168,6 +170,8 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
   const toast = useToast();
   const [filter, setFilter] = useState<FilterValue>('all');
   const [modalOpen, setModalOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const [bannerVisible, setBannerVisible] = useState(false);
 
   // Action modal state
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -354,12 +358,13 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
       <header
         style={{
           position: 'fixed',
-          top: 0,
+          top: bannerVisible ? `${BANNER_HEIGHT}px` : '0px',
           left: 0,
           right: 0,
           zIndex: 100,
           height: `calc(64px + var(--sat))`,
           paddingTop: 'var(--sat)',
+          transition: 'top 0.3s ease',
           background: 'var(--bg2)',
           borderBottom: '1px solid var(--border2)',
           boxShadow: 'var(--shadow)',
@@ -414,6 +419,24 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
                 ＋ New Trip
               </Button>
             </div>
+            <button
+              onClick={() => setWhatsNewOpen(true)}
+              style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: '13px',
+                fontWeight: 700,
+                color: 'var(--text3)',
+                background: 'none',
+                border: '1px solid var(--border2)',
+                borderRadius: 'var(--r)',
+                padding: '8px 16px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                minHeight: '44px',
+              }}
+            >
+              Help
+            </button>
             {showSignOut && (
               <button
                 onClick={handleSignOut}
@@ -438,6 +461,9 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
         </div>
       </header>
 
+      <UpdateBanner onVisibilityChange={setBannerVisible} />
+      <WhatsNewSheet open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
+
       <style>{`
         @media (max-width: 1023px) {
           .helm-header-inner { padding: 0 24px !important; }
@@ -454,7 +480,8 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
       {/* Main content */}
       <main
         style={{
-          paddingTop: `calc(64px + var(--sat) + 40px)`,
+          paddingTop: `calc(64px + var(--sat) + 40px + ${bannerVisible ? BANNER_HEIGHT : 0}px)`,
+          transition: 'padding-top 0.3s ease',
           paddingBottom: `calc(40px + var(--sab))`,
           maxWidth: '1200px',
           margin: '0 auto',
@@ -595,7 +622,7 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
           paddingTop: '8px',
         }}
       >
-        <span
+        <HelmVersionLabel
           style={{
             fontSize: '11px',
             fontFamily: "'Lato', sans-serif",
@@ -603,9 +630,7 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
             opacity: 0.5,
             letterSpacing: '0.04em',
           }}
-        >
-          v{VERSION}
-        </span>
+        />
       </footer>
 
       {/* Mobile FAB */}

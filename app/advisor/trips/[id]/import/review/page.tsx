@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
-import { VERSION } from '@/lib/version';
+import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
 import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { createClient } from '@/lib/supabase/client';
 import { OfflineGuard } from '@/components/ui/OfflineGuard';
@@ -1010,9 +1010,7 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
 
       {/* Version footer */}
       <footer style={{ textAlign: 'center', paddingBottom: 'calc(96px + var(--sab))', paddingTop: '8px' }}>
-        <span style={{ fontSize: '11px', fontFamily: "'Lato', sans-serif", color: 'var(--text3)', opacity: 0.5, letterSpacing: '0.04em' }}>
-          v{VERSION}
-        </span>
+        <HelmVersionLabel style={{ fontSize: '11px', fontFamily: "'Lato', sans-serif", color: 'var(--text3)', opacity: 0.5, letterSpacing: '0.04em' }} />
       </footer>
     </div>
   );

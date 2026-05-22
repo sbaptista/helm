@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { version } from '@/lib/version';
+import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
 
 export default function OfflinePage() {
   useEffect(() => {
@@ -167,7 +167,7 @@ export default function OfflinePage() {
           </div>
         </main>
 
-        <div className="hop-version">v{version}</div>
+        <HelmVersionLabel className="hop-version" />
       </div>
     </>
   );

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { AIRPORT_LOOKUP } from '@/lib/gcal/timezones';
 import { useToast } from '@/components/ui/Toast';
 import WarnBadge from '@/components/ui/WarnBadge';
+import { scrollToFirstError } from '@/lib/form-utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,29 @@ interface FlightForm {
   notes: string;
   gcal_include: boolean;
   action_required: boolean;
+}
+
+type FlightErrors = Partial<Record<'departure_date' | 'arrival_date' | 'arrival_time', string>>
+
+function validateFlightTiming(form: FlightForm): FlightErrors {
+  const errs: FlightErrors = {}
+  if (form.departure_time_val && !form.departure_date) {
+    errs.departure_date = 'Required when departure time is set'
+  }
+  if (form.arrival_time_val && !form.arrival_date) {
+    errs.arrival_date = 'Required when arrival time is set'
+  }
+  if (
+    form.departure_date && form.departure_time_val &&
+    form.arrival_date && form.arrival_time_val
+  ) {
+    const dep = new Date(`${form.departure_date}T${form.departure_time_val}`)
+    const arr = new Date(`${form.arrival_date}T${form.arrival_time_val}`)
+    if (arr <= dep) {
+      errs.arrival_time = 'Must be after departure'
+    }
+  }
+  return errs
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -228,6 +252,12 @@ export function FlightsClient({
     setTouched(prev => new Set(prev).add(name));
   }
 
+  const [flightErrors, setFlightErrors] = useState<FlightErrors>({});
+
+  function clearFlightError(field: keyof FlightErrors) {
+    setFlightErrors(e => { const next = { ...e }; delete next[field]; return next })
+  }
+
   const flightNumberError = touched.has('flight_number') && !form.flight_number.trim();
   const airlineError      = touched.has('airline') && !form.airline.trim();
 
@@ -244,6 +274,7 @@ export function FlightsClient({
     setForm(EMPTY_FORM);
     setDeleteConfirm(false);
     setTouched(new Set());
+    setFlightErrors({});
     setSheetOpen(true);
   };
 
@@ -252,6 +283,7 @@ export function FlightsClient({
     setForm(flightToForm(f));
     setDeleteConfirm(false);
     setTouched(new Set());
+    setFlightErrors({});
     setSheetOpen(true);
   };
 
@@ -272,26 +304,15 @@ export function FlightsClient({
 
   const handleSave = async () => {
     setTouched(prev => new Set([...prev, 'flight_number', 'airline']));
-    if (!form.flight_number?.trim() || !form.airline?.trim()) return;
-    if (form.departure_time_val && !form.departure_date) {
-      toast.error('A departure date is required when departure time is set.');
+    const timingErrs = validateFlightTiming(form);
+    const hasRequiredErr = !form.flight_number?.trim() || !form.airline?.trim();
+    if (Object.keys(timingErrs).length > 0 || hasRequiredErr) {
+      setFlightErrors(timingErrs);
+      toast.show('Please fix the highlighted fields.', 'error');
+      scrollToFirstError();
       return;
     }
-    if (form.arrival_time_val && !form.arrival_date) {
-      toast.error('An arrival date is required when arrival time is set.');
-      return;
-    }
-    if (
-      form.departure_date && form.departure_time_val &&
-      form.arrival_date && form.arrival_time_val
-    ) {
-      const dep = new Date(`${form.departure_date}T${form.departure_time_val}`);
-      const arr = new Date(`${form.arrival_date}T${form.arrival_time_val}`);
-      if (arr <= dep) {
-        toast.error('Arrival must be after departure.');
-        return;
-      }
-    }
+    setFlightErrors({});
     setSaving(true);
     try {
       const body = {
@@ -707,15 +728,15 @@ export function FlightsClient({
           </div>
 
           {/* Departure — date + time */}
-          <FormField label="Departure">
+          <FormField label="Departure" error={flightErrors.departure_date}>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
                 type="date"
                 value={form.departure_date}
-                onChange={(e) => setField('departure_date', e.target.value)}
+                onChange={(e) => { setField('departure_date', e.target.value); clearFlightError('departure_date'); }}
                 onFocus={() => setFocusedField('departure_date')}
                 onBlur={() => setFocusedField(null)}
-                style={{ ...fieldStyle('departure_date'), flex: 1 }}
+                style={{ ...fieldStyle('departure_date', !!flightErrors.departure_date), flex: 1 }}
               />
               <input
                 type="time"
@@ -746,23 +767,23 @@ export function FlightsClient({
           </FormField>
 
           {/* Arrival — date + time */}
-          <FormField label="Arrival">
+          <FormField label="Arrival" error={flightErrors.arrival_date || flightErrors.arrival_time}>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
                 type="date"
                 value={form.arrival_date}
-                onChange={(e) => setField('arrival_date', e.target.value)}
+                onChange={(e) => { setField('arrival_date', e.target.value); clearFlightError('arrival_date'); }}
                 onFocus={() => setFocusedField('arrival_date')}
                 onBlur={() => setFocusedField(null)}
-                style={{ ...fieldStyle('arrival_date'), flex: 1 }}
+                style={{ ...fieldStyle('arrival_date', !!flightErrors.arrival_date), flex: 1 }}
               />
               <input
                 type="time"
                 value={form.arrival_time_val}
-                onChange={(e) => setField('arrival_time_val', e.target.value)}
+                onChange={(e) => { setField('arrival_time_val', e.target.value); clearFlightError('arrival_time'); }}
                 onFocus={() => setFocusedField('arrival_time')}
                 onBlur={() => setFocusedField(null)}
-                style={{ ...fieldStyle('arrival_time'), flex: 1 }}
+                style={{ ...fieldStyle('arrival_time', !!flightErrors.arrival_time), flex: 1 }}
               />
             </div>
           </FormField>

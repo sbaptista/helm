@@ -9,8 +9,12 @@
 7. Run git status and report whether there are any uncommitted changes.
 8. What AI Role are you?
 9. List every file from HANDOFF.md's "Uncommitted Changes" section that you re-read. Confirm all were loaded.
+10. What is the release documentation protocol for production releases? (Repeat the rule verbatim)
 
 **Instructions:**
+- **Never build/implement changes without explicit permission/confirmation from Stan.**
+- **Repeat verbatim the release documentation rule at the start of every session:** Before any code push/release, the agent must document all changes in `lib/changelog.ts` by adding a new `Release` entry with the bumped version, release date, and details of changes, and bump the patch version in `lib/version.ts`.
+- **Knowledge Repository Access:** The knowledgebase is stored in the database (`knowledge_repo` table). Always query it at the start of a task using the `SUPABASE_SECRET_KEY` (service role) to bypass Row Level Security (RLS) constraints. See the **Knowledge Repository Access** section below for connection details and query examples.
 - Your first and only message before any tool use must be a numbered list answering all questions.
 - After answering, read `HANDOFF.md`, then **re-read every file listed in the "Uncommitted Changes" section** (both modified and new) before using any tools or continuing. This prevents stale-context overwrites when multiple AI tools edit the same directory.
 - Do not summarize. Do not say "ready." Do not ask "what do you need?" Answer every question directly.
@@ -30,6 +34,36 @@ This version has breaking changes — APIs, conventions, and file structure may 
 The following file contains cross-project rules, conventions, and shared resource access (Orb API, Knowledge Repo, AI roles, git conventions). Read it before proceeding.
 
 **@/Users/stanleybaptista/Projects/shared/AGENTS.md**
+
+### Knowledge Repository (agents)
+
+- **Research reads:** ALWAYS use the Service Role key (`SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY` depending on the project's env naming) to query the knowledge repository.
+- **RLS Warning:** Never use the publishable key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or anonymous key). RLS rules restrict public access, meaning you will either see an empty list `[]` or only a subset of entries. If you are seeing zero or very few entries, verify you have switched to the Service Role key to bypass RLS.
+- **When closing a todo:** Search `knowledge_repo` for the same topic; supersede or link — don't assume old entries are still true (shared working rule #12).
+
+---
+
+# Knowledge Repository Access
+
+The Knowledge Repo stores distilled lessons, decisions, and resolution notes across all projects in the database.
+
+- **API URL:** `https://livwkbnkdlrbmzgythys.supabase.co`
+- **Key:** `SUPABASE_SECRET_KEY` (service role) located in `/Users/stanleybaptista/Projects/helm/.env.local`
+- **Rule:** Bypasses RLS to guarantee complete results. Never query using the publishable/anon key.
+
+### Query all entries:
+```bash
+curl -s "https://livwkbnkdlrbmzgythys.supabase.co/rest/v1/knowledge_repo?select=*,projects(code,name)&order=created_at.desc" \
+  -H "apikey: $(grep SUPABASE_SECRET_KEY /Users/stanleybaptista/Projects/helm/.env.local | cut -d= -f2)" \
+  -H "Authorization: Bearer $(grep SUPABASE_SECRET_KEY /Users/stanleybaptista/Projects/helm/.env.local | cut -d= -f2)"
+```
+
+### Search by topic/keyword:
+```bash
+curl -s "https://livwkbnkdlrbmzgythys.supabase.co/rest/v1/knowledge_repo?or=(title.ilike.*<term>*,content.ilike.*<term>*)&select=id,title,created_at,content&order=created_at.desc" \
+  -H "apikey: $(grep SUPABASE_SECRET_KEY /Users/stanleybaptista/Projects/helm/.env.local | cut -d= -f2)" \
+  -H "Authorization: Bearer $(grep SUPABASE_SECRET_KEY /Users/stanleybaptista/Projects/helm/.env.local | cut -d= -f2)"
+```
 
 ---
 
@@ -141,3 +175,55 @@ The version is also tracked in HANDOFF.md for quick reference, but `lib/version.
 
 ### Trip ID
 `0e1d98a3-a124-42e1-b68d-498bb60f46be`
+
+---
+
+# Multi-Platform Design
+
+Helm targets three platforms:
+- **Mac** — desktop/laptop, full viewport, keyboard + mouse/trackpad
+- **iPad** — tablet, touch input, mid-sized viewport
+- **iPhone** — mobile, touch input, narrow viewport
+
+All three must provide a fully functional experience. When making design or implementation decisions, assume:
+
+- **Ageing eyes** — text must be legible at a comfortable reading distance on all screen sizes. Avoid tiny fonts, low-contrast text, and dense layouts that require zooming.
+- **Potential motor skill limitations** — interactive elements must have adequate hit targets (at least 44pt minimum per Apple HIG). Avoid interactions that require fine precision.
+- **Touch-first on mobile** — hover-only interactions are unacceptable. All functionality must work via tap on iPad and iPhone.
+
+Test design decisions across all three form factors. When in doubt, err on the side of larger, more spacious, and more forgiving layouts.
+
+---
+
+# Production Releases
+
+Before any production release or code push, you must document all changes in the release documentation file.
+- **File:** `/Users/stanleybaptista/Projects/helm/lib/changelog.ts`
+- **Action:** Bump the patch version in `lib/version.ts`, and add a new entry to the `CHANGELOG` array in `lib/changelog.ts` with the new version string, release date, and detailed bullet points describing the changes.
+- **Note:** `lib/changelog.ts` does not yet exist — see HELM-56. Until it is built, document changes in `HANDOFF.md` as usual and bump `lib/version.ts`.
+
+---
+
+# Known Gotchas (General)
+
+- **Dev server**: User-started only. No AI tool can start it — always blocked. Assume it's running when Stan says it is; if you need it, ask.
+- **Version:** `lib/version.ts` is canonical. Bumped on every local change — no exceptions.
+
+---
+
+# WIP & Multi-Agent Transition Protocol (Resilience to Usage Caps)
+
+When working on complex tasks, an agent's usage limits may expire mid-session, leaving the workspace in an incomplete state. To prevent losing valuable context, design plans, and code drafts locked in the expired chat history, apply these mitigation strategies:
+
+1. **Write a `WIP.md` at key milestones**:
+   Immediately after aligning on a plan, designing an architecture, or completing a sub-task, write a brief `WIP.md` in the repository root detailing:
+   - **Current status**: What has been implemented so far.
+   - **Design decisions**: Crucial choices, API specifications, or database schema additions.
+   - **Immediate next steps**: Exact instructions for the next agent to resume work.
+   - Delete `WIP.md` only at the very end of the session when staging the final `HANDOFF.md` commit.
+
+2. **Commit draft code to a local WIP branch**:
+   If you have written significant uncommitted changes, you can stage and commit them to a local scratch branch (e.g., `wip/feature-name`) with a descriptive message. The incoming agent can inspect the branch diff to see exactly where you left off.
+
+3. **Use Scratch Files for complex code drafts**:
+   Save raw code drafts, research summaries, or temporary API responses in the `scripts/` or `scratch/` directory. Do not leave them only in the chat history.

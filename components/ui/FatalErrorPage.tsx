@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { version } from '@/lib/version';
+import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
 
 interface Props {
   error?: Error | null;
@@ -188,7 +188,7 @@ export default function FatalErrorPage({ error: _error }: Props) {
           </div>
         </main>
 
-        <div className="hep-version">v{version}</div>
+        <HelmVersionLabel className="hep-version" />
       </div>
     </>
   );

@@ -6,6 +6,7 @@ import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { PersistentMessage } from '@/components/ui/PersistentMessage';
 
 const VARIANT_KEY = 'helm-auth-variant';
+const UPDATE_SIM_KEY = 'helm-dev-simulate-update';
 
 function DevDebugPanelInner() {
   const toast = useToast();
@@ -13,10 +14,12 @@ function DevDebugPanelInner() {
   const [showCritical, setShowCritical] = useState(false);
   const [showFatal, setShowFatal] = useState(false);
   const [authVariant, setAuthVariant] = useState<'a' | 'b'>('a');
+  const [simulateUpdate, setSimulateUpdate] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem(VARIANT_KEY);
     if (stored === 'b') setAuthVariant('b');
+    setSimulateUpdate(localStorage.getItem(UPDATE_SIM_KEY) === 'true');
   }, []);
 
   async function triggerError() {
@@ -157,6 +160,30 @@ function DevDebugPanelInner() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Update simulation */}
+            <div style={{
+              borderTop: '1px solid var(--border2)',
+              paddingTop: '8px',
+              marginTop: '2px',
+            }}>
+              <button
+                type="button"
+                style={{
+                  ...btnStyle,
+                  background: simulateUpdate ? 'var(--action)' : 'var(--bg2)',
+                  color: simulateUpdate ? 'var(--action-text)' : 'var(--text)',
+                }}
+                onClick={() => {
+                  const next = !simulateUpdate;
+                  setSimulateUpdate(next);
+                  localStorage.setItem(UPDATE_SIM_KEY, String(next));
+                  window.dispatchEvent(new Event('helm-dev-update-change'));
+                }}
+              >
+                {simulateUpdate ? '✓ Update Simulated' : 'Simulate Update'}
+              </button>
             </div>
           </div>
         )}

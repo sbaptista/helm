@@ -9,6 +9,7 @@ import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
+import { scrollToFirstError } from '@/lib/form-utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -210,7 +211,11 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
 
   async function handleSave() {
     setTouched(prev => new Set([...prev, 'type']))
-    if (!form.type.trim()) return
+    if (!form.type.trim()) {
+      toast.show('Please fix the highlighted fields.', 'error')
+      scrollToFirstError()
+      return
+    }
     setSaving(true)
     try {
       const payload = {

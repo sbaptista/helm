@@ -9,6 +9,7 @@ import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
+import { scrollToFirstError } from '@/lib/form-utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -235,7 +236,11 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
 
   async function handleSave() {
     setTouched(prev => new Set([...prev, 'name']))
-    if (!form.name.trim()) return
+    if (!form.name.trim()) {
+      toast.show('Please fix the highlighted fields.', 'error')
+      scrollToFirstError()
+      return
+    }
     setSaving(true)
     try {
       const payload = {

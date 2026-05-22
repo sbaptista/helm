@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
+import { scrollToFirstError } from '@/lib/form-utils'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type DayErrors = Partial<Record<'day_date' | 'title', string>>
 type RowErrors = Partial<Record<'title' | 'start_date' | 'start_time_val' | 'start_timezone' | 'end_date' | 'end_time_val', string>>
 
 export type ItineraryDay = {
@@ -209,6 +211,13 @@ function validateRowForm(form: ReturnType<typeof rowToForm>): RowErrors {
   return errs
 }
 
+function validateDayForm(form: { day_date: string; title: string }): DayErrors {
+  const errs: DayErrors = {}
+  if (!form.day_date) errs.day_date = 'Required'
+  if (!form.title.trim()) errs.title = 'Required'
+  return errs
+}
+
 function categoryColor(cat: string): { bg: string; text: string; border: string } {
   const c = (cat ?? '').toLowerCase();
   if (c === 'flight' || c.includes('air'))
@@ -321,7 +330,12 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
   const [deleting, setDeleting] = useState(false)
   const [confirmDeleteDay, setConfirmDeleteDay] = useState(false)
   const [confirmDeleteRow, setConfirmDeleteRow] = useState(false)
+  const [dayErrors, setDayErrors] = useState<DayErrors>({})
   const [rowErrors, setRowErrors] = useState<RowErrors>({})
+
+  function clearDayError(field: keyof DayErrors) {
+    setDayErrors(e => { const next = { ...e }; delete next[field]; return next })
+  }
 
   function clearError(field: keyof RowErrors) {
     setRowErrors(e => { const next = { ...e }; delete next[field]; return next })
@@ -344,6 +358,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
     setEditingDay(null)
     setDayForm({ ...EMPTY_DAY_FORM })
     setConfirmDeleteDay(false)
+    setDayErrors({})
     setDaySheetOpen(true)
   }
 
@@ -351,10 +366,18 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
     setEditingDay(d)
     setDayForm(dayToForm(d))
     setConfirmDeleteDay(false)
+    setDayErrors({})
     setDaySheetOpen(true)
   }
 
   async function handleSaveDay() {
+    const errs = validateDayForm(dayForm)
+    if (Object.keys(errs).length > 0) {
+      setDayErrors(errs)
+      toast.show('Please fix the highlighted fields.', 'error')
+      scrollToFirstError()
+      return
+    }
     setSaving(true)
     try {
       const payload = {
@@ -432,6 +455,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
     const errs = validateRowForm(rowForm)
     if (Object.keys(errs).length > 0) {
       setRowErrors(errs)
+      toast.show('Please fix the highlighted fields.', 'error')
+      scrollToFirstError()
       return
     }
     setSaving(true)
@@ -755,14 +780,14 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
           {/* Date + Type — 2-column grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <FormField label="Date">
+            <FormField label="Date" required error={dayErrors.day_date}>
               <input
                 type="date"
                 value={dayForm.day_date}
                 min={tripStartDate}
                 max={tripEndDate}
-                onChange={e => setDayForm(f => ({ ...f, day_date: e.target.value }))}
-                style={inputStyle()}
+                onChange={e => { setDayForm(f => ({ ...f, day_date: e.target.value })); clearDayError('day_date') }}
+                style={inputStyle(!!dayErrors.day_date)}
               />
             </FormField>
             <FormField label="Day Type">
@@ -777,13 +802,13 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
           </div>
 
           {/* Title */}
-          <FormField label="Title">
+          <FormField label="Title" required error={dayErrors.title}>
             <input
               type="text"
               value={dayForm.title}
-              onChange={e => setDayForm(f => ({ ...f, title: e.target.value }))}
+              onChange={e => { setDayForm(f => ({ ...f, title: e.target.value })); clearDayError('title') }}
               placeholder="e.g. Arrive Vancouver"
-              style={inputStyle()}
+              style={inputStyle(!!dayErrors.title)}
             />
             <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '4px', display: 'block' }}>
               Shown as the day header

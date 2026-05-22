@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useRouter } from 'next/navigation';
-import { VERSION } from '@/lib/version';
+import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
+import UpdateBanner, { BANNER_HEIGHT } from '@/components/ui/UpdateBanner';
 import { Button } from '@/components/ui/Button';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
@@ -337,6 +338,8 @@ const handleImportClose = () => {
         onShowCalendar={() => { setShowCalendar(true) }}
         calendarStatus={calendarStatus}
       />
+
+      <UpdateBanner onVisibilityChange={() => {}} />
 
       <TripSidebar
         isOpen={sidebarOpen}
@@ -692,7 +695,7 @@ const handleImportClose = () => {
             letterSpacing: '0.04em',
           }}
         >
-          v{VERSION}
+          <HelmVersionLabel />
         </span>
       </footer>
 

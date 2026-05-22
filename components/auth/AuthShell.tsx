@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { VERSION } from '@/lib/version';
+import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
 
 const VARIANT_KEY = 'helm-auth-variant';
 
@@ -269,7 +269,7 @@ function VariantA({ children }: { children: React.ReactNode }) {
           {children}
         </div>
 
-        <div className="auth-a-version">v{VERSION}</div>
+        <HelmVersionLabel className="auth-a-version" />
       </div>
     </>
   );
@@ -379,7 +379,7 @@ function VariantB({ children }: { children: React.ReactNode }) {
             <span className="auth-b-wordmark">Helm</span>
           </div>
           <p className="auth-b-tagline">Your journeys, beautifully organized.</p>
-          <span className="auth-b-version">v{VERSION}</span>
+          <HelmVersionLabel className="auth-b-version" />
         </div>
 
         <div className="auth-b-content">

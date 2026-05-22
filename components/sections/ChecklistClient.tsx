@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
+import { scrollToFirstError } from '@/lib/form-utils'
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -297,7 +298,11 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
 
   async function handleSave() {
     setTouched(prev => new Set([...prev, 'task']))
-    if (!form.task.trim()) return
+    if (!form.task.trim()) {
+      toast.show('Please fix the highlighted fields.', 'error')
+      scrollToFirstError()
+      return
+    }
     setSaving(true)
     try {
       const payload = {
