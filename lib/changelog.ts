@@ -6,6 +6,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.02.0037',
+    date: '2026-06-03',
+    changes: [
+      'Bypassed the @supabase/ssr browser client singleton cache using isSingleton: false and a custom local module-level cache, resolving the experimental passkeys error warning.',
+    ],
+  },
+  {
     version: 'v00.02.0036',
     date: '2026-06-03',
     changes: [
