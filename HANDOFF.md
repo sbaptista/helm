@@ -6,7 +6,7 @@
 
 ## App State
 
-- **Version:** `00.02.0031`
+- **Version:** `00.02.0033`
 - **Branch:** main
 - **Dev server:** user-started on localhost:3000
 - **Live URL:** https://helm-gilt.vercel.app
@@ -40,56 +40,31 @@
 
 ## Last Session Completed
 
-**2026-05-21 — HELM-52: Version update system + hydration fix + SW dev guard**
+**2026-06-03 — Establish ESLint safety baseline (Session 50, Gemini 3.5 Flash)**
 
-1. **Fixed hydration mismatch (v00.02.0027)** — `VERSION` constant inlined in `use client` components caused server/client divergence during deploy skew. Created `HelmVersionLabel` with deferred render pattern (empty useState, set in useEffect). Applied to all 7 locations: DashboardView, TripDetailView, AuthShell (variants A+B), OfflinePage, FatalErrorPage, import review page.
-
-2. **Version update system (HELM-52, v00.02.0031)** — Ported from Orb's proven pattern:
-   - `lib/changelog.ts` — Release interface + CHANGELOG array seeded with v0031, v0027, v0026
-   - `app/api/version/route.ts` — Returns `{ version }` with no-cache headers
-   - `components/ui/UpdateBanner.tsx` — Gold banner fixed at viewport top (z-index 110). Polls on mount, visibilitychange, 5-min interval. Toast on first detection. `onVisibilityChange` callback offsets parent headers. Dev simulation via localStorage flag.
-   - `components/ui/WhatsNewSheet.tsx` — Timeline changelog in ResponsiveSheet
-   - Help button added to DashboardView header (left of Sign Out) — opens What's New sheet
-   - `DevDebugPanel` — added "Simulate Update" toggle
-   - `Toast.tsx` — moved container from bottom to top of viewport with downward slide-in
-
-3. **Service worker dev guard** — SW was caching `_next/static/` chunks in dev, causing stale assets across restarts. `ServiceWorkerKiller.tsx` now unregisters all SWs in development, registers normally in production. Cache names bumped to v5.
-
-4. **Knowledge repo entries** — wrote entries for both the hydration fix and the full version update system.
+1. **Created Backlog Items** — Verified HELM-60 (Phase 2 hooks) and HELM-61 (Phase 3 TS type safety) in the Orb task backlog.
+2. **Added Documentation** — Placed the eslint remediation plan at `docs/eslint_remediation_plan.md`.
+3. **Updated ESLint Config** — Configured `eslint.config.mjs` to ignore `.claude/` worktrees and temporarily downgrade react hook and typescript explicit any rules to warnings, achieving an exit 0 baseline.
+4. **Updated Knowledge Base** — Posted the remediation plan details to the shared Knowledge Repository (ID `c5b9d15c-7221-4c4c-97a7-b5fb9f617321`).
 
 ---
 
 ## Uncommitted Changes
 
 ### Modified
-- `AGENTS.md` — synced sections from Orb
+- `AGENTS.md` — aligned instructions, environments, and database health with Orb
 - `HANDOFF.md` — this file
-- `app/api/trips/[id]/itinerary/days/route.ts` — server-side validation for day_date + title
-- `components/advisor/DashboardView.tsx` — HelmVersionLabel, UpdateBanner with offset, Help button, WhatsNewSheet
-- `components/advisor/TripDetailView.tsx` — HelmVersionLabel, UpdateBanner
-- `components/auth/AuthShell.tsx` — HelmVersionLabel for both variants
-- `components/sections/ChecklistClient.tsx` — scroll-to-error + toast
-- `components/sections/FlightsClient.tsx` — scroll-to-error + toast + inline timing errors
-- `components/sections/HotelsClient.tsx` — scroll-to-error + toast
-- `components/sections/ItineraryClient.tsx` — client-side day/row validation + scroll-to-error + toast
-- `components/sections/RestaurantsClient.tsx` — scroll-to-error + toast
-- `components/sections/TransportationClient.tsx` — scroll-to-error + toast
-- `components/ui/DevDebugPanel.tsx` — "Simulate Update" toggle
-- `components/ui/FatalErrorPage.tsx` — HelmVersionLabel
-- `components/ui/OfflinePage.tsx` — HelmVersionLabel
-- `components/ui/ServiceWorkerKiller.tsx` — dev guard (unregister in dev, register in prod)
-- `components/ui/Toast.tsx` — top-positioned container with downward slide-in
-- `lib/version.ts` — bumped to 00.02.0031
-- `public/sw.js` — cache names v4 → v5
-- `app/advisor/trips/[id]/import/review/page.tsx` — HelmVersionLabel
+- `lib/version.ts` — bumped version to 00.02.0033
+- `package.json` — bumped version to 0.2.33
+- `lib/changelog.ts` — added release entries for v00.02.0032 and v00.02.0033
+- `eslint.config.mjs` — ignored .claude/** worktrees and relaxed rules to warn
+- `app/api/trips/import/confirm/route.ts` — autofixed unused directives
+- `components/ui/Modal.tsx` — autofixed unused directives
+- `package-lock.json` — updated version metadata
 
-### New
-- `app/api/version/route.ts` — version endpoint
-- `components/ui/HelmVersionLabel.tsx` — deferred version render
-- `components/ui/UpdateBanner.tsx` — version detection + update banner
-- `components/ui/WhatsNewSheet.tsx` — changelog timeline in ResponsiveSheet
-- `lib/changelog.ts` — release changelog data
-- `lib/form-utils.ts` — shared scrollToFirstError() utility
+### Untracked
+- `docs/` — eslint remediation plan
+- `supabase/` — local supabase configuration directory
 
 ---
 
@@ -111,11 +86,19 @@
 
 ## Next Priorities
 
-1. Check Orb backlog (`product=HELM`) for new tickets.
-2. Address any remaining hydration issues if they resurface after the SW dev guard fix.
+1. Implement Phase 2: Resolving React Hook Side-Effects (HELM-60).
+2. Implement Phase 3: Incremental Type Safety & Hygiene (HELM-61).
+
+---
+
+## Session Rules (always enforce)
+
+- **Permission required before:** any code implementation or build changes.
+- **Never `git push` without Stan's explicit in-chat approval.** (Wait for Stan to commit — do not auto-commit).
+- **Always bump version** on every local change — no exceptions.
 
 ---
 
 ## AI Tool Used Last Session
 
-2026-05-21 — Claude Code (Opus 4.6)
+2026-06-03 — Antigravity (Gemini 3.5 Flash)

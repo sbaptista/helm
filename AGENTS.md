@@ -13,6 +13,7 @@
 
 **Instructions:**
 - **Never build/implement changes without explicit permission/confirmation from Stan.**
+- **Never `git push` without Stan's explicit in-chat approval.** Commit locally when asked. Never push. Push triggers a production deploy — that is always Stan's call. See shared AGENTS.md "Git — Commits and Pushes" for the full rule.
 - **Repeat verbatim the release documentation rule at the start of every session:** Before any code push/release, the agent must document all changes in `lib/changelog.ts` by adding a new `Release` entry with the bumped version, release date, and details of changes, and bump the patch version in `lib/version.ts`.
 - **Knowledge Repository Access:** The knowledgebase is stored in the database (`knowledge_repo` table). Always query it at the start of a task using the `SUPABASE_SECRET_KEY` (service role) to bypass Row Level Security (RLS) constraints. See the **Knowledge Repository Access** section below for connection details and query examples.
 - Your first and only message before any tool use must be a numbered list answering all questions.
@@ -77,6 +78,24 @@ Replacing CAN26 for October 2026 Canadian Rockies / Rocky Mountaineer trip.
 **Product code:** `HELM` (for Orb API and Knowledge Repo)
 **Dev port:** 3000
 **Supabase client import path:** `@/lib/supabase/client`
+
+---
+
+# Environments
+
+Two environments:
+
+| Environment | URL | Branch | Purpose |
+|---|---|---|---|
+| **Localhost** | `https://localhost:3000` | working tree | Fast iteration — hot reload, DEV panel, instant feedback. Where AI + Stan build. |
+| **Production** | `https://helm-gilt.vercel.app` | `main` | Live app used by travelers. |
+
+## Deployment workflow
+
+1. AI commits changes on `main` locally
+2. Stan tests on localhost (Mac, iPad via network, iPhone via network)
+3. When satisfied: `git push origin main`
+4. Vercel auto-deploys to production
 
 ---
 
@@ -227,3 +246,43 @@ When working on complex tasks, an agent's usage limits may expire mid-session, l
 
 3. **Use Scratch Files for complex code drafts**:
    Save raw code drafts, research summaries, or temporary API responses in the `scripts/` or `scratch/` directory. Do not leave them only in the chat history.
+
+---
+
+# Database Health
+
+Database health is a first-class concern. Problems do not announce themselves — they accumulate silently and surface as Supabase budget warnings or throttling. Two mandates apply at all times:
+
+## 1. Design-Time Impact Analysis (mandatory before implementing any feature)
+
+Before writing code for any feature that touches the database, answer these questions:
+
+| Question | Why it matters |
+|---|---|
+| Does this add a new query pattern? | May need a new index |
+| Does this use `postgres_changes` / Realtime? | WAL reader is always-on disk IO — avoid unless multi-user sync is genuinely needed |
+| Does this write frequently (every render, every keystroke)? | High write frequency → dead tuple bloat → autovacuum pressure |
+| Does this add a new table? | Needs RLS policies using `(SELECT auth.uid())` wrapper, not bare `auth.uid()` |
+| Does this add a column queried in WHERE or JOIN? | May need an index |
+
+**Rule:** If the answer to any of these is yes, explicitly state the DB impact in the implementation plan and include any required indexes or schema notes.
+
+**Realtime rule:** `postgres_changes` subscriptions cause continuous WAL decoding. Only use Realtime if the feature genuinely requires multi-device or multi-user live sync. For single-user views, standard tab-focus refetch or visibility refetch is always sufficient and generates zero continuous DB load.
+
+## 2. Periodic Health Review (run at the start of any session where DB changes are made)
+
+Run sequential scans, dead row, cache hits, and RLS initplan checks via psql if direct DB access is configured. 
+
+### RLS initplan check (auth.uid() must always be wrapped in SELECT)
+Ensure that RLS policies checking auth.uid() wrap it in a SELECT statement: `(SELECT auth.uid())`. This prevents Postgres from executing the function call once per row evaluated, preventing severe query degradation.
+
+## Index conventions
+
+| Pattern | When to use |
+|---|---|
+| `CREATE INDEX ON <table_name> (trip_id, status) WHERE deleted_at IS NULL` | Composite partial — for filtered queries with multiple WHERE clauses |
+| `CREATE INDEX ON <table_name> (created_by) WHERE deleted_at IS NULL` | FK columns used in RLS subqueries |
+| `CREATE INDEX ON <table_name> (user_id)` | FK columns used in RLS or JOIN |
+| `CREATE INDEX ON <table_name> (created_at DESC)` | ORDER BY columns in paginated views |
+
+Name indexes descriptively: `idx_<table>_<columns>` or `idx_<table>_<columns>_<condition>`.

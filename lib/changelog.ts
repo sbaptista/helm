@@ -6,6 +6,21 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.02.0033',
+    date: '2026-06-03',
+    changes: [
+      'Implemented Phase 1 of ESLint remediation plan: ignored .claude/ worktrees, relaxed no-explicit-any and set-state-in-effect rules to warnings, and ran mechanical autofix.',
+      'Created backlog tasks HELM-60 (Phase 2 hooks) and HELM-61 (Phase 3 TS any) and updated shared knowledge repository.',
+    ],
+  },
+  {
+    version: 'v00.02.0032',
+    date: '2026-06-03',
+    changes: [
+      'Aligned project-specific AGENTS.md and HANDOFF.md with latest Orb workspace conventions, including environments, database health analysis, and session rules.',
+    ],
+  },
+  {
     version: 'v00.02.0031',
     date: '2026-05-21',
     changes: [

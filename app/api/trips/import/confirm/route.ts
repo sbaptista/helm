@@ -57,7 +57,7 @@ function toTimestamp(date: string | null | undefined, time: string | null | unde
   return `${date}T${t}`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 async function logError(
   supabase: any,
   message: string,

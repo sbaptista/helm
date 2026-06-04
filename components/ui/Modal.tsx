@@ -134,7 +134,7 @@ export function Modal({ open, onClose, confirmClose, onConfirmClose, children }:
     if (!dialog) return;
     const focusable = dialog.querySelectorAll<HTMLElement>(focusableSelectors);
     focusable[0]?.focus();
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open]);  
 
   // Keyboard handler — Escape closes, Tab wraps at the boundary.
   // Queries focusable elements fresh on each Tab so dynamic content
@@ -169,7 +169,7 @@ export function Modal({ open, onClose, confirmClose, onConfirmClose, children }:
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose, confirmClose, onConfirmClose]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, onClose, confirmClose, onConfirmClose]);  
 
   // Lock body scroll while open
   useEffect(() => {
