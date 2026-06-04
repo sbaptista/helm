@@ -6,7 +6,7 @@
 
 ## App State
 
-- **Version:** `00.02.0035`
+- **Version:** `00.02.0036`
 - **Branch:** main
 - **Dev server:** user-started on localhost:3000
 - **Live URL:** https://helm-gilt.vercel.app
@@ -47,29 +47,19 @@
 3. **Passkey Onboarding Route (HELM-59)** — Built server page `app/auth/setup-passkey/page.tsx` and client form `SetupPasskeyForm.tsx` to register biometrics immediately after login.
 4. **Login UI Integrations (HELM-59)** — Added a "Sign in with passkey" option on the login form when biometrics are supported, and removed the visual development bypass instructions box from the login page UI.
 5. **6-Digit OTP Migration (HELM-59)** — Converted the OTP verification screen and input constraints from 8 digits to 6 digits to match standard Supabase/Orb behavior, adding redirection to setup-passkey for first-time passkey enrollment.
+6. **Passkey Experimental Option** — Enabled experimental passkey options on both client and server Supabase client constructors to resolve deprecation warnings.
 
 ---
 
 ## Uncommitted Changes
 
 ### Modified
-- `app/layout.tsx` — integrated global OfflineGuard wrapping RootLayout children
-- `app/advisor/dashboard/page.tsx` — removed redundant OfflineGuard wrapper
-- `app/advisor/trips/[id]/import/review/page.tsx` — removed redundant OfflineGuard wrapper
-- `app/advisor/trips/[id]/print/page.tsx` — removed redundant OfflineGuard wrapper
-- `app/search/page.tsx` — removed redundant OfflineGuard wrapper
-- `app/auth/login/LoginForm.tsx` — integrated conditional passkey login option and removed bypass banner UI
-- `app/auth/verify-otp/VerifyOtpForm.tsx` — changed to 6 digits and added passkey onboarding redirect
-- `lib/version.ts` — bumped version to 00.02.0035
-- `package.json` — bumped dependencies (@supabase/supabase-js to 2.106.2, @supabase/ssr to 0.10.3) and version to 0.2.35
-- `lib/changelog.ts` — added release entries for v00.02.0034 and v00.02.0035
-- `package-lock.json` — updated package structures
+- `lib/supabase/client.ts` — enabled experimental passkey option on browser Supabase client
+- `lib/supabase/server.ts` — enabled experimental passkey option on server Supabase client
+- `lib/version.ts` — bumped version to 00.02.0036
+- `package.json` — bumped version to 0.2.36
+- `lib/changelog.ts` — added release entry for v00.02.0036
 - `HANDOFF.md` — this file
-
-### New Files
-- `lib/passkey.ts` — WebAuthn utility script
-- `app/auth/setup-passkey/page.tsx` — passkey onboarding page
-- `app/auth/setup-passkey/SetupPasskeyForm.tsx` — passkey onboarding client form
 
 ### Untracked
 - `supabase/` — local supabase configuration directory (committed config.toml in last session)

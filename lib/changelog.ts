@@ -6,6 +6,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.02.0036',
+    date: '2026-06-03',
+    changes: [
+      'Enabled experimental passkey options on both client and server Supabase client constructors.',
+    ],
+  },
+  {
     version: 'v00.02.0035',
     date: '2026-06-03',
     changes: [
