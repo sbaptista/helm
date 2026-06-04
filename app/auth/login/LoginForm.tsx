@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
+import { isPasskeyAvailable, authenticateWithPasskey } from '@/lib/passkey';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -52,6 +53,41 @@ export function LoginForm({ initialError }: LoginFormProps) {
   const [emailError, setEmailError] = useState<string | undefined>(undefined);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [passkeyInfo, setPasskeyInfo] = useState('');
+
+  useEffect(() => {
+    setPasskeyAvailable(isPasskeyAvailable());
+  }, []);
+
+  async function handlePasskeyLogin() {
+    setPasskeyLoading(true);
+    setGeneralError(null);
+    setPasskeyInfo('');
+
+    const supabase = createClient();
+    const result = await authenticateWithPasskey(supabase);
+
+    if (result.ok) {
+      router.push('/advisor/dashboard');
+      return;
+    }
+
+    setPasskeyLoading(false);
+
+    if (result.error === 'cancelled') {
+      return;
+    }
+
+    if (result.error === 'no_credentials') {
+      setPasskeyInfo('No passkey found for this device. Sign in with email below.');
+      return;
+    }
+
+    setGeneralError(result.error || 'Passkey authentication failed. Try signing in with email.');
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -102,11 +138,7 @@ export function LoginForm({ initialError }: LoginFormProps) {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      noValidate
-      style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Callback error banner */}
       {initialError && !generalError && (
         <div role="alert" style={errorBannerStyle}>
@@ -121,12 +153,55 @@ export function LoginForm({ initialError }: LoginFormProps) {
         </div>
       )}
 
-      <FormField
-        label="Email address"
-        required
-        error={emailError}
-        htmlFor="login-email"
+      {passkeyAvailable && (
+        <>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handlePasskeyLogin}
+            loading={passkeyLoading}
+            style={{ width: '100%', fontSize: '15px' }}
+          >
+            Sign in with passkey
+          </Button>
+
+          {passkeyInfo && (
+            <div
+              style={{
+                padding: '12px 16px',
+                background: 'rgba(184,137,42,0.06)',
+                border: '1px solid rgba(184,137,42,0.2)',
+                borderRadius: 'var(--r)',
+                fontSize: '13px',
+                color: 'var(--text3)',
+                fontFamily: "'Lato', sans-serif",
+                lineHeight: 1.5,
+                textAlign: 'center',
+              }}
+            >
+              {passkeyInfo}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border2)' }} />
+            <span style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: "'Lato', sans-serif" }}>or</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border2)' }} />
+          </div>
+        </>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}
       >
+        <FormField
+          label="Email address"
+          required
+          error={emailError}
+          htmlFor="login-email"
+        >
         <input
           id="login-email"
           type="email"
@@ -157,35 +232,7 @@ export function LoginForm({ initialError }: LoginFormProps) {
       >
         Send Verification Code
       </Button>
-
-      {isDev && (
-        <div
-          style={{
-            padding: '12px 16px',
-            background: 'rgba(184,137,42,0.06)',
-            border: '1px solid rgba(184,137,42,0.2)',
-            borderRadius: 'var(--r)',
-            fontSize: '13px',
-            color: 'var(--gold)',
-            fontFamily: "'Lato', sans-serif",
-            lineHeight: 1.5,
-            textAlign: 'center',
-          }}
-        >
-          <strong>Dev:</strong> use{' '}
-          <code
-            style={{
-              background: 'rgba(184,137,42,0.1)',
-              padding: '1px 6px',
-              borderRadius: '4px',
-              fontFamily: 'monospace',
-            }}
-          >
-            dev@dev.local
-          </code>{' '}
-          to bypass OTP
-        </div>
-      )}
     </form>
+  </div>
   );
 }

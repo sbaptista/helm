@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 import { redirect } from 'next/navigation';
 import { getDataClient } from '@/lib/supabase/data-client';
 import { DashboardView } from '@/components/advisor/DashboardView';
-import { OfflineGuard } from '@/components/ui/OfflineGuard';
 import type { Trip, TripStatus } from '@/types/trips';
 
 async function fetchTrips(userId: string): Promise<Trip[]> {
@@ -74,13 +73,11 @@ export default async function AdvisorDashboardPage() {
   }
 
   return (
-    <OfflineGuard>
-      <DashboardView
-        trips={trips}
-        userEmail={user.email ?? ''}
-        fetchError={fetchError}
-        showSignOut={true}
-      />
-    </OfflineGuard>
+    <DashboardView
+      trips={trips}
+      userEmail={user.email ?? ''}
+      fetchError={fetchError}
+      showSignOut={true}
+    />
   );
 }

@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/Button';
 import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
 import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { createClient } from '@/lib/supabase/client';
-import { OfflineGuard } from '@/components/ui/OfflineGuard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1043,10 +1042,8 @@ export default function ImportReviewPage() {
   if (!payload) return null;
 
   return (
-    <OfflineGuard>
-      <ToastProvider>
-        <ReviewInner tripId={params.id} payload={payload} />
-      </ToastProvider>
-    </OfflineGuard>
+    <ToastProvider>
+      <ReviewInner tripId={params.id} payload={payload} />
+    </ToastProvider>
   );
 }

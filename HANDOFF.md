@@ -6,7 +6,7 @@
 
 ## App State
 
-- **Version:** `00.02.0033`
+- **Version:** `00.02.0035`
 - **Branch:** main
 - **Dev server:** user-started on localhost:3000
 - **Live URL:** https://helm-gilt.vercel.app
@@ -30,7 +30,7 @@
 | Calendar | gcal_include opt-in architecture complete | 00.01.0159 |
 | Logs | Complete — Phase 1–4 done + clear-all option | 00.02.0014 |
 | Search | Rebuilt — whole-word toggle, match highlighting | 00.02.0000 |
-| Auth (OTP) | Complete — 8-digit code flow + dev bypass | 00.02.0016 |
+| Auth (OTP) | Complete — 6-digit code flow + Passkeys | 00.02.0034 |
 | Auth Shell | Redesigned — single-column, ship's wheel, shooting stars | 00.02.0019 |
 | Icons | Ship's wheel favicon (32x32) + PWA icon (180x180) | 00.02.0018 |
 | Dashboard | CRUD centralized — ellipsis menu, status pills, force-dynamic + Help button + update banner | 00.02.0031 |
@@ -40,31 +40,39 @@
 
 ## Last Session Completed
 
-**2026-06-03 — Establish ESLint safety baseline (Session 50, Gemini 3.5 Flash)**
+**2026-06-03 — Global Offline Guard & Passkey/6-Digit OTP Integration (Session 51, Gemini 3.5 Flash)**
 
-1. **Created Backlog Items** — Verified HELM-60 (Phase 2 hooks) and HELM-61 (Phase 3 TS type safety) in the Orb task backlog.
-2. **Added Documentation** — Placed the eslint remediation plan at `docs/eslint_remediation_plan.md`.
-3. **Updated ESLint Config** — Configured `eslint.config.mjs` to ignore `.claude/` worktrees and temporarily downgrade react hook and typescript explicit any rules to warnings, achieving an exit 0 baseline.
-4. **Updated Knowledge Base** — Posted the remediation plan details to the shared Knowledge Repository (ID `c5b9d15c-7221-4c4c-97a7-b5fb9f617321`).
+1. **Global Offline Guard (HELM-54)** — Wired `OfflineGuard` directly into the root layout `layout.tsx` to automatically cover all pages (including unauthenticated pages like `/auth/login` and `/auth/verify-otp`). Removed duplicate overrides from dashboard, print, search, and import review pages.
+2. **WebAuthn/Passkey Utilities (HELM-59)** — Ported client-side passkey enrollment, listing, deletion, and authentication utilities (`lib/passkey.ts`). Excluded localhost/dev domains from passkey availability logic to avoid WebAuthn RP ID mismatch issues.
+3. **Passkey Onboarding Route (HELM-59)** — Built server page `app/auth/setup-passkey/page.tsx` and client form `SetupPasskeyForm.tsx` to register biometrics immediately after login.
+4. **Login UI Integrations (HELM-59)** — Added a "Sign in with passkey" option on the login form when biometrics are supported, and removed the visual development bypass instructions box from the login page UI.
+5. **6-Digit OTP Migration (HELM-59)** — Converted the OTP verification screen and input constraints from 8 digits to 6 digits to match standard Supabase/Orb behavior, adding redirection to setup-passkey for first-time passkey enrollment.
 
 ---
 
 ## Uncommitted Changes
 
 ### Modified
-- `AGENTS.md` — aligned instructions, environments, and database health with Orb
+- `app/layout.tsx` — integrated global OfflineGuard wrapping RootLayout children
+- `app/advisor/dashboard/page.tsx` — removed redundant OfflineGuard wrapper
+- `app/advisor/trips/[id]/import/review/page.tsx` — removed redundant OfflineGuard wrapper
+- `app/advisor/trips/[id]/print/page.tsx` — removed redundant OfflineGuard wrapper
+- `app/search/page.tsx` — removed redundant OfflineGuard wrapper
+- `app/auth/login/LoginForm.tsx` — integrated conditional passkey login option and removed bypass banner UI
+- `app/auth/verify-otp/VerifyOtpForm.tsx` — changed to 6 digits and added passkey onboarding redirect
+- `lib/version.ts` — bumped version to 00.02.0035
+- `package.json` — bumped dependencies (@supabase/supabase-js to 2.106.2, @supabase/ssr to 0.10.3) and version to 0.2.35
+- `lib/changelog.ts` — added release entries for v00.02.0034 and v00.02.0035
+- `package-lock.json` — updated package structures
 - `HANDOFF.md` — this file
-- `lib/version.ts` — bumped version to 00.02.0033
-- `package.json` — bumped version to 0.2.33
-- `lib/changelog.ts` — added release entries for v00.02.0032 and v00.02.0033
-- `eslint.config.mjs` — ignored .claude/** worktrees and relaxed rules to warn
-- `app/api/trips/import/confirm/route.ts` — autofixed unused directives
-- `components/ui/Modal.tsx` — autofixed unused directives
-- `package-lock.json` — updated version metadata
+
+### New Files
+- `lib/passkey.ts` — WebAuthn utility script
+- `app/auth/setup-passkey/page.tsx` — passkey onboarding page
+- `app/auth/setup-passkey/SetupPasskeyForm.tsx` — passkey onboarding client form
 
 ### Untracked
-- `docs/` — eslint remediation plan
-- `supabase/` — local supabase configuration directory
+- `supabase/` — local supabase configuration directory (committed config.toml in last session)
 
 ---
 

@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
+import { isPasskeyAvailable, listPasskeys } from '@/lib/passkey';
 
 const errorBannerStyle: React.CSSProperties = {
   padding: '12px 16px',
@@ -68,11 +69,25 @@ export function VerifyOtpForm() {
       .eq('id', user.id)
       .single();
 
-    router.push(
-      existingUser
-        ? '/advisor/dashboard'
-        : `/auth/create-account?email=${encodeURIComponent(email)}`
-    );
+    if (existingUser) {
+      try {
+        if (isPasskeyAvailable()) {
+          const skipped = localStorage.getItem('passkey_prompt_skipped');
+          if (!skipped) {
+            const result = await listPasskeys(supabase);
+            if (result.ok && result.data && result.data.length === 0) {
+              router.push('/auth/setup-passkey');
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        // Fallback to dashboard
+      }
+      router.push('/advisor/dashboard');
+    } else {
+      router.push(`/auth/create-account?email=${encodeURIComponent(email)}`);
+    }
   }
 
   return (
@@ -103,7 +118,7 @@ export function VerifyOtpForm() {
             margin: 0,
           }}
         >
-          Enter the 8-digit code sent to{' '}
+          Enter the 6-digit code sent to{' '}
           <strong style={{ color: 'var(--text2)', fontWeight: 700 }}>{email}</strong>.
         </p>
       </div>
@@ -120,11 +135,11 @@ export function VerifyOtpForm() {
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
-          maxLength={8}
+          maxLength={6}
           autoComplete="one-time-code"
           value={otp}
           onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-          placeholder="12345678"
+          placeholder="123456"
           style={{
             ...(focused ? inputFocusStyle(false) : inputStyle(false)),
             fontSize: '24px',
@@ -141,7 +156,7 @@ export function VerifyOtpForm() {
         type="submit"
         variant="primary"
         loading={loading}
-        disabled={loading || otp.length !== 8}
+        disabled={loading || otp.length !== 6}
         style={{ width: '100%', fontSize: '15px' }}
       >
         Verify

@@ -6,6 +6,24 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.02.0035',
+    date: '2026-06-03',
+    changes: [
+      'Removed development bypass instructions box from the login form UI.',
+    ],
+  },
+  {
+    version: 'v00.02.0034',
+    date: '2026-06-03',
+    changes: [
+      'Implemented global offline guard wrapping root layout children, removing redundant page-level overrides (HELM-54).',
+      'Ported WebAuthn/Passkey Client utilities and setup passkey onboarding page (/auth/setup-passkey) from Orb (HELM-59).',
+      'Added passkey authentication controls to the email login screen, conditionally rendered on production hostnames (HELM-59).',
+      'Converted passwordless OTP validation from 8 digits to 6 digits to align with Orb standards (HELM-59).',
+      'Upgraded @supabase/supabase-js and @supabase/ssr dependencies to support WebAuthn APIs (HELM-59).',
+    ],
+  },
+  {
     version: 'v00.02.0033',
     date: '2026-06-03',
     changes: [

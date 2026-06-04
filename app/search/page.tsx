@@ -1,7 +1,6 @@
 import { Suspense } from 'react';
 import { SearchResults } from '@/components/search/SearchResults';
 import { SearchBackButton } from '@/components/search/SearchBackButton';
-import { OfflineGuard } from '@/components/ui/OfflineGuard';
 
 export default async function SearchPage({
   searchParams,
@@ -11,7 +10,6 @@ export default async function SearchPage({
   const { q = '', section, logs } = await searchParams;
 
   return (
-    <OfflineGuard>
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <SearchBackButton />
 
@@ -42,6 +40,5 @@ export default async function SearchPage({
         </Suspense>
       </div>
     </div>
-    </OfflineGuard>
   );
 }

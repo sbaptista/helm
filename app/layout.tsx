@@ -3,6 +3,7 @@ import "./globals.css";
 import { DevDebugPanel } from '@/components/ui/DevDebugPanel';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import ServiceWorkerRegistrar from '@/components/ui/ServiceWorkerKiller';
+import { OfflineGuard } from '@/components/ui/OfflineGuard';
 
 export const metadata: Metadata = {
   title: "Helm",
@@ -22,7 +23,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ErrorBoundary>
-          {children}
+          <OfflineGuard>
+            {children}
+          </OfflineGuard>
         </ErrorBoundary>
         <ServiceWorkerRegistrar />
         {process.env.NODE_ENV === 'development' && <DevDebugPanel />}
