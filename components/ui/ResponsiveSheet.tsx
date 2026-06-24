@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from './Modal';
 import { BottomSheet } from './BottomSheet';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 interface PrimaryAction {
   label: string;
@@ -26,15 +27,7 @@ export function ResponsiveSheet({
   primaryAction,
   children,
 }: ResponsiveSheetProps) {
-  const [isDesktop, setIsDesktop] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 900px)');
-    setIsDesktop(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
+  const isDesktop = useMediaQuery('(min-width: 900px)');
 
   if (isDesktop) {
     return (

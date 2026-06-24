@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { stripEmojiForPrint, generate3x5CardPDF, chunkArray } from '@/lib/printing/printing-service';
 import { CardWrapper, CardHeader, CardRow } from '@/components/advisor/print/CardTemplates';
 import { createClient } from '@/lib/supabase/client';
+import type { FlightRow, HotelRow, KeyInfoRow, ItineraryRowRow, TransportationRow, RestaurantRow } from '@/types/sections';
 
 interface PrintExportModalProps {
   open: boolean;
@@ -61,12 +62,12 @@ export function PrintExportModal({
   const captureLayerRef = useRef<HTMLDivElement>(null);
 
   const [printData, setPrintData] = useState<{
-    flights: any[];
-    hotels: any[];
-    keyInfo: any[];
-    itinRows: any[];
-    transportation: any[];
-    restaurants: any[];
+    flights: FlightRow[];
+    hotels: HotelRow[];
+    keyInfo: Pick<KeyInfoRow, 'id' | 'label' | 'value'>[];
+    itinRows: ItineraryRowRow[];
+    transportation: TransportationRow[];
+    restaurants: RestaurantRow[];
   } | null>(null);
   const [printLoading, setPrintLoading] = useState(false);
 
@@ -83,12 +84,12 @@ export function PrintExportModal({
       supabase.from('restaurants').select('*').eq('trip_id', tripId).is('deleted_at', null).order('reservation_time'),
     ]).then(([f, h, k, i, t, r]) => {
       setPrintData({
-        flights:        f.data ?? [],
-        hotels:         h.data ?? [],
-        keyInfo:        k.data ?? [],
-        itinRows:       i.data ?? [],
-        transportation: t.data ?? [],
-        restaurants:    r.data ?? [],
+        flights:        (f.data ?? []) as FlightRow[],
+        hotels:         (h.data ?? []) as HotelRow[],
+        keyInfo:        (k.data ?? []) as Pick<KeyInfoRow, 'id' | 'label' | 'value'>[],
+        itinRows:       (i.data ?? []) as ItineraryRowRow[],
+        transportation: (t.data ?? []) as TransportationRow[],
+        restaurants:    (r.data ?? []) as RestaurantRow[],
       });
       setPrintLoading(false);
     });
@@ -227,7 +228,7 @@ export function PrintExportModal({
                             <span style={{ color: '#6E4C10' }}>{f.confirmation_number}</span>
                           </div>
                           <div style={{ fontSize: '10px', color: '#3D3020' }}>
-                            {f.origin_airport} → {f.destination_airport} | {new Date(f.departure_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {f.origin_airport} → {f.destination_airport} | {f.departure_time ? new Date(f.departure_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                           </div>
                         </div>
                       ))}
@@ -238,7 +239,7 @@ export function PrintExportModal({
                     <div style={{ marginTop: '4px' }}>
                       {chunk.map((f) => (
                         <div key={f.id} style={{ marginBottom: '10px' }}>
-                          <CardRow label={f.flight_number} value={`${f.cabin_class || 'Economy'} • Seat: ${f.seat_assignment || 'TBD'}`} />
+                          <CardRow label={f.flight_number ?? '—'} value={`${f.cabin_class || 'Economy'} • Seat: ${f.seat_assignment || 'TBD'}`} />
                           {f.notes && <div style={{ fontSize: '9px', fontStyle: 'italic', paddingLeft: '85px', color: '#666' }}>{f.notes}</div>}
                         </div>
                       ))}
@@ -260,7 +261,7 @@ export function PrintExportModal({
                         <div key={h.id} style={{ marginBottom: '8px' }}>
                           <div style={{ fontSize: '11px', fontWeight: 700 }}>{h.name}</div>
                           <div style={{ fontSize: '10px', color: '#3D3020' }}>{h.address}</div>
-                          <div style={{ fontSize: '10px', color: '#6E4C10' }}>Check-in: {new Date(h.check_in_date).toLocaleDateString()}</div>
+                          <div style={{ fontSize: '10px', color: '#6E4C10' }}>Check-in: {h.check_in_date ? new Date(h.check_in_date).toLocaleDateString() : '—'}</div>
                         </div>
                       ))}
                     </div>
@@ -269,7 +270,7 @@ export function PrintExportModal({
                     <CardHeader title="🏨 Hotels — Confirmations" sub="Reference" pageLabel={all.length > 1 ? `${idx + 1}/${all.length}` : undefined} />
                     <div style={{ marginTop: '4px' }}>
                       {chunk.map((h) => (
-                        <CardRow key={h.id} label={h.name} value={h.confirmation_number || '—'} />
+                        <CardRow key={h.id} label={h.name ?? '—'} value={h.confirmation_number || '—'} />
                       ))}
                     </div>
                   </CardWrapper>
@@ -340,7 +341,7 @@ export function PrintExportModal({
                     <div style={{ marginTop: '4px' }}>
                       {chunk.map((r) => (
                         <div key={r.id} style={{ marginBottom: '10px' }}>
-                          <CardRow label={r.name} value={r.phone || 'No phone'} />
+                          <CardRow label={r.name ?? '—'} value={r.phone || 'No phone'} />
                           {r.notes && <div style={{ fontSize: '9px', fontStyle: 'italic', paddingLeft: '85px', color: '#666' }}>{r.notes}</div>}
                         </div>
                       ))}
@@ -357,7 +358,7 @@ export function PrintExportModal({
               <div style={{ marginTop: '10px' }}>
                 {(printData?.keyInfo ?? []).length > 0 ? (
                   (printData?.keyInfo ?? []).map((k) => (
-                    <CardRow key={k.id} label={k.label} value={k.value} />
+                    <CardRow key={k.id} label={k.label ?? '—'} value={k.value ?? '—'} />
                   ))
                 ) : (
                   <p style={{ fontSize: '11px', color: '#666' }}>No key information found.</p>
@@ -379,7 +380,7 @@ export function PrintExportModal({
                             <span style={{ fontWeight: 700, color: '#6E4C10', minWidth: '40px' }}>
                               {r.start_time ? r.start_time.split('T')[1].substring(0, 5) : '--:--'}
                             </span>
-                            <span>{stripEmojiForPrint(r.title)}</span>
+                            <span>{stripEmojiForPrint(r.title ?? '')}</span>
                           </div>
                         ))
                       ) : (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
 
 interface Props {
@@ -8,14 +8,6 @@ interface Props {
 }
 
 export default function FatalErrorPage({ error: _error }: Props) {
-  const [timestamp, setTimestamp] = useState('');
-
-  useEffect(() => {
-    setTimestamp(
-      'Occurred at ' +
-        new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    );
-  }, []);
 
   useEffect(() => {
     const timeoutIds: ReturnType<typeof setTimeout>[] = [];
@@ -180,7 +172,9 @@ export default function FatalErrorPage({ error: _error }: Props) {
             <button className="hep-reload-btn" onClick={() => window.location.reload()}>
               Reload page
             </button>
-            <p className="hep-timestamp">{timestamp}</p>
+            <p className="hep-timestamp" suppressHydrationWarning>
+              {'Occurred at ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+            </p>
             <div className="hep-status">
               <div className="hep-dot" />
               Error

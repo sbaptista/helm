@@ -3,6 +3,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { PrintStyles } from '@/components/advisor/print/PrintStyles';
 import { stripEmojiForPrint, formatPrintDateRange } from '@/lib/printing/printing-service';
+import type { FlightRow, HotelRow, TransportationRow, RestaurantRow, ItineraryDayRow, ItineraryRowRow, ChecklistRow, PackingRow, KeyInfoRow } from '@/types/sections';
 
 export default async function TripPrintPage({
   params,
@@ -98,19 +99,19 @@ export default async function TripPrintPage({
       {showSection('itinerary') && days && (
         <section className="print-section">
           <h2>Daily Itinerary</h2>
-          {days.map((day: any) => {
-            const dayRows = rows?.filter((r: any) => r.day_id === day.id) || [];
+          {days.map((day: ItineraryDayRow) => {
+            const dayRows = rows?.filter((r: ItineraryRowRow) => r.day_id === day.id) || [];
             return (
               <div key={day.id} style={{ marginBottom: '20pt', pageBreakInside: 'avoid' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1pt solid #EEE', paddingBottom: '4pt', marginBottom: '8pt' }}>
-                  <h3 style={{ margin: 0 }}>Day {day.day_number}: {stripEmojiForPrint(day.title)}</h3>
-                  <span style={{ fontSize: '10pt', color: '#666' }}>{new Date(day.day_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+                  <h3 style={{ margin: 0 }}>Day {day.day_number}: {stripEmojiForPrint(day.title ?? '')}</h3>
+                  <span style={{ fontSize: '10pt', color: '#666' }}>{new Date((day.day_date ?? '') + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
                 </div>
-                {itinFull && dayRows.map((row: any) => (
+                {itinFull && dayRows.map((row: ItineraryRowRow) => (
                   <div key={row.id} className="itin-row">
                     <div className="itin-time">{row.start_time ? row.start_time.split('T')[1].substring(0, 5) : 'All Day'}</div>
                     <div>
-                      <div className="itin-title">{stripEmojiForPrint(row.title)}</div>
+                      <div className="itin-title">{stripEmojiForPrint(row.title ?? '')}</div>
                       {row.description && <div className="itin-detail">{stripEmojiForPrint(row.description)}</div>}
                     </div>
                   </div>
@@ -136,12 +137,12 @@ export default async function TripPrintPage({
               </tr>
             </thead>
             <tbody>
-              {flights.map((f: any) => (
+              {flights.map((f: FlightRow) => (
                 <tr key={f.id}>
                   <td style={{ fontWeight: 700 }}>{f.flight_number}</td>
                   <td>{f.origin_airport} \u2192 {f.destination_airport}</td>
-                  <td>{new Date(f.departure_time).toLocaleString()}</td>
-                  <td>{new Date(f.arrival_time).toLocaleString()}</td>
+                  <td>{f.departure_time ? new Date(f.departure_time).toLocaleString() : '—'}</td>
+                  <td>{f.arrival_time ? new Date(f.arrival_time).toLocaleString() : '—'}</td>
                   <td style={{ fontSize: '9pt' }}>{f.seat_assignment || '-'}<br/><span style={{ color: '#6E4C10' }}>{f.confirmation_number}</span></td>
                 </tr>
               ))}
@@ -154,19 +155,19 @@ export default async function TripPrintPage({
       {showSection('hotels') && hotels && hotels.length > 0 && (
         <section className="print-section">
           <h2>Accommodations</h2>
-          {hotels.map((h: any) => (
+          {hotels.map((h: HotelRow) => (
             <div key={h.id} style={{ marginBottom: '16pt', paddingBottom: '12pt', borderBottom: '0.5pt solid #EEE' }}>
-              <h3 style={{ marginBottom: '4pt' }}>{stripEmojiForPrint(h.name)}</h3>
+              <h3 style={{ marginBottom: '4pt' }}>{stripEmojiForPrint(h.name ?? '')}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20pt' }}>
                 <div>
                   <div style={{ fontSize: '9pt', color: '#666', textTransform: 'uppercase' }}>Check-in</div>
-                  <div>{new Date(h.check_in_date).toLocaleDateString()} at {h.check_in_time || '4:00 PM'}</div>
+                  <div>{h.check_in_date ? new Date(h.check_in_date).toLocaleDateString() : '—'} at {h.check_in_time || '4:00 PM'}</div>
                   <div style={{ fontSize: '9pt', color: '#666', textTransform: 'uppercase', marginTop: '8pt' }}>Address</div>
                   <div style={{ fontSize: '10pt' }}>{h.address}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '9pt', color: '#666', textTransform: 'uppercase' }}>Check-out</div>
-                  <div>{new Date(h.check_out_date).toLocaleDateString()} at {h.check_out_time || '11:00 AM'}</div>
+                  <div>{h.check_out_date ? new Date(h.check_out_date).toLocaleDateString() : '—'} at {h.check_out_time || '11:00 AM'}</div>
                   <div style={{ fontSize: '9pt', color: '#666', textTransform: 'uppercase', marginTop: '8pt' }}>Confirmation</div>
                   <div style={{ fontWeight: 700, color: '#6E4C10' }}>{h.confirmation_number}</div>
                 </div>
@@ -191,12 +192,12 @@ export default async function TripPrintPage({
               </tr>
             </thead>
             <tbody>
-              {transport.map((t: any) => (
+              {transport.map((t: TransportationRow) => (
                 <tr key={t.id}>
                   <td style={{ fontWeight: 700 }}>{t.type}</td>
                   <td>{t.provider}</td>
                   <td style={{ fontSize: '10pt' }}>{t.origin} \u2192 {t.destination}</td>
-                  <td>{new Date(t.departure_time).toLocaleString()}</td>
+                  <td>{t.departure_time ? new Date(t.departure_time).toLocaleString() : '—'}</td>
                   <td style={{ color: '#6E4C10' }}>{t.confirmation_number}</td>
                 </tr>
               ))}
@@ -220,11 +221,11 @@ export default async function TripPrintPage({
               </tr>
             </thead>
             <tbody>
-              {restaurants.map((r: any) => (
+              {restaurants.map((r: RestaurantRow) => (
                 <tr key={r.id}>
-                  <td style={{ fontWeight: 700 }}>{stripEmojiForPrint(r.name)}</td>
+                  <td style={{ fontWeight: 700 }}>{stripEmojiForPrint(r.name ?? '')}</td>
                   <td>{r.city}</td>
-                  <td>{new Date(r.reservation_time).toLocaleString()}</td>
+                  <td>{r.reservation_time ? new Date(r.reservation_time).toLocaleString() : '—'}</td>
                   <td>{r.party_size}</td>
                   <td style={{ color: '#6E4C10' }}>{r.confirmation_number}</td>
                 </tr>
@@ -239,7 +240,7 @@ export default async function TripPrintPage({
         <section className="print-section">
           <h2>Outstanding Tasks</h2>
           <div style={{ columns: 2, columnGap: '24pt' }}>
-            {checklist.map((item: any) => (
+            {checklist.map((item: ChecklistRow) => (
               <div key={item.id} style={{ display: 'flex', gap: '8pt', marginBottom: '6pt', fontSize: '10pt', breakInside: 'avoid' }}>
                 <div style={{ width: '12pt', height: '12pt', border: '1pt solid #DDD', flexShrink: 0 }}></div>
                 <span>{item.title}</span>
@@ -254,7 +255,7 @@ export default async function TripPrintPage({
         <section className="print-section">
           <h2>Packing List</h2>
           <div style={{ columns: 3, columnGap: '20pt' }}>
-            {packing.map((item: any) => (
+            {packing.map((item: PackingRow) => (
               <div key={item.id} style={{ display: 'flex', gap: '6pt', marginBottom: '4pt', fontSize: '9pt', breakInside: 'avoid' }}>
                 <div style={{ width: '10pt', height: '10pt', border: '1pt solid #DDD', flexShrink: 0 }}></div>
                 <span>{item.item}</span>
@@ -268,7 +269,7 @@ export default async function TripPrintPage({
       {showSection('keyinfo') && keyInfo && keyInfo.length > 0 && (
         <section className="print-section">
           <h2>Key Information</h2>
-          {keyInfo.map((k: any) => (
+          {keyInfo.map((k: KeyInfoRow) => (
             <div key={k.id} style={{ marginBottom: '12pt' }}>
               <div style={{ fontWeight: 700, fontSize: '10pt', color: '#6E4C10', textTransform: 'uppercase' }}>{k.label}</div>
               <div style={{ fontSize: '11pt' }}>{k.value}</div>

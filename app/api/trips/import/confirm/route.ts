@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ function toTimestamp(date: string | null | undefined, time: string | null | unde
 
  
 async function logError(
-  supabase: any,
+  supabase: SupabaseClient,
   message: string,
   context: string,
 ): Promise<void> {

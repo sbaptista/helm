@@ -9,8 +9,6 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Moda
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { CalendarModal } from '@/components/advisor/CalendarModal';
 import { LogsClient } from '@/components/sections/LogsClient';
-import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import OfflinePage from '@/components/ui/OfflinePage';
 import { DashboardBar } from '@/components/ui/DashboardBar';
 import { TripTopBar } from '@/components/ui/TripTopBar';
 import { TripSidebar } from '@/components/ui/TripSidebar';
@@ -705,8 +703,6 @@ const handleImportClose = () => {
 }
 
 export function TripDetailView(props: TripDetailViewProps) {
-  const isOnline = useOnlineStatus();
-  if (!isOnline) return <OfflinePage />;
   return (
     <ToastProvider>
       <TripDetailViewInner {...props} />

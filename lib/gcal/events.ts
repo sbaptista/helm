@@ -1,4 +1,5 @@
 import { getCityTimezone, getAirportTimezone, toLocalISOString } from './timezones'
+import type { FlightRow, HotelRow, TransportationRow, RestaurantRow, ItineraryRowRow, ChecklistRow } from '@/types/sections'
 
 // ── Shared types ──────────────────────────────────────────────────
 
@@ -25,11 +26,11 @@ function buildDescription(parts: Record<string, string | null | undefined>): str
 
 // ── Flights ───────────────────────────────────────────────────────
 
-export function buildFlightEvent(row: any): GCalEvent {
-  const tz = row.departure_timezone ?? getAirportTimezone(row.origin_airport)
-  const arrTz = row.arrival_timezone ?? getAirportTimezone(row.destination_airport)
-  const dep = new Date(row.departure_time)
-  const arr = new Date(row.arrival_time)
+export function buildFlightEvent(row: FlightRow): GCalEvent {
+  const tz = row.departure_timezone ?? getAirportTimezone(row.origin_airport ?? '')
+  const arrTz = row.arrival_timezone ?? getAirportTimezone(row.destination_airport ?? '')
+  const dep = new Date(row.departure_time ?? '')
+  const arr = new Date(row.arrival_time ?? '')
 
   return {
     summary: `${row.airline ?? ''} ${row.flight_number ?? ''} · ${row.origin_airport} → ${row.destination_airport}`.trim(),
@@ -45,10 +46,10 @@ export function buildFlightEvent(row: any): GCalEvent {
 
 // ── Hotels ────────────────────────────────────────────────────────
 
-export function buildHotelCheckinEvent(row: any): GCalEvent {
-  const tz = getCityTimezone(row.city)
+export function buildHotelCheckinEvent(row: HotelRow): GCalEvent {
+  const tz = getCityTimezone(row.city ?? '')
   const time = row.check_in_time ?? '15:00:00'
-  const dateTime = `${row.check_in_date}T${time}`
+  const dateTime = `${row.check_in_date ?? ''}T${time}`
 
   return {
     summary: `${row.name} · Check-in`,
@@ -63,10 +64,10 @@ export function buildHotelCheckinEvent(row: any): GCalEvent {
   }
 }
 
-export function buildHotelCheckoutEvent(row: any): GCalEvent {
-  const tz = getCityTimezone(row.city)
+export function buildHotelCheckoutEvent(row: HotelRow): GCalEvent {
+  const tz = getCityTimezone(row.city ?? '')
   const time = row.check_out_time ?? '11:00:00'
-  const dateTime = `${row.check_out_date}T${time}`
+  const dateTime = `${row.check_out_date ?? ''}T${time}`
 
   return {
     summary: `${row.name} · Check-out`,
@@ -89,10 +90,10 @@ function addOneHour(localISO: string): string {
 
 // ── Transportation ────────────────────────────────────────────────
 
-export function buildTransportationEvent(row: any): GCalEvent {
-  const tz = getCityTimezone(row.origin)
-  const arrTz = getCityTimezone(row.destination)
-  const dep = new Date(row.departure_time)
+export function buildTransportationEvent(row: TransportationRow): GCalEvent {
+  const tz = getCityTimezone(row.origin ?? '')
+  const arrTz = getCityTimezone(row.destination ?? '')
+  const dep = new Date(row.departure_time ?? '')
   const arr = row.arrival_time ? new Date(row.arrival_time) : null
 
   return {
@@ -112,13 +113,13 @@ export function buildTransportationEvent(row: any): GCalEvent {
 
 // ── Restaurants ───────────────────────────────────────────────────
 
-export function buildRestaurantEvent(row: any): GCalEvent {
-  const tz = getCityTimezone(row.city)
-  const start = new Date(row.reservation_time)
+export function buildRestaurantEvent(row: RestaurantRow): GCalEvent {
+  const tz = getCityTimezone(row.city ?? '')
+  const start = new Date(row.reservation_time ?? '')
   const end = new Date(start.getTime() + 2 * 3600000)
 
   return {
-    summary: row.name,
+    summary: row.name ?? '',
     description: buildDescription({
       Cuisine: row.cuisine,
       Address: row.address,
@@ -133,27 +134,27 @@ export function buildRestaurantEvent(row: any): GCalEvent {
 
 // ── Itinerary ─────────────────────────────────────────────────────
 
-export function buildItineraryEvent(row: any): GCalEvent {
+export function buildItineraryEvent(row: ItineraryRowRow): GCalEvent {
   const tz = row.start_timezone ?? 'America/Vancouver'
 
   if (row.is_all_day) {
-    const date = new Date(row.start_time).toISOString().slice(0, 10)
+    const date = new Date(row.start_time ?? '').toISOString().slice(0, 10)
     return {
-      summary: row.title,
+      summary: row.title ?? '',
       description: buildDescription({ Description: row.description, Location: row.location }),
       start: { date },
       end:   { date: nextDay(date) },
     }
   }
 
-  const start = new Date(row.start_time)
+  const start = new Date(row.start_time ?? '')
   const end = row.end_time
     ? new Date(row.end_time)
     : new Date(start.getTime() + 3600000)
   const endTz = row.end_timezone ?? tz
 
   return {
-    summary: row.title,
+    summary: row.title ?? '',
     description: buildDescription({ Description: row.description, Location: row.location }),
     start: { dateTime: toLocalISOString(start, tz), timeZone: tz },
     end:   { dateTime: toLocalISOString(end, endTz), timeZone: endTz },
@@ -162,16 +163,16 @@ export function buildItineraryEvent(row: any): GCalEvent {
 
 // ── Checklist ─────────────────────────────────────────────────────
 
-export function buildChecklistDueEvent(row: any): GCalEvent {
+export function buildChecklistDueEvent(row: ChecklistRow): GCalEvent {
   return {
     summary: `${row.task} · Due`,
     description: buildDescription({ Group: row.group_name, Notes: row.notes }),
-    start: { date: row.due_date },
-    end:   { date: nextDay(row.due_date) },
+    start: { date: row.due_date ?? undefined },
+    end:   { date: nextDay(row.due_date ?? '') },
   }
 }
 
-export function buildChecklistWarningEvent(row: any): GCalEvent {
+export function buildChecklistWarningEvent(row: ChecklistRow): GCalEvent {
   const dueDate = new Date(row.due_date + 'T00:00:00')
   dueDate.setDate(dueDate.getDate() - (row.warning_days ?? 7))
   const warningDate = dueDate.toISOString().slice(0, 10)

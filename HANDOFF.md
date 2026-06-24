@@ -6,7 +6,7 @@
 
 ## App State
 
-- **Version:** `00.02.0037`
+- **Version:** `00.02.0040`
 - **Branch:** main
 - **Dev server:** user-started on localhost:3000
 - **Live URL:** https://helm-gilt.vercel.app
@@ -40,27 +40,18 @@
 
 ## Last Session Completed
 
-**2026-06-03 — Supabase Client Singleton Cache Bypass for Passkeys (Session 52, Gemini 3.5 Flash)**
+**2026-06-24 — HELM-60, HELM-54, HELM-61, HELM-59 (Session 53, Claude Code Opus 4.6)**
 
-1. **Bypassed Singleton Cache (HELM-59 Fix)** — Configured `isSingleton: false` in `createBrowserClient` in `lib/supabase/client.ts`.
-2. **Local Singleton Management (HELM-59 Fix)** — Implemented a module-level cached client in `lib/supabase/client.ts` to ensure a consistent, single client instance is returned client-side without hitting the `@supabase/ssr` singleton cache, preventing options mismatch when other components instantiate Supabase.
-3. **TypeScript Alignment** — Resolved TypeScript compiler issues with destructured `.auth.getUser()` calls by explicitly typing the cached client as `SupabaseClient`.
-4. **Clean Build & Linting** — Fixed TypeScript compilation and ignored database seeding scripts in `eslint.config.mjs` to keep the linter warning-only baseline clean.
+1. **HELM-60 (closed)** — Resolved Phase 2 React Hook side-effects. Replaced useState+useEffect anti-patterns with `useSyncExternalStore` (useMediaQuery), `suppressHydrationWarning` (FatalErrorPage), direct rendering (HelmVersionLabel), and ref-based callback (UpdateBanner). Removed duplicated media query from ResponsiveSheet.
+2. **HELM-54 (closed)** — Removed redundant duplicate OfflinePage check from TripDetailView — root layout already handles offline guard.
+3. **HELM-61 (closed)** — Eliminated all 34 TypeScript `any` violations. Created `types/sections.ts` with typed interfaces for all DB section tables. Updated gcal/events.ts, pushSection.ts, print page, PrintExportModal, import confirm route, passkey.ts, HotelsClient with proper types and null coalescing. Clean `tsc --noEmit` confirmed.
+4. **HELM-59 (closed)** — Verified already implemented: 6-digit OTP + passkey auth fully functional.
 
 ---
 
 ## Uncommitted Changes
 
-### Modified
-- `lib/supabase/client.ts` — passed `isSingleton: false` and added custom local singleton cache
-- `eslint.config.mjs` — ignored `seed-packing.js` in eslint config
-- `lib/version.ts` — bumped version to 00.02.0037
-- `package.json` — bumped version to 0.2.37
-- `lib/changelog.ts` — added release entry for v00.02.0037
-- `HANDOFF.md` — this file
-
-### Untracked
-- `supabase/` — local supabase configuration directory
+None (all changes included in this commit).
 
 ---
 
@@ -77,13 +68,13 @@
 - **Scroll-to-first-error pattern**: Shared utility in `lib/form-utils.ts` finds first `role="alert"` inside the active `role="dialog"` and scrolls into view. All edit forms use toast + scrollToFirstError() on validation failure.
 - **Help button over settings page**: What's New lives in a ResponsiveSheet opened from Help button. Extensible for future sections without committing to a full settings page.
 - **Update banner at very top**: Fixed above header (z-index 110 > header 100), header offsets down via `onVisibilityChange` callback + `BANNER_HEIGHT` constant.
+- **Centralized section types**: `types/sections.ts` defines typed interfaces for all DB section tables. Import from there instead of using `any` for Supabase query results.
 
 ---
 
 ## Next Priorities
 
-1. Implement Phase 2: Resolving React Hook Side-Effects (HELM-60).
-2. Implement Phase 3: Incremental Type Safety & Hygiene (HELM-61).
+1. Add a Settings button and Passkeys management section in Helm (analogous to Orb's Settings -> Passkeys UI) to allow users to manage/register passkeys.
 
 ---
 
@@ -97,4 +88,4 @@
 
 ## AI Tool Used Last Session
 
-2026-06-03 — Antigravity (Gemini 3.5 Flash)
+2026-06-24 — Claude Code (Opus 4.6)

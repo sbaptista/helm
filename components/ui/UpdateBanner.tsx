@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useToast } from '@/components/ui/Toast'
 import { VERSION } from '@/lib/version'
 
@@ -14,16 +14,19 @@ export default function UpdateBanner({ onVisibilityChange }: UpdateBannerProps) 
   const [updateAvailable, setUpdateAvailable] = useState(false)
   const toast = useToast()
   const toastShownRef = useRef(false)
+  const onVisibilityChangeRef = useRef(onVisibilityChange)
+  onVisibilityChangeRef.current = onVisibilityChange
 
-  useEffect(() => {
-    onVisibilityChange?.(updateAvailable)
-  }, [updateAvailable, onVisibilityChange])
+  const setAvailable = useCallback((value: boolean) => {
+    setUpdateAvailable(value)
+    onVisibilityChangeRef.current?.(value)
+  }, [])
 
-  const checkVersion = async () => {
+  const checkVersion = useCallback(async () => {
     const isSimulated = typeof window !== 'undefined' && localStorage.getItem('helm-dev-simulate-update') === 'true'
 
     if (isSimulated) {
-      setUpdateAvailable(true)
+      setAvailable(true)
       if (!toastShownRef.current) {
         toast.neutral('A new version of Helm is available.')
         toastShownRef.current = true
@@ -37,19 +40,19 @@ export default function UpdateBanner({ onVisibilityChange }: UpdateBannerProps) 
       const data = await res.json()
 
       if (data.version && data.version !== VERSION) {
-        setUpdateAvailable(true)
+        setAvailable(true)
         if (!toastShownRef.current) {
           toast.neutral('A new version of Helm is available.')
           toastShownRef.current = true
         }
       } else {
-        setUpdateAvailable(false)
+        setAvailable(false)
         toastShownRef.current = false
       }
     } catch {
       // network error — skip silently
     }
-  }
+  }, [setAvailable, toast])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -74,7 +77,7 @@ export default function UpdateBanner({ onVisibilityChange }: UpdateBannerProps) 
   }, [])
 
   const handleUpdate = () => {
-    setUpdateAvailable(false)
+    setAvailable(false)
     localStorage.removeItem('helm-dev-simulate-update')
     window.dispatchEvent(new Event('helm-dev-update-change'))
     if ('serviceWorker' in navigator) {
