@@ -9,6 +9,7 @@ import { AIRPORT_LOOKUP } from '@/lib/gcal/timezones';
 import { useToast } from '@/components/ui/Toast';
 import WarnBadge from '@/components/ui/WarnBadge';
 import { scrollToFirstError } from '@/lib/form-utils';
+import { formatZonedDateTime, instantToZonedInput, zonedLocalDateTimeToUtc } from '@/lib/zoned-time';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,8 +76,12 @@ function validateFlightTiming(form: FlightForm): FlightErrors {
     form.departure_date && form.departure_time_val &&
     form.arrival_date && form.arrival_time_val
   ) {
-    const dep = new Date(`${form.departure_date}T${form.departure_time_val}`)
-    const arr = new Date(`${form.arrival_date}T${form.arrival_time_val}`)
+    const dep = form.departure_timezone
+      ? new Date(zonedLocalDateTimeToUtc(`${form.departure_date}T${form.departure_time_val}:00`, form.departure_timezone))
+      : new Date(`${form.departure_date}T${form.departure_time_val}`)
+    const arr = form.arrival_timezone
+      ? new Date(zonedLocalDateTimeToUtc(`${form.arrival_date}T${form.arrival_time_val}:00`, form.arrival_timezone))
+      : new Date(`${form.arrival_date}T${form.arrival_time_val}`)
     if (arr <= dep) {
       errs.arrival_time = 'Must be after departure'
     }
@@ -120,23 +125,14 @@ const EMPTY_FORM: FlightForm = {
   action_required: false,
 };
 
-function splitDatetime(iso: string | null): [string, string] {
-  if (!iso) return ['', ''];
-  const tIdx = iso.indexOf('T');
-  if (tIdx === -1) return [iso, ''];
-  const date = iso.slice(0, tIdx);
-  const time = iso.slice(tIdx + 1, tIdx + 6); // HH:MM
-  return [date, time];
-}
-
 function joinDatetime(date: string, time: string): string | null {
   if (!date) return null;
   return `${date}T${time || '00:00'}:00`;
 }
 
 function flightToForm(f: Flight): FlightForm {
-  const [depDate, depTime] = splitDatetime(f.departure_time);
-  const [arrDate, arrTime] = splitDatetime(f.arrival_time);
+  const departure = instantToZonedInput(f.departure_time, f.departure_timezone);
+  const arrival = instantToZonedInput(f.arrival_time, f.arrival_timezone);
   return {
     flight_number:       f.flight_number       ?? '',
     airline:             f.airline             ?? '',
@@ -144,10 +140,10 @@ function flightToForm(f: Flight): FlightForm {
     destination_airport: f.destination_airport ?? '',
     origin_city:         f.origin_city         ?? '',
     destination_city:    f.destination_city    ?? '',
-    departure_date:      depDate,
-    departure_time_val:  depTime,
-    arrival_date:        arrDate,
-    arrival_time_val:    arrTime,
+    departure_date:      departure.date,
+    departure_time_val:  departure.time,
+    arrival_date:        arrival.date,
+    arrival_time_val:    arrival.time,
     departure_timezone:  f.departure_timezone  ?? '',
     arrival_timezone:    f.arrival_timezone    ?? '',
     cabin_class:         f.cabin_class         ?? '',
@@ -161,32 +157,6 @@ function flightToForm(f: Flight): FlightForm {
     gcal_include:        f.gcal_include        ?? false,
     action_required:     f.action_required     ?? false,
   };
-}
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return '—';
-  const [datePart, rest] = iso.split('T');
-  if (!datePart || !rest) return iso;
-  const [year, month, day] = datePart.split('-').map(Number);
-  const timeStr = rest.split(/[+Z]/)[0];
-  const [h, m] = timeStr.split(':').map(Number);
-  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const weekday = weekdays[new Date(year, month - 1, day).getDay()];
-  const suffix = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 || 12;
-  return `${weekday}, ${months[month - 1]} ${day} · ${h12}:${String(m).padStart(2, '0')} ${suffix}`;
-}
-
-function formatTimezoneAbbrev(tz: string | null): string {
-  if (!tz) return '';
-  try {
-    return new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' })
-      .formatToParts(new Date())
-      .find(p => p.type === 'timeZoneName')?.value ?? '';
-  } catch {
-    return '';
-  }
 }
 
 function applyAirportLookup(
@@ -545,19 +515,13 @@ export function FlightsClient({
               {/* Departs */}
               <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ color: 'var(--text2)', fontWeight: 'var(--fw-bold)', minWidth: '56px' }}>Departs</span>
-                <span>{formatDateTime(f.departure_time)}</span>
-                {f.departure_timezone && (
-                  <span style={{ opacity: 0.6 }}>{formatTimezoneAbbrev(f.departure_timezone)}</span>
-                )}
+                <span>{formatZonedDateTime(f.departure_time, f.departure_timezone)}</span>
               </div>
 
               {/* Arrives */}
               <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ color: 'var(--text2)', fontWeight: 'var(--fw-bold)', minWidth: '56px' }}>Arrives</span>
-                <span>{formatDateTime(f.arrival_time)}</span>
-                {f.arrival_timezone && (
-                  <span style={{ opacity: 0.6 }}>{formatTimezoneAbbrev(f.arrival_timezone)}</span>
-                )}
+                <span>{formatZonedDateTime(f.arrival_time, f.arrival_timezone)}</span>
               </div>
 
               {/* Seat */}

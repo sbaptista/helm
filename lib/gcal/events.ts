@@ -29,8 +29,8 @@ function buildDescription(parts: Record<string, string | null | undefined>): str
 export function buildFlightEvent(row: FlightRow): GCalEvent {
   const tz = row.departure_timezone ?? getAirportTimezone(row.origin_airport ?? '')
   const arrTz = row.arrival_timezone ?? getAirportTimezone(row.destination_airport ?? '')
-  const dep = new Date(row.departure_time ?? '')
-  const arr = new Date(row.arrival_time ?? '')
+  const dep = new Date(row.departure_time ?? '').toISOString()
+  const arr = new Date(row.arrival_time ?? '').toISOString()
 
   return {
     summary: `${row.airline ?? ''} ${row.flight_number ?? ''} · ${row.origin_airport} → ${row.destination_airport}`.trim(),
@@ -39,8 +39,8 @@ export function buildFlightEvent(row: FlightRow): GCalEvent {
       Class: row.cabin_class,
       Notes: row.notes,
     }),
-    start: { dateTime: toLocalISOString(dep, tz), timeZone: tz },
-    end:   { dateTime: toLocalISOString(arr, arrTz), timeZone: arrTz },
+    start: { dateTime: dep, timeZone: tz },
+    end:   { dateTime: arr, timeZone: arrTz },
   }
 }
 

@@ -7,7 +7,7 @@ import UpdateBanner, { BANNER_HEIGHT } from '@/components/ui/UpdateBanner';
 import { Button } from '@/components/ui/Button';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
-import { CalendarModal } from '@/components/advisor/CalendarModal';
+import { CalendarModal, type GCalState } from '@/components/advisor/CalendarModal';
 import { LogsClient } from '@/components/sections/LogsClient';
 import { DashboardBar } from '@/components/ui/DashboardBar';
 import { TripTopBar } from '@/components/ui/TripTopBar';
@@ -181,7 +181,7 @@ function TripDetailViewInner({
 
   // Calendar overlay
   const [showCalendar, setShowCalendar] = useState(false);
-  const [calendarStatus, setCalendarStatus] = useState<'loading' | 'unconnected' | 'connected' | 'update_required'>('loading');
+  const [calendarStatus, setCalendarStatus] = useState<GCalState>('loading');
 
   useEffect(() => {
     if (calendarStatus === 'update_required') {

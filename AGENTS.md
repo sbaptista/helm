@@ -219,7 +219,6 @@ Test design decisions across all three form factors. When in doubt, err on the s
 Before any production release or code push, you must document all changes in the release documentation file.
 - **File:** `/Users/stanleybaptista/Projects/helm/lib/changelog.ts`
 - **Action:** Bump the patch version in `lib/version.ts`, and add a new entry to the `CHANGELOG` array in `lib/changelog.ts` with the new version string, release date, and detailed bullet points describing the changes.
-- **Note:** `lib/changelog.ts` does not yet exist — see HELM-56. Until it is built, document changes in `HANDOFF.md` as usual and bump `lib/version.ts`.
 
 ---
 

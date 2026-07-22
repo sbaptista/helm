@@ -15,6 +15,7 @@ import {
   ScrollText,
   FileUp,
 } from 'lucide-react'
+import type { GCalState } from '@/components/advisor/CalendarModal'
 
 interface TripSidebarProps {
   isOpen: boolean
@@ -28,7 +29,7 @@ interface TripSidebarProps {
   onImport: () => void
   onShowLogs: () => void
   onShowCalendar: () => void
-  calendarStatus: 'loading' | 'unconnected' | 'connected' | 'update_required'
+  calendarStatus: GCalState
 }
 
 const groupHeaderStyle: React.CSSProperties = {
@@ -298,7 +299,7 @@ export function TripSidebar({
             label="Calendar"
             onClick={() => { onShowCalendar(); onClose() }}
             badge={
-              calendarStatus === 'update_required' ? (
+              calendarStatus === 'update_required' || calendarStatus === 'calendar_missing' ? (
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--action)', flexShrink: 0, marginLeft: 'auto', display: 'inline-block' }} />
               ) : calendarStatus === 'unconnected' ? (
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--text-secondary, var(--text3))', flexShrink: 0, marginLeft: 'auto', display: 'inline-block' }} />

@@ -1,4 +1,5 @@
-import { upsertEvent } from '@/lib/gcal/push'
+import { deleteEvent, upsertEvent } from '@/lib/gcal/push'
+import { isMissingGoogleCalendarResource } from '@/lib/gcal/client'
 import {
   buildFlightEvent,
   buildHotelCheckinEvent,
@@ -13,75 +14,82 @@ import {
 import { SupabaseClient } from '@supabase/supabase-js'
 import type { FlightRow, TransportationRow, RestaurantRow, ItineraryRowRow } from '@/types/sections'
 
+interface CalendarEventResult {
+  action: 'create' | 'update' | 'delete'
+  label: string
+  status: 'success' | 'error'
+  error?: string
+}
+
 interface PushSectionOptions {
   section: string
   tripId: string
   calendarId: string
   accessToken: string
   supabase: SupabaseClient
-  onEvent: (event: {
-    action: 'create' | 'update' | 'delete'
-    label: string
-    status: 'success' | 'error'
-    error?: string
-  }) => void
+  onEvent: (event: CalendarEventResult) => void
 }
 
-export async function pushSection({
-  section, tripId, calendarId, accessToken, supabase, onEvent
-}: PushSectionOptions) {
+export async function pushSection(options: PushSectionOptions) {
+  const { section, tripId, calendarId, accessToken, supabase, onEvent } = options
   switch (section) {
     case 'flights':
-      await pushSimple<FlightRow>({
-        table: 'flights',
-        tripId, calendarId, accessToken, supabase, onEvent,
+      return pushSimple<FlightRow>({
+        table: 'flights', tripId, calendarId, accessToken, supabase, onEvent,
         buildEvent: buildFlightEvent,
-        getLabel: (r) => `${r.airline ?? ''} ${r.flight_number ?? ''} · ${r.origin_airport} → ${r.destination_airport}`.trim(),
+        getLabel: (row) => `${row.airline ?? ''} ${row.flight_number ?? ''} · ${row.origin_airport} → ${row.destination_airport}`.trim(),
         gcalIdField: 'gcal_event_id',
       })
-      break
-
     case 'hotels':
-      await pushHotels({ tripId, calendarId, accessToken, supabase, onEvent })
-      break
-
+      return pushHotels({ tripId, calendarId, accessToken, supabase, onEvent })
     case 'transportation':
-      await pushSimple<TransportationRow>({
-        table: 'transportation',
-        tripId, calendarId, accessToken, supabase, onEvent,
+      return pushSimple<TransportationRow>({
+        table: 'transportation', tripId, calendarId, accessToken, supabase, onEvent,
         buildEvent: buildTransportationEvent,
-        getLabel: (r) => `${r.origin ?? ''} → ${r.destination ?? ''}`,
+        getLabel: (row) => `${row.origin ?? ''} → ${row.destination ?? ''}`,
         gcalIdField: 'gcal_event_id',
       })
-      break
-
     case 'restaurants':
-      await pushSimple<RestaurantRow>({
-        table: 'restaurants',
-        tripId, calendarId, accessToken, supabase, onEvent,
+      return pushSimple<RestaurantRow>({
+        table: 'restaurants', tripId, calendarId, accessToken, supabase, onEvent,
         buildEvent: buildRestaurantEvent,
-        getLabel: (r) => r.name ?? '',
+        getLabel: (row) => row.name ?? '',
         gcalIdField: 'gcal_event_id',
       })
-      break
-
     case 'itinerary':
-      await pushSimple<ItineraryRowRow>({
-        table: 'itinerary_rows',
-        tripId, calendarId, accessToken, supabase, onEvent,
+      return pushSimple<ItineraryRowRow>({
+        table: 'itinerary_rows', tripId, calendarId, accessToken, supabase, onEvent,
         buildEvent: buildItineraryEvent,
-        getLabel: (r) => r.title ?? '',
+        getLabel: (row) => row.title ?? '',
         gcalIdField: 'gcal_event_id',
       })
-      break
-
     case 'checklist':
-      await pushChecklist({ tripId, calendarId, accessToken, supabase, onEvent })
-      break
+      return pushChecklist({ tripId, calendarId, accessToken, supabase, onEvent })
   }
 }
 
-// ── Simple sections (one event per record) ────────────────────────
+async function updateOrThrow(
+  supabase: SupabaseClient,
+  table: string,
+  rowId: string,
+  values: Record<string, unknown>
+) {
+  const { error } = await supabase.from(table).update(values).eq('id', rowId)
+  if (error) throw new Error(`Failed to update ${table}: ${error.message}`)
+}
+
+async function deleteIfPresent(
+  accessToken: string,
+  calendarId: string,
+  eventId: string | null | undefined
+) {
+  if (!eventId) return
+  try {
+    await deleteEvent(accessToken, calendarId, eventId)
+  } catch (error) {
+    if (!isMissingGoogleCalendarResource(error)) throw error
+  }
+}
 
 async function pushSimple<T extends { id: string }>({
   table, tripId, calendarId, accessToken, supabase, onEvent,
@@ -97,112 +105,100 @@ async function pushSimple<T extends { id: string }>({
   getLabel: (row: T) => string
   gcalIdField: string
 }) {
-  const { data: rows } = await supabase
+  const { data: rows, error: readError } = await supabase
     .from(table)
     .select('*')
     .eq('trip_id', tripId)
     .is('deleted_at', null)
     .eq('gcal_include', true)
     .eq('gcal_dirty', true)
+  if (readError) throw readError
 
   for (const row of (rows ?? []) as T[]) {
     const label = getLabel(row)
+    const existingEventId = (row as Record<string, unknown>)[gcalIdField] as string | null
+
     try {
-      const event = buildEvent(row)
-      const existingEventId = (row as Record<string, unknown>)[gcalIdField] as string | null
       const { eventId, action } = await upsertEvent(
-        accessToken, calendarId, existingEventId ?? null, event
+        accessToken, calendarId, existingEventId, buildEvent(row)
       )
-      const { error: resetError, data: resetData, count } = await supabase
-        .from(table)
-        .update({ [gcalIdField]: eventId, gcal_dirty: false })
-        .eq('id', row.id)
-        .select()
-      console.log('[PUSH RESET]', table, row.id, { resetError, resetData, count })
-      if (resetError) throw new Error(`Failed to reset gcal_dirty: ${resetError.message}`)
+      await updateOrThrow(supabase, table, row.id, { [gcalIdField]: eventId, gcal_dirty: false })
       onEvent({ action, label, status: 'success' })
-    } catch (err: unknown) {
-      const existingEventId = (row as Record<string, unknown>)[gcalIdField]
-      const msg = err instanceof Error ? err.message : String(err)
-      onEvent({ action: existingEventId ? 'update' : 'create', label, status: 'error', error: msg })
+    } catch (error) {
+      onEvent({
+        action: existingEventId ? 'update' : 'create',
+        label,
+        status: 'error',
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 }
 
-// ── Hotels (two events per record) ────────────────────────────────
-
-async function pushHotels({ tripId, calendarId, accessToken, supabase, onEvent }: Omit<PushSectionOptions, 'section'>) {
-  const { data: rows } = await supabase
-    .from('hotels')
-    .select('*')
-    .eq('trip_id', tripId)
-    .is('deleted_at', null)
-    .eq('gcal_include', true)
-    .eq('gcal_dirty', true)
+async function pushHotels(options: Omit<PushSectionOptions, 'section'>) {
+  const { tripId, calendarId, accessToken, supabase, onEvent } = options
+  const { data: rows, error: readError } = await supabase
+    .from('hotels').select('*').eq('trip_id', tripId).is('deleted_at', null).eq('gcal_include', true).eq('gcal_dirty', true)
+  if (readError) throw readError
 
   for (const row of rows ?? []) {
-    // Check-in
-    try {
-      const event = buildHotelCheckinEvent(row)
-      const { eventId, action } = await upsertEvent(accessToken, calendarId, row.gcal_checkin_event_id ?? null, event)
-      await supabase.from('hotels').update({ gcal_checkin_event_id: eventId }).eq('id', row.id)
-      onEvent({ action, label: `${row.name} · Check-in`, status: 'success' })
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      onEvent({ action: row.gcal_checkin_event_id ? 'update' : 'create', label: `${row.name} · Check-in`, status: 'error', error: msg })
+    let failed = false
+    const events = [
+      { field: 'gcal_checkin_event_id', label: `${row.name} · Check-in`, build: () => buildHotelCheckinEvent(row) },
+      { field: 'gcal_checkout_event_id', label: `${row.name} · Check-out`, build: () => buildHotelCheckoutEvent(row) },
+    ]
+    for (const event of events) {
+      const existingId = row[event.field]
+      try {
+        const result = await upsertEvent(accessToken, calendarId, existingId ?? null, event.build())
+        await updateOrThrow(supabase, 'hotels', row.id, { [event.field]: result.eventId })
+        onEvent({ action: result.action, label: event.label, status: 'success' })
+      } catch (error) {
+        failed = true
+        onEvent({ action: existingId ? 'update' : 'create', label: event.label, status: 'error', error: error instanceof Error ? error.message : String(error) })
+      }
     }
-
-    // Check-out
-    try {
-      const event = buildHotelCheckoutEvent(row)
-      const { eventId, action } = await upsertEvent(accessToken, calendarId, row.gcal_checkout_event_id ?? null, event)
-      await supabase.from('hotels').update({ gcal_checkout_event_id: eventId }).eq('id', row.id)
-      onEvent({ action, label: `${row.name} · Check-out`, status: 'success' })
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      onEvent({ action: row.gcal_checkout_event_id ? 'update' : 'create', label: `${row.name} · Check-out`, status: 'error', error: msg })
-    }
-
-    await supabase.from('hotels').update({ gcal_dirty: false }).eq('id', row.id)
+    if (!failed) await updateOrThrow(supabase, 'hotels', row.id, { gcal_dirty: false })
   }
 }
 
-// ── Checklist (two events per record when due_date set) ───────────
-
-async function pushChecklist({ tripId, calendarId, accessToken, supabase, onEvent }: Omit<PushSectionOptions, 'section'>) {
-  const { data: rows } = await supabase
-    .from('checklist')
-    .select('*')
-    .eq('trip_id', tripId)
-    .is('deleted_at', null)
-    .eq('gcal_include', true)
-    .eq('gcal_dirty', true)
+async function pushChecklist(options: Omit<PushSectionOptions, 'section'>) {
+  const { tripId, calendarId, accessToken, supabase, onEvent } = options
+  const { data: rows, error: readError } = await supabase
+    .from('checklist').select('*').eq('trip_id', tripId).is('deleted_at', null).eq('gcal_include', true).eq('gcal_dirty', true)
+  if (readError) throw readError
 
   for (const row of rows ?? []) {
-    // Due event
+    let failed = false
     try {
-      const event = buildChecklistDueEvent(row)
-      const { eventId, action } = await upsertEvent(accessToken, calendarId, row.gcal_due_event_id ?? null, event)
-      await supabase.from('checklist').update({ gcal_due_event_id: eventId }).eq('id', row.id)
-      onEvent({ action, label: `${row.task} · Due`, status: 'success' })
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      onEvent({ action: row.gcal_due_event_id ? 'update' : 'create', label: `${row.task} · Due`, status: 'error', error: msg })
+      const result = await upsertEvent(accessToken, calendarId, row.gcal_due_event_id ?? null, buildChecklistDueEvent(row))
+      await updateOrThrow(supabase, 'checklist', row.id, { gcal_due_event_id: result.eventId })
+      onEvent({ action: result.action, label: `${row.task} · Due`, status: 'success' })
+    } catch (error) {
+      failed = true
+      onEvent({ action: row.gcal_due_event_id ? 'update' : 'create', label: `${row.task} · Due`, status: 'error', error: error instanceof Error ? error.message : String(error) })
     }
 
-    // Warning event (only if warning_days set)
     if (row.warning_days) {
       try {
-        const event = buildChecklistWarningEvent(row)
-        const { eventId, action } = await upsertEvent(accessToken, calendarId, row.gcal_warning_event_id ?? null, event)
-        await supabase.from('checklist').update({ gcal_warning_event_id: eventId }).eq('id', row.id)
-        onEvent({ action, label: `⚠️ ${row.task} · Warning`, status: 'success' })
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err)
-        onEvent({ action: row.gcal_warning_event_id ? 'update' : 'create', label: `⚠️ ${row.task} · Warning`, status: 'error', error: msg })
+        const result = await upsertEvent(accessToken, calendarId, row.gcal_warning_event_id ?? null, buildChecklistWarningEvent(row))
+        await updateOrThrow(supabase, 'checklist', row.id, { gcal_warning_event_id: result.eventId })
+        onEvent({ action: result.action, label: `${row.task} · Warning`, status: 'success' })
+      } catch (error) {
+        failed = true
+        onEvent({ action: row.gcal_warning_event_id ? 'update' : 'create', label: `${row.task} · Warning`, status: 'error', error: error instanceof Error ? error.message : String(error) })
+      }
+    } else if (row.gcal_warning_event_id) {
+      try {
+        await deleteIfPresent(accessToken, calendarId, row.gcal_warning_event_id)
+        await updateOrThrow(supabase, 'checklist', row.id, { gcal_warning_event_id: null })
+        onEvent({ action: 'delete', label: `${row.task} · Warning`, status: 'success' })
+      } catch (error) {
+        failed = true
+        onEvent({ action: 'delete', label: `${row.task} · Warning`, status: 'error', error: error instanceof Error ? error.message : String(error) })
       }
     }
 
-    await supabase.from('checklist').update({ gcal_dirty: false }).eq('id', row.id)
+    if (!failed) await updateOrThrow(supabase, 'checklist', row.id, { gcal_dirty: false })
   }
 }

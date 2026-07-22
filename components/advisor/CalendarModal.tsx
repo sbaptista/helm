@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 
-type GCalState = 'loading' | 'unconnected' | 'connected' | 'update_required';
+export type GCalState = 'loading' | 'unconnected' | 'calendar_missing' | 'connected' | 'update_required';
 
 interface GCalStatus {
   state: GCalState;
@@ -23,6 +23,16 @@ interface SSEPayload {
   creates?: number;
   updates?: number;
   deletes?: number;
+  errors?: number;
+  status?: 'success' | 'error';
+  error?: string;
+  success?: boolean;
+}
+
+interface WritableCalendar {
+  id: string;
+  summary: string;
+  primary: boolean;
 }
 
 export type CalendarModalProps = {
@@ -41,6 +51,10 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
     typeof window !== 'undefined' ? !navigator.onLine : false
   );
   const [calendarNameInput, setCalendarNameInput] = useState(tripName);
+  const [writableCalendars, setWritableCalendars] = useState<WritableCalendar[]>([]);
+  const [selectedCalendarId, setSelectedCalendarId] = useState('');
+  const [calendarActionBusy, setCalendarActionBusy] = useState(false);
+  const [calendarActionError, setCalendarActionError] = useState('');
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [confirmAction, setConfirmAction] = useState<null | 'clear' | 'disconnect'>(null);
@@ -48,26 +62,49 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
   const [progressCurrent, setProgressCurrent] = useState(0);
   const [progressTotal, setProgressTotal] = useState(0);
   const [progressLog, setProgressLog] = useState<string[]>([]);
-  const [progressStats, setProgressStats] = useState({ creates: 0, updates: 0, deletes: 0 });
+  const [progressStats, setProgressStats] = useState({ creates: 0, updates: 0, deletes: 0, errors: 0 });
   const [progressDone, setProgressDone] = useState(false);
   const [progressError, setProgressError] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async (validate = false) => {
     try {
-      const res = await fetch(`/api/gcal/status/${tripId}`);
+      const res = await fetch(`/api/gcal/status/${tripId}${validate ? '?validate=true' : ''}`);
       const data = await res.json();
+      if (!res.ok || !data.state) throw new Error(data.error ?? 'Failed to get calendar status');
       setStatus(data);
       onStatusChange?.(data.state);
+      return data as GCalStatus;
     } catch {
       setStatus({ state: 'unconnected' });
       onStatusChange?.('unconnected');
+      return null;
     }
-  };
+  }, [tripId, onStatusChange]);
 
   useEffect(() => {
     fetchStatus();
-  }, [tripId]);
+  }, [fetchStatus]);
+
+  useEffect(() => {
+    if (!open) return;
+    setStatus(current => ({ ...current, state: 'loading' }));
+    void fetchStatus(true);
+  }, [open, fetchStatus]);
+
+  useEffect(() => {
+    if (!open || status.state !== 'calendar_missing') return;
+    setCalendarActionError('');
+    fetch('/api/gcal/calendar')
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error ?? 'Could not load Google calendars.');
+        const calendars = (data.calendars ?? []) as WritableCalendar[];
+        setWritableCalendars(calendars);
+        setSelectedCalendarId(calendars[0]?.id ?? '');
+      })
+      .catch(error => setCalendarActionError(error instanceof Error ? error.message : 'Could not load Google calendars.'));
+  }, [open, status.state]);
 
   useEffect(() => {
     const goOffline = () => setIsOffline(true);
@@ -81,10 +118,10 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
   }, []);
 
   useEffect(() => {
-    const handler = () => fetchStatus();
+    const handler = () => { void fetchStatus(); };
     window.addEventListener('gcal:dirty', handler);
     return () => window.removeEventListener('gcal:dirty', handler);
-  }, []);
+  }, [fetchStatus]);
 
   // Handle post-OAuth return: ?gcal_connected=true
   useEffect(() => {
@@ -104,7 +141,7 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
       url.searchParams.delete('gcal_connected');
       router.replace(url.pathname + (url.search ? url.search : ''));
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- OAuth callback must be consumed once
 
   // Auto-scroll log
   useEffect(() => {
@@ -117,7 +154,7 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
     setProgressCurrent(0);
     setProgressTotal(0);
     setProgressLog([]);
-    setProgressStats({ creates: 0, updates: 0, deletes: 0 });
+    setProgressStats({ creates: 0, updates: 0, deletes: 0, errors: 0 });
     setProgressDone(false);
     setProgressError(false);
     setProgressOpen(true);
@@ -126,20 +163,48 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
     try {
       const res = await fetch(`/api/gcal/push/trip/${tripId}`, { method: 'POST' });
       if (!res.ok) {
-        setProgressLog(['❌ Server error — could not sync calendar.']);
+        let message = 'Server error — could not sync calendar.';
+        try {
+          const data = await res.json();
+          message = data.message ?? data.error ?? message;
+          if (data.error === 'calendar_missing') {
+            setStatus(current => ({ ...current, state: 'calendar_missing' }));
+            onStatusChange?.('calendar_missing');
+          }
+        } catch {}
+        setProgressLog([`❌ ${message}`]);
         setProgressError(true);
         setProgressDone(true);
         return;
       }
-      const reader = res.body!.getReader();
+      if (!res.body) throw new Error('Calendar sync returned no response.');
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let receivedComplete = false;
+      let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const text = decoder.decode(value);
-        const lines = text.split('\n').filter(l => l.startsWith('data: '));
+      const confirmServerCompletion = async () => {
+        const latest = await fetchStatus();
+        if (latest?.state === 'connected') {
+          receivedComplete = true;
+          setProgressError(false);
+          setProgressDone(true);
+          setProgressLog(lines => [...lines, '✅ Server confirmed calendar sync complete.']);
+          return true;
+        }
+        return false;
+      };
+
+      const readWithTimeout = () => new Promise<ReadableStreamReadResult<Uint8Array>>((resolve, reject) => {
+        const timeout = window.setTimeout(() => reject(new Error('Calendar sync response timed out.')), 30_000);
+        reader.read().then(
+          result => { window.clearTimeout(timeout); resolve(result); },
+          error => { window.clearTimeout(timeout); reject(error); },
+        );
+      });
+
+      const processEventBlock = (block: string) => {
+        const lines = block.split(/\r?\n/).filter(line => line.startsWith('data: '));
         for (const line of lines) {
           try {
             const payload: SSEPayload = JSON.parse(line.slice('data: '.length));
@@ -148,25 +213,78 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
               if (payload.total !== undefined) setProgressTotal(payload.total);
               if (payload.label && payload.action) {
                 const icon = payload.action === 'create' ? '➕' : payload.action === 'update' ? '✏️' : '🗑️';
-                setProgressLog(l => [...l, `${icon} ${payload.label}... ✅`]);
+                const result = payload.status === 'error' ? `❌ ${payload.error ?? 'Failed'}` : '✅';
+                setProgressLog(entries => [...entries, `${icon} ${payload.label}… ${result}`]);
               }
             } else if (payload.type === 'stats') {
               setProgressStats({
                 creates: payload.creates ?? 0,
                 updates: payload.updates ?? 0,
                 deletes: payload.deletes ?? 0,
+                errors: payload.errors ?? 0,
               });
             } else if (payload.type === 'complete') {
               receivedComplete = true;
+              const failed = payload.success !== true;
+              setProgressError(failed);
+              if (failed && payload.error) {
+                setProgressLog(entries => [...entries, `❌ ${payload.error}`]);
+              }
               setProgressDone(true);
-              fetchStatus();
+              void fetchStatus();
             }
           } catch {}
         }
+      };
+
+      while (true) {
+        let readResult: ReadableStreamReadResult<Uint8Array>;
+        try {
+          readResult = await readWithTimeout();
+        } catch (error) {
+          await reader.cancel();
+          if (await confirmServerCompletion()) break;
+          throw error;
+        }
+        const { done, value } = readResult;
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const blocks = buffer.split(/\r?\n\r?\n/);
+        buffer = blocks.pop() ?? '';
+        blocks.forEach(processEventBlock);
       }
-      if (!receivedComplete) setProgressDone(true);
-    } catch {
+      buffer += decoder.decode();
+      if (buffer.trim()) processEventBlock(buffer);
+      if (!receivedComplete) {
+        if (!(await confirmServerCompletion())) {
+          setProgressLog(lines => [...lines, '❌ Calendar sync ended before completion.']);
+          setProgressError(true);
+          setProgressDone(true);
+        }
+      }
+    } catch (error) {
+      setProgressLog(lines => [...lines, `❌ ${error instanceof Error ? error.message : 'Calendar sync failed.'}`]);
+      setProgressError(true);
       setProgressDone(true);
+    }
+  };
+
+  const linkCalendar = async (payload: { calendarId?: string; calendarName?: string }) => {
+    setCalendarActionBusy(true);
+    setCalendarActionError('');
+    try {
+      const response = await fetch('/api/gcal/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tripId, ...payload }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? 'Could not link Google Calendar.');
+      await fetchStatus(true);
+    } catch (error) {
+      setCalendarActionError(error instanceof Error ? error.message : 'Could not link Google Calendar.');
+    } finally {
+      setCalendarActionBusy(false);
     }
   };
 
@@ -244,6 +362,17 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
 
   return (
     <>
+      {status.state === 'loading' && (
+        <Modal open={open} onClose={() => onOpenChange(false)}>
+          <ModalHeader title="Google Calendar" onClose={() => onOpenChange(false)} />
+          <ModalBody>
+            <div style={{ minHeight: '88px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Lato', sans-serif", color: 'var(--text3)' }}>
+              Checking the linked calendar…
+            </div>
+          </ModalBody>
+        </Modal>
+      )}
+
       {/* State 1 — Unconnected modal */}
       {status.state === 'unconnected' && (
         <Modal open={open} onClose={() => onOpenChange(false)}>
@@ -265,6 +394,75 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
           <ModalFooter>
             <Button variant="secondary" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button variant="primary" onClick={handleConnect} disabled={isOffline}>Connect Google Calendar</Button>
+          </ModalFooter>
+        </Modal>
+      )}
+
+      {status.state === 'calendar_missing' && (
+        <Modal open={open} onClose={() => onOpenChange(false)}>
+          <ModalHeader title="Reconnect Google Calendar" onClose={() => onOpenChange(false)} />
+          <ModalBody>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: "'Lato', sans-serif" }}>
+              <div style={{ padding: '14px 16px', borderRadius: 'var(--r)', background: 'rgba(139,32,32,0.06)', border: '1px solid rgba(139,32,32,0.2)', color: 'var(--text2)', fontSize: '14px', lineHeight: 1.5 }}>
+                <strong style={{ color: 'var(--red)' }}>{status.calendarName ?? 'The linked calendar'} is no longer available in Google Calendar.</strong>
+                {' '}Choose another calendar or create a replacement. Helm will rebuild only the items marked for Calendar inclusion.
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label htmlFor="gcal-existing-calendar" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text2)' }}>
+                  Use an existing calendar
+                </label>
+                <select
+                  id="gcal-existing-calendar"
+                  value={selectedCalendarId}
+                  onChange={event => setSelectedCalendarId(event.target.value)}
+                  style={{ ...inputStyle, minHeight: '44px' }}
+                  disabled={calendarActionBusy || writableCalendars.length === 0}
+                >
+                  {writableCalendars.length === 0 && <option value="">No writable calendars found</option>}
+                  {writableCalendars.map(calendar => (
+                    <option key={calendar.id} value={calendar.id}>
+                      {calendar.summary}{calendar.primary ? ' (Primary)' : ''}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  variant="secondary"
+                  disabled={calendarActionBusy || !selectedCalendarId}
+                  onClick={() => void linkCalendar({ calendarId: selectedCalendarId })}
+                >
+                  Use Selected Calendar
+                </Button>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border2)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label htmlFor="gcal-new-calendar" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text2)' }}>
+                  Or create a new calendar
+                </label>
+                <input
+                  id="gcal-new-calendar"
+                  type="text"
+                  value={calendarNameInput}
+                  onChange={event => setCalendarNameInput(event.target.value)}
+                  style={{ ...inputStyle, minHeight: '44px' }}
+                  disabled={calendarActionBusy}
+                />
+                <Button
+                  variant="primary"
+                  disabled={calendarActionBusy || !calendarNameInput.trim()}
+                  onClick={() => void linkCalendar({ calendarName: calendarNameInput.trim() })}
+                >
+                  Create New Calendar
+                </Button>
+              </div>
+
+              {calendarActionError && (
+                <div role="alert" style={{ color: 'var(--red)', fontSize: '13px' }}>{calendarActionError}</div>
+              )}
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="secondary" onClick={() => onOpenChange(false)}>Cancel</Button>
           </ModalFooter>
         </Modal>
       )}
@@ -389,10 +587,10 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
-              {(['creates', 'updates', 'deletes'] as const).map(k => (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', textAlign: 'center' }}>
+              {(['creates', 'updates', 'deletes', 'errors'] as const).map(k => (
                 <div key={k} style={{ background: 'var(--bg2)', borderRadius: 'var(--r)', padding: '10px', fontFamily: "'Lato', sans-serif" }}>
-                  <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--navy)' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: k === 'errors' && progressStats.errors > 0 ? 'var(--red)' : 'var(--navy)' }}>
                     {progressStats[k]}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'capitalize' }}>

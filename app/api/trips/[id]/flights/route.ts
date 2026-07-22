@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
+import { normalizeZonedDateTime } from '@/lib/zoned-time';
 
 function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -96,6 +97,8 @@ export async function POST(
     for (const key of allowed) {
       if (key in body) record[key] = body[key];
     }
+    record.departure_time = normalizeZonedDateTime(record.departure_time, record.departure_timezone);
+    record.arrival_time = normalizeZonedDateTime(record.arrival_time, record.arrival_timezone);
 
     const { data: flight, error } = await supabase
       .from('flights').insert(record).select().single();

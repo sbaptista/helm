@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDataClient } from '@/lib/supabase/data-client'
+import { getValidAccessToken } from '@/lib/gcal/token'
+import { isMissingGoogleCalendarResource } from '@/lib/gcal/client'
+import { getGoogleCalendar } from '@/lib/gcal/sync-state'
 
 function getAuthUserId(): string {
   if (process.env.BYPASS_AUTH_USER_ID) return process.env.BYPASS_AUTH_USER_ID
@@ -7,7 +10,7 @@ function getAuthUserId(): string {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ tripId: string }> }
 ) {
   const { tripId } = await params
@@ -16,25 +19,41 @@ export async function GET(
     const supabase = await getDataClient()
 
     // Check token exists
-    const { data: token } = await supabase
+    const { data: token, error: tokenError } = await supabase
       .from('google_oauth_tokens')
       .select('id')
       .eq('user_id', userId)
       .single()
 
-    if (!token) {
+    if (tokenError || !token) {
       return NextResponse.json({ state: 'unconnected' })
     }
 
     // Check trip calendar
-    const { data: trip } = await supabase
+    const { data: trip, error: tripError } = await supabase
       .from('trips')
       .select('gcal_calendar_id, gcal_calendar_name, gcal_last_synced_at')
       .eq('id', tripId)
       .single()
 
-    if (!trip?.gcal_calendar_id) {
+    if (tripError || !trip?.gcal_calendar_id) {
       return NextResponse.json({ state: 'unconnected' })
+    }
+
+    if (request.nextUrl.searchParams.get('validate') === 'true') {
+      try {
+        const accessToken = await getValidAccessToken(userId)
+        await getGoogleCalendar(accessToken, trip.gcal_calendar_id)
+      } catch (error) {
+        if (isMissingGoogleCalendarResource(error)) {
+          return NextResponse.json({
+            state: 'calendar_missing',
+            calendarName: trip.gcal_calendar_name,
+            lastSyncedAt: trip.gcal_last_synced_at,
+          })
+        }
+        throw error
+      }
     }
 
     // Check dirty count across all calendar-enabled sections
@@ -49,8 +68,12 @@ export async function GET(
           .select('id', { count: 'exact', head: true })
           .eq('trip_id', tripId)
           .is('deleted_at', null)
+          .eq('gcal_include', true)
           .eq('gcal_dirty', true)
-          .then(({ count }) => count ?? 0)
+          .then(({ count, error }) => {
+            if (error) throw error
+            return count ?? 0
+          })
       )
     )
     const dirtyCount = counts.reduce((sum, n) => sum + n, 0)

@@ -1,12 +1,13 @@
 'use client'
 
 import { Menu, CalendarDays } from 'lucide-react'
+import type { GCalState } from '@/components/advisor/CalendarModal'
 
 interface TripTopBarProps {
   onOpenSidebar: () => void
   tripName: string
   onShowCalendar: () => void
-  calendarStatus: 'loading' | 'unconnected' | 'connected' | 'update_required'
+  calendarStatus: GCalState
 }
 
 export function TripTopBar({ onOpenSidebar, tripName, onShowCalendar, calendarStatus }: TripTopBarProps) {
@@ -83,7 +84,7 @@ export function TripTopBar({ onOpenSidebar, tripName, onShowCalendar, calendarSt
           size={22}
           color={calendarStatus === 'unconnected' ? 'var(--text-secondary, var(--text3))' : 'var(--navy)'}
         />
-        {calendarStatus === 'update_required' && (
+        {(calendarStatus === 'update_required' || calendarStatus === 'calendar_missing') && (
           <span style={{
             position: 'absolute',
             top: '8px',

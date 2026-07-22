@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { normalizeZonedDateTime } from '@/lib/zoned-time';
 
 function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -30,6 +31,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const updates: Record<string, unknown> = {};
     for (const key of allowed) { if (key in body) updates[key] = body[key]; }
     if (Object.keys(updates).length === 0) return Response.json({ error: 'No valid fields to update.' }, { status: 400 });
+    if ('departure_time' in updates) {
+      updates.departure_time = normalizeZonedDateTime(updates.departure_time, updates.departure_timezone);
+    }
+    if ('arrival_time' in updates) {
+      updates.arrival_time = normalizeZonedDateTime(updates.arrival_time, updates.arrival_timezone);
+    }
     updates.gcal_dirty = updates.gcal_include === true ? true : false;
     let supabase;
     try { supabase = serviceClient(); } catch (e) { return Response.json({ error: (e as Error).message }, { status: 500 }); }

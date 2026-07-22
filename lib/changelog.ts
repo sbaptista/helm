@@ -6,6 +6,38 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.02.0043',
+    date: '2026-07-21',
+    changes: [
+      'Corrected flight timezone handling so airport-local departure and arrival times are converted into real UTC instants before storage and Google Calendar sync.',
+      'Updated Helm flight details and edit forms to render each stored instant in its departure or arrival airport timezone with the date-correct HST, PDT, PST, MDT, or MST abbreviation.',
+      'Corrected all four Canadian Rockies flight records and marked the Calendar-included flights for resync; the Honolulu departure now represents Oct 3 at 11:30 PM HST rather than 1:30 PM HST.',
+      'Applied the same airport-timezone conversion to future manual flight saves and document imports, and made cross-timezone flight validation compare actual instants.',
+      'Fixed Clear Calendar so its next Update All rebuilds every Calendar-included flight, hotel, transportation, itinerary, and checklist record instead of leaving all non-flight records clean and omitted.',
+      'Prevented the Calendar progress modal from hanging after a successful server-side sync by hardening SSE framing, adding a bounded inactivity timeout, and confirming completion from authoritative server status.',
+    ],
+  },
+  {
+    version: 'v00.02.0042',
+    date: '2026-07-21',
+    changes: [
+      'Validated each trip’s stored Google Calendar before syncing so a deleted or inaccessible calendar can no longer produce a false success.',
+      'Added recovery for a missing calendar by allowing a writable Google Calendar to be selected or a replacement calendar to be created, then rebuilding only Calendar-included trip items.',
+      'Made Calendar status and Update All use the same strict eligibility rule: an item must be both included and dirty.',
+      'Made sync progress truthful: failed Google or database operations are shown as errors, remain dirty, and prevent the last-synced timestamp and success state from being recorded.',
+      'Preserved dirty state for hotel and checklist rows until every required event operation succeeds, and recreated individual events that were deleted directly in Google.',
+    ],
+  },
+  {
+    version: 'v00.02.0041',
+    date: '2026-07-21',
+    changes: [
+      'Migrated the deprecated Next.js middleware file and function convention to proxy without changing its existing request-routing or authentication behavior.',
+      'Pinned Next.js and its ESLint configuration to 16.2.5 so clean installs no longer drift to an unreviewed framework patch release.',
+      'Synchronized npm package metadata with Helm\'s canonical v00.02.0041 release version.',
+    ],
+  },
+  {
     version: 'v00.02.0037',
     date: '2026-06-03',
     changes: [

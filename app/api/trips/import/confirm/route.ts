@@ -1,4 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { AIRPORT_TIMEZONES } from '@/lib/gcal/timezones';
+import { normalizeZonedDateTime } from '@/lib/zoned-time';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -163,17 +165,25 @@ export async function POST(request: Request): Promise<Response> {
 
   // ── flights ──────────────────────────────────────────────────────────────────
   if (result.flights?.length) {
-    const rows = result.flights.map((f) => ({
-      trip_id:           tripId,
-      flight_number:        (f.flight_number as string)     ?? null,
-      airline:              (f.airline as string)           ?? null,
-      origin_airport:       (f.departure_airport as string) ?? null,
-      destination_airport:  (f.arrival_airport as string)   ?? null,
-      departure_time:       (f.departure_time as string)    ?? null,
-      arrival_time:         (f.arrival_time as string)      ?? null,
-      confirmation_number:  (f.confirmation_code as string) ?? null,
-      notes:                (f.notes as string)             ?? null,
-    }));
+    const rows = result.flights.map((f) => {
+      const originAirport = (f.departure_airport as string)?.toUpperCase() ?? null;
+      const destinationAirport = (f.arrival_airport as string)?.toUpperCase() ?? null;
+      const departureTimezone = originAirport ? AIRPORT_TIMEZONES[originAirport] ?? null : null;
+      const arrivalTimezone = destinationAirport ? AIRPORT_TIMEZONES[destinationAirport] ?? null : null;
+      return {
+        trip_id:             tripId,
+        flight_number:       (f.flight_number as string)     ?? null,
+        airline:             (f.airline as string)           ?? null,
+        origin_airport:      originAirport,
+        destination_airport: destinationAirport,
+        departure_time:      normalizeZonedDateTime(f.departure_time, departureTimezone) as string | null,
+        arrival_time:        normalizeZonedDateTime(f.arrival_time, arrivalTimezone) as string | null,
+        departure_timezone:  departureTimezone,
+        arrival_timezone:    arrivalTimezone,
+        confirmation_number: (f.confirmation_code as string) ?? null,
+        notes:               (f.notes as string)             ?? null,
+      };
+    });
     const { error } = await supabase.from('flights').insert(rows);
     if (error) return fail(`flights: ${error.message}`);
     counts.flights = rows.length;
