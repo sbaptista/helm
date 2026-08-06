@@ -39,5 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-.claude/
 supabase/.temp/
+
+# claude
+# Ignore everything under .claude/ (session data, worktrees, personal
+# settings.local.json) EXCEPT settings.json — the tracked project permission
+# rules that enforce the push gate. See shared AGENTS.md "Git — Commits and
+# Pushes". Note: `.claude/*` (not `.claude/`) is required, because git cannot
+# re-include a file whose parent directory is itself excluded.
+.claude/*
+!.claude/settings.json
