@@ -35,23 +35,37 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     }
 
     const sections = ['flights', 'hotels', 'transportation', 'restaurants', 'itinerary', 'checklist'] as const
-    const sectionTables: Record<string, string> = {
-      flights: 'flights', hotels: 'hotels', transportation: 'transportation',
-      restaurants: 'restaurants', itinerary: 'itinerary_rows', checklist: 'checklist',
+    const progressFields: Record<string, { table: string; ids: string[]; extra?: string }> = {
+      flights: { table: 'flights', ids: ['gcal_event_id', 'gcal_legacy_arrival_event_id'] },
+      hotels: { table: 'hotels', ids: ['gcal_checkin_event_id', 'gcal_checkout_event_id'] },
+      transportation: { table: 'transportation', ids: ['gcal_event_id'] },
+      restaurants: { table: 'restaurants', ids: ['gcal_event_id'] },
+      itinerary: { table: 'itinerary_rows', ids: ['gcal_event_id'] },
+      checklist: { table: 'checklist', ids: ['gcal_due_event_id', 'gcal_warning_event_id'], extra: 'warning_days' },
     }
 
-    // Count total dirty records upfront so the client can show a real progress bar
+    // Count actual create/update/delete operations so two-event records report accurately.
     let totalDirty = 0
     for (const section of sections) {
-      const { count, error: countError } = await supabase
-        .from(sectionTables[section])
-        .select('id', { count: 'exact', head: true })
+      const config = progressFields[section]
+      const { data: dirtyRows, error: countError } = await supabase
+        .from(config.table)
+        .select(['gcal_include', ...config.ids, ...(config.extra ? [config.extra] : [])].join(','))
         .eq('trip_id', tripId)
         .is('deleted_at', null)
-        .eq('gcal_include', true)
         .eq('gcal_dirty', true)
       if (countError) throw countError
-      totalDirty += count ?? 0
+      for (const row of (dirtyRows ?? []) as unknown as Array<Record<string, unknown>>) {
+        if (row.gcal_include) {
+          totalDirty += section === 'checklist'
+            ? 1 + (row.warning_days ? 1 : 0)
+            : section === 'flights'
+              ? 1 + (row.gcal_legacy_arrival_event_id ? 1 : 0)
+              : config.ids.length
+        } else {
+          totalDirty += config.ids.filter(field => !!row[field]).length
+        }
+      }
     }
 
     const stream = new ReadableStream({
@@ -79,7 +93,7 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
                 }, tripId)
               }
               current++
-              send({ type: 'progress', current, total: Math.max(totalDirty, current), ...event })
+              send({ type: 'progress', current, total: totalDirty, ...event })
               send({ type: 'stats', ...stats })
             }})
           }

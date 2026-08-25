@@ -10,6 +10,8 @@ import { useToast } from '@/components/ui/Toast';
 import WarnBadge from '@/components/ui/WarnBadge';
 import { scrollToFirstError } from '@/lib/form-utils';
 import { formatZonedDateTime, instantToZonedInput, zonedLocalDateTimeToUtc } from '@/lib/zoned-time';
+import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags';
+import { useRouter } from 'next/navigation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +37,10 @@ export interface Flight {
   notes: string | null;
   gcal_include: boolean;
   action_required: boolean;
+  departure_is_all_day: boolean;
+  departure_is_approx: boolean;
+  arrival_is_all_day: boolean;
+  arrival_is_approx: boolean;
 }
 
 interface FlightForm {
@@ -60,6 +66,10 @@ interface FlightForm {
   notes: string;
   gcal_include: boolean;
   action_required: boolean;
+  departure_is_all_day: boolean;
+  departure_is_approx: boolean;
+  arrival_is_all_day: boolean;
+  arrival_is_approx: boolean;
 }
 
 type FlightErrors = Partial<Record<'departure_date' | 'arrival_date' | 'arrival_time', string>>
@@ -123,6 +133,10 @@ const EMPTY_FORM: FlightForm = {
   notes: '',
   gcal_include: false,
   action_required: false,
+  departure_is_all_day: false,
+  departure_is_approx: false,
+  arrival_is_all_day: false,
+  arrival_is_approx: false,
 };
 
 function joinDatetime(date: string, time: string): string | null {
@@ -156,6 +170,10 @@ function flightToForm(f: Flight): FlightForm {
     notes:               f.notes               ?? '',
     gcal_include:        f.gcal_include        ?? false,
     action_required:     f.action_required     ?? false,
+    departure_is_all_day: f.departure_is_all_day ?? false,
+    departure_is_approx:  f.departure_is_approx  ?? false,
+    arrival_is_all_day:   f.arrival_is_all_day   ?? false,
+    arrival_is_approx:    f.arrival_is_approx    ?? false,
   };
 }
 
@@ -189,6 +207,7 @@ export function FlightsClient({
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const toast = useToast();
+  const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -306,6 +325,10 @@ export function FlightsClient({
         notes:               form.notes               || null,
         gcal_include:        form.gcal_include,
         action_required:     form.action_required,
+        departure_is_all_day: form.departure_is_all_day,
+        departure_is_approx:  form.departure_is_all_day ? false : form.departure_is_approx,
+        arrival_is_all_day:   form.arrival_is_all_day,
+        arrival_is_approx:    form.arrival_is_all_day ? false : form.arrival_is_approx,
       };
 
       const res = isAdd
@@ -323,7 +346,9 @@ export function FlightsClient({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Something went wrong.');
       window.dispatchEvent(new CustomEvent('gcal:dirty'));
+      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'));
       await refetch();
+      router.refresh();
       closeSheet();
     } catch {
       toast.show('Something went wrong. Please try again.', 'error');
@@ -339,7 +364,9 @@ export function FlightsClient({
       const res = await fetch(`/api/flights/${editFlight.id}`, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Something went wrong.');
+      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'));
       await refetch();
+      router.refresh();
       closeSheet();
     } catch {
       toast.show('Something went wrong. Please try again.', 'error');
@@ -730,6 +757,14 @@ export function FlightsClient({
             </select>
           </FormField>
 
+          <ItineraryTimingFlags
+            label="Departure"
+            allDay={form.departure_is_all_day}
+            estimated={form.departure_is_approx}
+            onAllDayChange={checked => setForm(prev => ({ ...prev, departure_is_all_day: checked, departure_is_approx: checked ? false : prev.departure_is_approx }))}
+            onEstimatedChange={checked => setField('departure_is_approx', checked)}
+          />
+
           {/* Arrival — date + time */}
           <FormField label="Arrival" error={flightErrors.arrival_date || flightErrors.arrival_time}>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -768,6 +803,14 @@ export function FlightsClient({
               ))}
             </select>
           </FormField>
+
+          <ItineraryTimingFlags
+            label="Arrival"
+            allDay={form.arrival_is_all_day}
+            estimated={form.arrival_is_approx}
+            onAllDayChange={checked => setForm(prev => ({ ...prev, arrival_is_all_day: checked, arrival_is_approx: checked ? false : prev.arrival_is_approx }))}
+            onEstimatedChange={checked => setField('arrival_is_approx', checked)}
+          />
 
           {/* Cabin Class */}
           <FormField label="Cabin Class" htmlFor="fl-cabin">
@@ -903,19 +946,19 @@ export function FlightsClient({
 
           {/* Google Calendar */}
           <div style={{ marginBottom: 'var(--sp-md)' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: form.departure_date ? 1 : 0.4 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: form.departure_date && form.arrival_date ? 1 : 0.4 }}>
               <input
                 type="checkbox"
                 checked={form.gcal_include ?? false}
-                disabled={!form.departure_date}
+                disabled={!form.departure_date || !form.arrival_date}
                 onChange={e => setField('gcal_include', e.target.checked)}
                 style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
               />
               <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
             </label>
-            {!form.departure_date && (
+            {(!form.departure_date || !form.arrival_date) && (
               <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 16px)' }}>
-                Set a departure date to enable calendar sync
+                Set departure and arrival dates to enable calendar sync
               </p>
             )}
           </div>

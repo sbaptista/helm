@@ -34,12 +34,7 @@ export async function pushSection(options: PushSectionOptions) {
   const { section, tripId, calendarId, accessToken, supabase, onEvent } = options
   switch (section) {
     case 'flights':
-      return pushSimple<FlightRow>({
-        table: 'flights', tripId, calendarId, accessToken, supabase, onEvent,
-        buildEvent: buildFlightEvent,
-        getLabel: (row) => `${row.airline ?? ''} ${row.flight_number ?? ''} · ${row.origin_airport} → ${row.destination_airport}`.trim(),
-        gcalIdField: 'gcal_event_id',
-      })
+      return pushFlights({ tripId, calendarId, accessToken, supabase, onEvent })
     case 'hotels':
       return pushHotels({ tripId, calendarId, accessToken, supabase, onEvent })
     case 'transportation':
@@ -110,7 +105,6 @@ async function pushSimple<T extends { id: string }>({
     .select('*')
     .eq('trip_id', tripId)
     .is('deleted_at', null)
-    .eq('gcal_include', true)
     .eq('gcal_dirty', true)
   if (readError) throw readError
 
@@ -119,6 +113,12 @@ async function pushSimple<T extends { id: string }>({
     const existingEventId = (row as Record<string, unknown>)[gcalIdField] as string | null
 
     try {
+      if ((row as Record<string, unknown>).gcal_include !== true) {
+        await deleteIfPresent(accessToken, calendarId, existingEventId)
+        await updateOrThrow(supabase, table, row.id, { [gcalIdField]: null, gcal_dirty: false })
+        if (existingEventId) onEvent({ action: 'delete', label, status: 'success' })
+        continue
+      }
       const { eventId, action } = await upsertEvent(
         accessToken, calendarId, existingEventId, buildEvent(row)
       )
@@ -126,7 +126,7 @@ async function pushSimple<T extends { id: string }>({
       onEvent({ action, label, status: 'success' })
     } catch (error) {
       onEvent({
-        action: existingEventId ? 'update' : 'create',
+        action: (row as Record<string, unknown>).gcal_include === true ? (existingEventId ? 'update' : 'create') : 'delete',
         label,
         status: 'error',
         error: error instanceof Error ? error.message : String(error),
@@ -135,10 +135,58 @@ async function pushSimple<T extends { id: string }>({
   }
 }
 
+async function pushFlights(options: Omit<PushSectionOptions, 'section'>) {
+  const { tripId, calendarId, accessToken, supabase, onEvent } = options
+  const { data: rows, error: readError } = await supabase
+    .from('flights').select('*').eq('trip_id', tripId).is('deleted_at', null).eq('gcal_dirty', true)
+  if (readError) throw readError
+
+  for (const row of (rows ?? []) as FlightRow[]) {
+    const label = `${row.flight_number ?? ''} · ${row.origin_airport ?? ''} → ${row.destination_airport ?? ''}`.trim()
+    let failed = false
+
+    if (row.gcal_include) {
+      try {
+        const result = await upsertEvent(accessToken, calendarId, row.gcal_event_id, buildFlightEvent(row))
+        await updateOrThrow(supabase, 'flights', row.id, { gcal_event_id: result.eventId })
+        onEvent({ action: result.action, label, status: 'success' })
+      } catch (error) {
+        failed = true
+        onEvent({
+          action: row.gcal_event_id ? 'update' : 'create', label, status: 'error',
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    } else if (row.gcal_event_id) {
+      try {
+        await deleteIfPresent(accessToken, calendarId, row.gcal_event_id)
+        await updateOrThrow(supabase, 'flights', row.id, { gcal_event_id: null })
+        onEvent({ action: 'delete', label, status: 'success' })
+      } catch (error) {
+        failed = true
+        onEvent({ action: 'delete', label, status: 'error', error: error instanceof Error ? error.message : String(error) })
+      }
+    }
+
+    if (row.gcal_legacy_arrival_event_id) {
+      const arrivalLabel = `${row.flight_number ?? ''} · Legacy arrival`.trim()
+      try {
+        await deleteIfPresent(accessToken, calendarId, row.gcal_legacy_arrival_event_id)
+        await updateOrThrow(supabase, 'flights', row.id, { gcal_legacy_arrival_event_id: null })
+        onEvent({ action: 'delete', label: arrivalLabel, status: 'success' })
+      } catch (error) {
+        failed = true
+        onEvent({ action: 'delete', label: arrivalLabel, status: 'error', error: error instanceof Error ? error.message : String(error) })
+      }
+    }
+    if (!failed) await updateOrThrow(supabase, 'flights', row.id, { gcal_dirty: false })
+  }
+}
+
 async function pushHotels(options: Omit<PushSectionOptions, 'section'>) {
   const { tripId, calendarId, accessToken, supabase, onEvent } = options
   const { data: rows, error: readError } = await supabase
-    .from('hotels').select('*').eq('trip_id', tripId).is('deleted_at', null).eq('gcal_include', true).eq('gcal_dirty', true)
+    .from('hotels').select('*').eq('trip_id', tripId).is('deleted_at', null).eq('gcal_dirty', true)
   if (readError) throw readError
 
   for (const row of rows ?? []) {
@@ -150,12 +198,18 @@ async function pushHotels(options: Omit<PushSectionOptions, 'section'>) {
     for (const event of events) {
       const existingId = row[event.field]
       try {
+        if (!row.gcal_include) {
+          await deleteIfPresent(accessToken, calendarId, existingId)
+          await updateOrThrow(supabase, 'hotels', row.id, { [event.field]: null })
+          if (existingId) onEvent({ action: 'delete', label: event.label, status: 'success' })
+          continue
+        }
         const result = await upsertEvent(accessToken, calendarId, existingId ?? null, event.build())
         await updateOrThrow(supabase, 'hotels', row.id, { [event.field]: result.eventId })
         onEvent({ action: result.action, label: event.label, status: 'success' })
       } catch (error) {
         failed = true
-        onEvent({ action: existingId ? 'update' : 'create', label: event.label, status: 'error', error: error instanceof Error ? error.message : String(error) })
+        onEvent({ action: row.gcal_include ? (existingId ? 'update' : 'create') : 'delete', label: event.label, status: 'error', error: error instanceof Error ? error.message : String(error) })
       }
     }
     if (!failed) await updateOrThrow(supabase, 'hotels', row.id, { gcal_dirty: false })

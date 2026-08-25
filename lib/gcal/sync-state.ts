@@ -40,7 +40,7 @@ export async function listWritableGoogleCalendars(
 }
 
 const SYNC_TABLES = [
-  { table: 'flights', eventIds: ['gcal_event_id'] },
+  { table: 'flights', eventIds: ['gcal_event_id', 'gcal_legacy_arrival_event_id'] },
   { table: 'hotels', eventIds: ['gcal_checkin_event_id', 'gcal_checkout_event_id'] },
   { table: 'transportation', eventIds: ['gcal_event_id'] },
   { table: 'restaurants', eventIds: ['gcal_event_id'] },

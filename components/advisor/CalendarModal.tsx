@@ -65,6 +65,7 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
   const [progressStats, setProgressStats] = useState({ creates: 0, updates: 0, deletes: 0, errors: 0 });
   const [progressDone, setProgressDone] = useState(false);
   const [progressError, setProgressError] = useState(false);
+  const [progressActivity, setProgressActivity] = useState('Preparing calendar changes…');
   const logRef = useRef<HTMLDivElement>(null);
 
   const fetchStatus = useCallback(async (validate = false) => {
@@ -157,6 +158,7 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
     setProgressStats({ creates: 0, updates: 0, deletes: 0, errors: 0 });
     setProgressDone(false);
     setProgressError(false);
+    setProgressActivity('Preparing calendar changes…');
     setProgressOpen(true);
     onOpenChange(false);
 
@@ -213,6 +215,8 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
               if (payload.total !== undefined) setProgressTotal(payload.total);
               if (payload.label && payload.action) {
                 const icon = payload.action === 'create' ? '➕' : payload.action === 'update' ? '✏️' : '🗑️';
+                const verb = payload.action === 'create' ? 'Adding' : payload.action === 'update' ? 'Updating' : 'Removing';
+                setProgressActivity(`${verb} ${payload.label}…`);
                 const result = payload.status === 'error' ? `❌ ${payload.error ?? 'Failed'}` : '✅';
                 setProgressLog(entries => [...entries, `${icon} ${payload.label}… ${result}`]);
               }
@@ -231,6 +235,7 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
                 setProgressLog(entries => [...entries, `❌ ${payload.error}`]);
               }
               setProgressDone(true);
+              setProgressActivity(failed ? 'Calendar update needs attention.' : 'Calendar update complete.');
               void fetchStatus();
             }
           } catch {}
@@ -572,6 +577,11 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
             {progressTotal > 0 && (
               <div style={{ fontSize: '13px', color: 'var(--text3)', fontFamily: "'Lato', sans-serif", textAlign: 'center' }}>
                 {progressCurrent} / {progressTotal}
+              </div>
+            )}
+            {!progressDone && (
+              <div role="status" aria-live="polite" style={{ fontSize: '14px', color: 'var(--text2)', fontFamily: "'Lato', sans-serif", textAlign: 'center' }}>
+                {progressActivity}
               </div>
             )}
 

@@ -10,6 +10,7 @@ import type {
   RestaurantRow,
   TransportationRow,
 } from '@/types/sections'
+import type { LinkedItineraryEntry } from '@/lib/itinerary/linked-entries'
 
 export type ReferenceCardType =
   | 'flights'
@@ -30,6 +31,7 @@ interface CardPrintViewProps {
   keyInfo: KeyInfoRow[]
   days: ItineraryDayRow[]
   itineraryRows: ItineraryRowRow[]
+  linkedEntries: LinkedItineraryEntry[]
 }
 
 function formatTime(value: string | null, timezone?: string | null): string {
@@ -61,6 +63,7 @@ export function CardPrintView({
   keyInfo,
   days,
   itineraryRows,
+  linkedEntries,
 }: CardPrintViewProps) {
   if (card === 'flights') {
     if (flights.length === 0) return <EmptyCardState card="flights" />
@@ -216,8 +219,20 @@ export function CardPrintView({
   if (selectedDays.length === 0) return <EmptyCardState card="daily" />
 
   return selectedDays.map(day => {
-    const dayRows = itineraryRows.filter(row => row.day_id === day.id)
-    const chunks = dayRows.length > 0 ? chunkArray(dayRows, 6) : [[] as ItineraryRowRow[]]
+    const dayRows = [
+      ...itineraryRows.filter(row => row.day_id === day.id).map(row => ({
+        id: row.id, title: row.title, start_time: row.start_time, start_timezone: row.start_timezone,
+        is_all_day: row.is_all_day, is_approx: row.is_approx, description: row.description,
+      })),
+      ...linkedEntries.filter(entry => entry.day_date === day.day_date).map(entry => ({
+        id: entry.id, title: entry.title, start_time: entry.start_time, start_timezone: entry.timezone,
+        is_all_day: entry.is_all_day, is_approx: entry.is_approx, description: entry.description,
+      })),
+    ].sort((a, b) => {
+      if (a.is_all_day !== b.is_all_day) return a.is_all_day ? -1 : 1
+      return (a.start_time ?? '').localeCompare(b.start_time ?? '')
+    })
+    const chunks = dayRows.length > 0 ? chunkArray(dayRows, 6) : [[] as typeof dayRows]
     return chunks.map((chunk, index) => (
       <React.Fragment key={`${day.id}-${index}`}>
         <CardWrapper side="FRONT" page={index + 1} total={chunks.length}>
@@ -226,7 +241,7 @@ export function CardPrintView({
             {chunk.length > 0 ? chunk.map(row => (
               <div key={row.id} style={{ display: 'flex', gap: '8px', marginBottom: '4px', fontSize: '10px' }}>
                 <span style={{ fontWeight: 700, color: '#6E4C10', minWidth: '40px' }}>
-                  {row.is_all_day ? 'All day' : formatTime(row.start_time, row.start_timezone)}
+                  {row.is_all_day ? 'All day' : row.start_time ? `${row.is_approx ? '≈ ' : ''}${formatTime(row.start_time, row.start_timezone)}` : 'Time TBD'}
                 </span>
                 <span>{stripEmojiForPrint(row.title ?? '')}</span>
               </div>

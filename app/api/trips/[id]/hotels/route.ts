@@ -25,7 +25,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const supabase = serverClient()
     const body = await request.json()
-    const { data, error } = await supabase.from('hotels').insert({ ...body, trip_id: tripId }).select().single()
+    const { data, error } = await supabase.from('hotels').insert({ ...body, trip_id: tripId, gcal_dirty: body.gcal_include === true }).select().single()
     if (error) {
       logger.error('api/hotels', 'Supabase error on POST', { error: error.message, recordId: tripId })
       return NextResponse.json({ error: error.message }, { status: 500 })

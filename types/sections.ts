@@ -5,6 +5,8 @@ export interface FlightRow {
   airline: string | null
   origin_airport: string | null
   destination_airport: string | null
+  origin_city: string | null
+  destination_city: string | null
   departure_time: string | null
   arrival_time: string | null
   departure_timezone: string | null
@@ -16,6 +18,11 @@ export interface FlightRow {
   gcal_include: boolean
   gcal_dirty: boolean
   gcal_event_id: string | null
+  gcal_legacy_arrival_event_id: string | null
+  departure_is_all_day: boolean
+  departure_is_approx: boolean
+  arrival_is_all_day: boolean
+  arrival_is_approx: boolean
   deleted_at: string | null
 }
 
@@ -38,6 +45,10 @@ export interface HotelRow {
   gcal_dirty: boolean
   gcal_checkin_event_id: string | null
   gcal_checkout_event_id: string | null
+  check_in_is_all_day: boolean
+  check_in_is_approx: boolean
+  check_out_is_all_day: boolean
+  check_out_is_approx: boolean
   deleted_at: string | null
 }
 
@@ -50,6 +61,8 @@ export interface TransportationRow {
   destination: string | null
   departure_time: string | null
   arrival_time: string | null
+  departure_timezone: string | null
+  arrival_timezone: string | null
   confirmation_number: string | null
   phone: string | null
   cost: string | null
@@ -57,6 +70,8 @@ export interface TransportationRow {
   gcal_include: boolean
   gcal_dirty: boolean
   gcal_event_id: string | null
+  pickup_is_all_day: boolean
+  pickup_is_approx: boolean
   deleted_at: string | null
 }
 
@@ -66,6 +81,7 @@ export interface RestaurantRow {
   name: string | null
   address: string | null
   city: string | null
+  display_label: string | null
   cuisine: string | null
   reservation_time: string | null
   party_size: number | null
@@ -76,6 +92,8 @@ export interface RestaurantRow {
   gcal_include: boolean
   gcal_dirty: boolean
   gcal_event_id: string | null
+  reservation_is_all_day: boolean
+  reservation_is_approx: boolean
   deleted_at: string | null
 }
 
@@ -99,6 +117,7 @@ export interface ItineraryRowRow {
   start_timezone: string | null
   end_timezone: string | null
   is_all_day: boolean
+  is_approx: boolean
   description: string | null
   location: string | null
   category: string | null

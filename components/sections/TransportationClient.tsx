@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
+import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
+import { useRouter } from 'next/navigation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,6 +36,8 @@ export type Transportation = {
   gcal_include: boolean
   departure_timezone: string | null
   arrival_timezone: string | null
+  pickup_is_all_day: boolean
+  pickup_is_approx: boolean
 }
 
 type Props = {
@@ -81,6 +85,8 @@ const EMPTY_FORM = {
   gcal_include: false,
   departure_timezone: '',
   arrival_timezone: '',
+  pickup_is_all_day: false,
+  pickup_is_approx: false,
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -136,6 +142,8 @@ function recordToForm(r: Transportation) {
     gcal_include: r.gcal_include ?? false,
     departure_timezone: r.departure_timezone ?? '',
     arrival_timezone: r.arrival_timezone ?? '',
+    pickup_is_all_day: r.pickup_is_all_day ?? false,
+    pickup_is_approx: r.pickup_is_approx ?? false,
   }
 }
 
@@ -153,6 +161,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [touched, setTouched] = useState<Set<string>>(new Set())
   const toast = useToast()
+  const router = useRouter()
   const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
 
   useEffect(() => {
@@ -236,6 +245,8 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
         gcal_include: form.gcal_include,
         departure_timezone: form.departure_timezone || null,
         arrival_timezone: form.arrival_timezone || null,
+        pickup_is_all_day: form.pickup_is_all_day,
+        pickup_is_approx: form.pickup_is_all_day ? false : form.pickup_is_approx,
       }
 
       if (editingRecord) {
@@ -256,7 +267,9 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
         toast.show('Transportation added', 'success')
       }
       window.dispatchEvent(new CustomEvent('gcal:dirty'))
+      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'))
       await refetch()
+      router.refresh()
       closeSheet()
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -274,7 +287,9 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
       })
       if (!res.ok) throw new Error()
       toast.show('Transportation removed', 'success')
+      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'))
       await refetch()
+      router.refresh()
       closeSheet()
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -507,6 +522,14 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
               ))}
             </select>
           </FormField>
+
+          <ItineraryTimingFlags
+            label="Pickup"
+            allDay={form.pickup_is_all_day}
+            estimated={form.pickup_is_approx}
+            onAllDayChange={checked => setForm(prev => ({ ...prev, pickup_is_all_day: checked, pickup_is_approx: checked ? false : prev.pickup_is_approx }))}
+            onEstimatedChange={checked => setField('pickup_is_approx', checked)}
+          />
 
           {/* Arrival date + time */}
           <FormField label="Arrival">

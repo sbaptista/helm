@@ -35,11 +35,19 @@ export async function PATCH(
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const supabase = serverClient()
     const body = await request.json()
-    const { gcal_include } = body
+    const { data: existing } = await supabase
+      .from('hotels')
+      .select('gcal_include, gcal_checkin_event_id, gcal_checkout_event_id')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (!existing) return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
+    const nextInclude = 'gcal_include' in body ? body.gcal_include === true : existing.gcal_include === true
+    const gcalDirty = nextInclude || existing.gcal_include === true || !!existing.gcal_checkin_event_id || !!existing.gcal_checkout_event_id
 
     const { data, error } = await supabase
       .from('hotels')
-      .update({ ...body, gcal_dirty: gcal_include === true ? true : false })
+      .update({ ...body, gcal_dirty: gcalDirty })
       .eq('id', id)
       .select()
       .single()

@@ -6,7 +6,7 @@
 
 ## App State
 
-- **Version:** `00.02.0047`
+- **Version:** `00.02.0051`
 - **Branch:** main
 - **Dev server:** user-started on localhost:3000
 - **Live URL:** https://helm-gilt.vercel.app
@@ -21,61 +21,60 @@
 | Checklist | Functional + WARN system + required validation + scroll-to-error | 00.02.0026 |
 | Packing | Functional — checkboxes rebuilt as native inputs | 00.01.0157 |
 | Key Info | Functional + required validation | 00.02.0014 |
-| Transportation | Functional + WARN system + action_note + required validation + scroll-to-error | 00.02.0026 |
-| Hotels | Functional + WARN system + action_note + required validation + scroll-to-error | 00.02.0026 |
-| Flights | Parity build complete + WARN system + required validation + inline timing errors + scroll-to-error | 00.02.0026 |
-| Restaurants | Full redesign complete + WARN system + required validation + scroll-to-error | 00.02.0026 |
-| Itinerary | Parity declared complete + WARN system + required validation + scroll-to-error + server-side validation | 00.02.0026 |
+| Transportation | Functional + WARN system + source-owned itinerary timing metadata | 00.02.0048 |
+| Hotels | Functional + WARN system + source-owned check-in/check-out itinerary timing | 00.02.0048 |
+| Flights | Functional + local endpoint timing + source-owned departure/arrival itinerary timing | 00.02.0048 |
+| Restaurants | Functional + WARN system + source-owned reservation itinerary timing | 00.02.0048 |
+| Itinerary | Manual rows plus automatic read-only linked source projections | 00.02.0048 |
 | Printing | Packet + server-data 3×5 PDF modes with dashboard and travel-menu access | 00.02.0046 |
-| Calendar | Google validation/relinking, truthful rebuilds, airport-correct flights, and complete hotel addresses | 00.02.0047 |
+| Calendar | Single full-duration Flight events, delete-on-uncheck, and accurate progress | 00.02.0050 |
 | Logs | Complete — Phase 1–4 done + clear-all option | 00.02.0014 |
 | Search | Rebuilt — whole-word toggle, match highlighting | 00.02.0000 |
 | Auth (OTP) | Complete — 6-digit code flow + Passkeys | 00.02.0034 |
 | Auth Shell | Redesigned — single-column, ship's wheel, shooting stars | 00.02.0019 |
 | Icons | Ship's wheel favicon (32x32) + PWA icon (180x180) | 00.02.0018 |
 | Dashboard | CRUD centralized — ellipsis menu, status pills, force-dynamic + Help button + update banner | 00.02.0031 |
-| Version System | Update banner + What's New sheet + changelog + /api/version | 00.02.0031 |
+| Version System | Update banner + What's New + dashboard, trip footer, and sidebar labels | 00.02.0051 |
 
 ---
 
 ## Last Session Completed
 
-**2026-08-24 — Printing repairs and hotel Calendar address completion (Codex GPT-5) — v00.02.0047**
+**2026-08-24 — Automatic linked itinerary projection and Calendar lifecycle repair (Codex GPT-5) — v00.02.0051**
 
-1. Moved 3×5 reference-card data loading from direct browser Supabase queries into the existing authenticated `/advisor/trips/[id]/print` route.
-2. Added `mode=cards&card=<type>` handling for flights, hotels, transportation, restaurants, Key Info, and daily itinerary cards.
-3. Preserved Helm's validated `html2canvas` → `jsPDF` engine and Epson-tested `CardWrapper` margins instead of switching exact-size cards to native browser printing.
-4. Added a route-level preparation screen plus card-by-card capture and PDF assembly progress, completion messaging, and retry/download-again controls.
-5. Replaced the misleading “No card content generated to capture” alert with explicit server-query and empty-content states.
-6. Fixed daily cards to load real itinerary days and filter itinerary rows by `day_id`; the Daily Itinerary option now prepares the complete set of day cards.
-7. Corrected the print route's hotel ordering field from `checkin_date` to `check_in_date`.
-8. Corrected both print layouts to use the canonical `flights.seat_number` field instead of the stale `seat_assignment` name, so saved seats no longer render as `TBD` or `-`.
-9. Database impact: existing bounded read queries only; no schema, column, index, write pattern, or Realtime change.
-10. Verification passed: `npx tsc --noEmit`, focused ESLint with zero errors/warnings, `git diff --check`, and six successful Next.js 16.2.5 production builds. Localhost browser/PDF, travel-menu interaction, Calendar resync, and Epson output remain for Stan to verify.
-11. Renamed the Contacts card to Key Info, limited it to active `show_in_overview` records, and made it generate exactly one card.
-12. Confirmed the two obsolete bag-dimension rows were already soft-deleted, then fixed the Overview and print queries to exclude deleted Key Info records so their stale links disappear.
-13. Restored Print Trip to the travel-data sidebar APP group while retaining the dashboard trip-card action.
-14. Reused the repaired `PrintExportModal` with only `tripId`; no print data was added back to the trip-detail page and no removed Edit/Delete/Clear actions were restored.
-15. Mounted the modal outside the sidebar and kept the action in its scrollable area, avoiding the historical clipping/overflow and iOS fixed-footer failure modes.
-16. Confirmed through the Google Calendar API that all ten included hotel check-in/check-out events exist in Canadian Rockies Adventure v3.
-17. Expanded both hotel Calendar event Address lines to include street, city, province/state, and postal/ZIP code through one shared formatter.
-18. Marked the five active Calendar-included hotels dirty so their ten existing Google events will receive the complete address on the next localhost Update All.
-19. Hotel address database impact: one bounded five-row dirty-state update only; no new query pattern, table, column, index, recurring write frequency, or Realtime subscription.
+1. Added read-time itinerary projections for Flight departure/arrival, Hotel check-in/check-out, Restaurant reservations, and Transportation pickups without creating duplicate `itinerary_rows`.
+2. Made linked entries view-only in Itinerary and deep-link them to the owning source record for every CUD action.
+3. Added independent All Day and Estimated flags for each source occurrence with touch-sized controls and All Day/Estimated mutual behavior.
+4. Assigned Flight occurrences using their endpoint-local timezone dates; Hotels use their local date fields; Restaurant and Transportation preserve Helm's stored wall-clock convention with their source timezone.
+5. Added bounded linked-entry refresh after source mutations and on focus/visibility, with no `postgres_changes` subscription or continuous WAL load.
+6. Included linked entries in Overview day counts, the packet itinerary, and daily 3×5 cards without duplicating them in Search.
+7. Split the former Flight Google event ID into departure and arrival IDs. Departure spans the actual flight and Arrival is a 30-minute marker.
+8. Changed Hotel check-in/check-out and Restaurant Calendar events to 30 minutes while retaining Transportation's source duration or one-hour fallback.
+9. Fixed Calendar uncheck semantics: unchecked records remain dirty until Update All deletes their remote events and clears their stored IDs.
+10. Made Calendar status count pending deletions, made operation totals account for two-event records, and added live activity text while Calendar work is waiting or running.
+11. Added `supabase/migrations/202608240001_linked_itinerary_projection.sql`; no new table, RLS policy, index pattern, high-frequency write, or Realtime subscription is introduced.
+12. Existing manual itinerary duplicates were intentionally left untouched for Stan to remove.
+13. Verification passed: `npx tsc --noEmit`, focused ESLint with zero errors/warnings, `git diff --check`, and a successful Next.js 16.2.5 production build.
+14. Stan applied the migration successfully. REST verification confirmed all new columns are live and the four included trip Flights preserved their former event IDs as departure IDs, have null arrival IDs, and are dirty for the next Update All.
+15. Expanded Flight arrival Calendar titles into one responsive comma-separated summary containing flight/carrier check-in information and airport-local departure/arrival details.
+16. Marked all four included Flights dirty so their existing arrival events receive the new titles on the next Update All.
+17. Corrected the Flight Calendar design to one event per Flight spanning departure through arrival, while retaining two read-only Flight entries in Helm Itinerary.
+18. Added a cleanup migration and sync path that preserves the canonical Flight event ID, deletes the four temporary arrival events on Update All, and then clears their legacy IDs.
+19. Stan applied the single-event migration successfully. REST verification confirmed all four canonical IDs and temporary arrival IDs were preserved and all Flights are dirty for cleanup.
+20. Added the current Helm version beneath the trip name/date in the sidebar while retaining the dashboard and trip-footer version labels.
 
 ---
 
 ## Uncommitted Changes
 
-- `app/advisor/trips/[id]/print/page.tsx`, `app/advisor/trips/[id]/print/loading.tsx` — shared packet/card route, server-side card data, active Overview-only Key Info data, error handling, and preparation state.
-- `components/advisor/PrintExportModal.tsx`, `components/advisor/DashboardView.tsx` — card selection now opens the authenticated print route instead of querying/capturing inside the modal.
-- `components/advisor/TripDetailView.tsx`, `components/ui/TripSidebar.tsx` — the travel-data menu now opens the same print modal as the dashboard without duplicating print data loading.
-- `components/advisor/print/CardPrintView.tsx` — server-rendered layouts for all six card categories, including a single Overview-only Key Info card, with correct daily filtering.
-- `components/sections/OverviewSection.tsx` — excludes soft-deleted Key Info records from the Overview links.
-- `lib/gcal/events.ts`, `types/sections.ts` — corrected the shared flight seat field type and made hotel Calendar descriptions use the complete stored address, including province and postal code.
-- `components/advisor/print/CardPdfGenerator.tsx`, `lib/printing/printing-service.ts` — exact-size PDF generation with accessible card-by-card progress and retry controls.
-- `docs/reference-card-print-route-plan.md` — approved design, database impact, and verification plan.
-- `lib/version.ts`, `lib/changelog.ts`, `package.json`, `package-lock.json` — v00.02.0047 release documentation and metadata.
-- `HANDOFF.md` — recorded the v00.02.0047 printing and hotel Calendar repair state.
+- `supabase/migrations/202608240001_linked_itinerary_projection.sql`, `202608240002_single_flight_calendar_event.sql` — source timing flags, canonical single Flight ID, and temporary arrival-event cleanup state.
+- `lib/itinerary/linked-entries.ts`, `app/api/trips/[id]/itinerary/linked/route.ts` — shared source projection and bounded authenticated refresh endpoint.
+- `components/sections/{Flights,Hotels,Restaurants,Transportation,Itinerary,Overview}*.tsx` — source timing controls, linked read-only rows, deep links, and counts.
+- `components/advisor/TripDetailView.tsx`, `components/advisor/print/CardPrintView.tsx`, `app/advisor/trips/[id]/print/page.tsx` — source-record navigation and linked packet/card content.
+- `lib/gcal/events.ts`, `lib/gcal/sync-state.ts`, `app/api/gcal/**` — single Flight events, temporary arrival cleanup, 30-minute Hotel/Restaurant markers, delete-on-uncheck, status, and progress.
+- Source PATCH/POST routes and `types/sections.ts` — new fields and dirty-state lifecycle.
+- `docs/linked-itinerary-projection-plan.md` — approved design and database impact.
+- `lib/version.ts`, `lib/changelog.ts`, `package.json`, `package-lock.json`, `HANDOFF.md` — v00.02.0051 release documentation and handoff.
 
 ---
 
@@ -93,7 +92,7 @@
 - **Help button over settings page**: What's New lives in a ResponsiveSheet opened from Help button. Extensible for future sections without committing to a full settings page.
 - **Update banner at very top**: Fixed above header (z-index 110 > header 100), header offsets down via `onVisibilityChange` callback + `BANNER_HEIGHT` constant.
 - **Centralized section types**: `types/sections.ts` defines typed interfaces for all DB section tables. Import from there instead of using `any` for Supabase query results.
-- **Calendar eligibility**: a record requires Update All only when both `gcal_include` and `gcal_dirty` are true.
+- **Calendar lifecycle**: included dirty records create/update events; excluded dirty records delete any stored remote events before clearing IDs and dirty state.
 - **Calendar authority**: a stored Google calendar ID is only a pointer; Google CalendarList validation determines whether the calendar still exists and is accessible.
 - **Flight time contract**: Helm displays airport-local time with its date-correct timezone abbreviation. Persist and sync the real instant computed from local date/time plus IANA timezone; calendar applications render that instant in the viewer's active timezone.
 - **Clear means rebuild**: Clear Calendar deletes Google events, removes obsolete event IDs, and marks every included record dirty for the next Update All.
@@ -104,10 +103,9 @@
 ## Next Priorities
 
 1. Stan: verify all six 3×5 PDF categories on localhost and confirm physical Epson output preserves the established margins.
-2. Audit and deliberately normalize timezone semantics for transportation, itinerary, and restaurant timestamps before enabling additional timed records for Google Calendar.
-3. Resolve the pre-existing `UpdateBanner.tsx` lint error and remaining warning backlog.
-4. Decide whether to replace the legacy unconditional proxy authentication bypass with the existing environment-scoped `BYPASS_AUTH_USER_ID` mechanism.
-5. Add a Settings button and Passkeys management section in Helm (analogous to Orb's Settings -> Passkeys UI) to allow users to manage/register passkeys.
+2. Test linked Itinerary rows, source deep links, Overview counts, daily cards, and All Day/Estimated behavior on Mac, iPad, and iPhone.
+3. Run Calendar Update All and verify each included Flight has one full-duration event, the temporary arrival events are removed, Hotels have two 30-minute events, and unchecking removes stored events.
+4. Resolve the pre-existing `UpdateBanner.tsx` lint error and remaining warning backlog.
 
 ---
 
@@ -121,4 +119,4 @@
 
 ## AI Tool Used Last Session
 
-2026-08-23 — Codex (GPT-5)
+2026-08-24 — Codex (GPT-5)

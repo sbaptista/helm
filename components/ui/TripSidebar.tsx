@@ -17,6 +17,7 @@ import {
   FileUp,
 } from 'lucide-react'
 import type { GCalState } from '@/components/advisor/CalendarModal'
+import HelmVersionLabel from '@/components/ui/HelmVersionLabel'
 
 interface TripSidebarProps {
   isOpen: boolean
@@ -242,6 +243,17 @@ export function TripSidebar({
           >
             {tripDates}
           </p>
+          <HelmVersionLabel
+            style={{
+              display: 'block',
+              fontFamily: "'Lato', sans-serif",
+              fontSize: '11px',
+              color: 'var(--text-secondary, var(--text3))',
+              opacity: 0.65,
+              letterSpacing: '0.04em',
+              marginTop: '6px',
+            }}
+          />
 
           {/* Close button */}
           <button

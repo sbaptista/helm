@@ -70,7 +70,7 @@ export async function POST(
     const body = await req.json()
     const { data, error } = await supabase
       .from('transportation')
-      .insert({ ...body, trip_id: tripId })
+      .insert({ ...body, trip_id: tripId, gcal_dirty: body.gcal_include === true })
       .select()
       .single()
     if (error) {

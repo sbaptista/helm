@@ -31,7 +31,7 @@ export async function PATCH(
     const supabase = serviceClient()
     const { data: record } = await supabase
       .from('transportation')
-      .select('trip_id')
+      .select('trip_id, gcal_include, gcal_event_id')
       .eq('id', id)
       .single()
     if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -45,10 +45,11 @@ export async function PATCH(
     if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await req.json()
-    const { gcal_include } = body
+    const nextInclude = 'gcal_include' in body ? body.gcal_include === true : record.gcal_include === true
+    const gcalDirty = nextInclude || record.gcal_include === true || !!record.gcal_event_id
     const { data, error } = await supabase
       .from('transportation')
-      .update({ ...body, gcal_dirty: gcal_include === true ? true : false })
+      .update({ ...body, gcal_dirty: gcalDirty })
       .eq('id', id)
       .select()
       .single()

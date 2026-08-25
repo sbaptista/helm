@@ -38,7 +38,7 @@ export async function GET(
 
     const { data: flights, error } = await supabase
       .from('flights')
-      .select('id, flight_number, airline, origin_airport, destination_airport, origin_city, destination_city, departure_time, arrival_time, departure_timezone, arrival_timezone, cabin_class, seat_number, confirmation_number, departure_terminal, departure_gate, arrival_terminal, arrival_gate, notes, gcal_include, action_required')
+      .select('id, flight_number, airline, origin_airport, destination_airport, origin_city, destination_city, departure_time, arrival_time, departure_timezone, arrival_timezone, cabin_class, seat_number, confirmation_number, departure_terminal, departure_gate, arrival_terminal, arrival_gate, notes, gcal_include, action_required, departure_is_all_day, departure_is_approx, arrival_is_all_day, arrival_is_approx')
       .eq('trip_id', id)
       .is('deleted_at', null)
       .order('departure_time');
@@ -92,6 +92,9 @@ export async function POST(
       'departure_terminal', 'departure_gate',
       'arrival_terminal', 'arrival_gate',
       'action_required',
+      'departure_is_all_day', 'departure_is_approx',
+      'arrival_is_all_day', 'arrival_is_approx',
+      'gcal_include',
     ];
     const record: Record<string, unknown> = { trip_id: id };
     for (const key of allowed) {
@@ -99,6 +102,7 @@ export async function POST(
     }
     record.departure_time = normalizeZonedDateTime(record.departure_time, record.departure_timezone);
     record.arrival_time = normalizeZonedDateTime(record.arrival_time, record.arrival_timezone);
+    record.gcal_dirty = record.gcal_include === true;
 
     const { data: flight, error } = await supabase
       .from('flights').insert(record).select().single();

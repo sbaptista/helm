@@ -10,7 +10,7 @@ export async function TransportationSection({ tripId }: { tripId: string }) {
 
   const { data: transportations } = await supabase
     .from('transportation')
-    .select('id, trip_id, type, provider, origin, destination, departure_time, arrival_time, confirmation_number, notes, sort_order, included, action_required, phone, website_url, cost')
+    .select('id, trip_id, type, provider, origin, destination, departure_time, arrival_time, confirmation_number, notes, sort_order, included, action_required, action_note, phone, website_url, cost, gcal_include, departure_timezone, arrival_timezone, pickup_is_all_day, pickup_is_approx')
     .eq('trip_id', tripId)
     .is('deleted_at', null)
     .order('departure_time', { ascending: true });

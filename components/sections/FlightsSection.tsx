@@ -10,7 +10,7 @@ export async function FlightsSection({ tripId }: { tripId: string }) {
 
   const { data: flights } = await supabase
     .from('flights')
-    .select('id, flight_number, airline, origin_airport, destination_airport, origin_city, destination_city, departure_time, arrival_time, departure_timezone, arrival_timezone, cabin_class, seat_number, confirmation_number, departure_terminal, departure_gate, arrival_terminal, arrival_gate, notes, gcal_include, action_required')
+    .select('id, flight_number, airline, origin_airport, destination_airport, origin_city, destination_city, departure_time, arrival_time, departure_timezone, arrival_timezone, cabin_class, seat_number, confirmation_number, departure_terminal, departure_gate, arrival_terminal, arrival_gate, notes, gcal_include, action_required, departure_is_all_day, departure_is_approx, arrival_is_all_day, arrival_is_approx')
     .eq('trip_id', tripId)
     .is('deleted_at', null)
     .order('departure_time');

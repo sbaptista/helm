@@ -1,4 +1,4 @@
 // lib/version.ts
-// 00.02.0047
-export const VERSION = '00.02.0047';
+// 00.02.0051
+export const VERSION = '00.02.0051';
 export const version = VERSION;

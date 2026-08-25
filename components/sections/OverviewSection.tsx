@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { OverviewClient } from '@/components/trips/overview/OverviewClient';
+import { loadLinkedItineraryEntries } from '@/lib/itinerary/linked-entries';
 
 interface OverviewSectionProps {
   tripId: string;
@@ -28,6 +29,7 @@ export async function OverviewSection({ tripId, trip, sectionCounts }: OverviewS
     keyInfoAttentionResult,
     daysResult,
     rowsResult,
+    linkedEntries,
     keyInfoFlaggedResult,
     ...countResults
   ] = await Promise.all([
@@ -40,6 +42,7 @@ export async function OverviewSection({ tripId, trip, sectionCounts }: OverviewS
     supabase.from('key_info').select('id, label, action_note').eq('trip_id', tripId).eq('action_required', true).is('deleted_at', null).order('sort_order'),
     supabase.from('itinerary_days').select('id, day_date, day_number, title, location, type').eq('trip_id', tripId).is('deleted_at', null).order('day_date', { ascending: true, nullsFirst: false }).order('day_number', { ascending: true }),
     supabase.from('itinerary_rows').select('id, day_id').eq('trip_id', tripId).is('deleted_at', null),
+    loadLinkedItineraryEntries(supabase, tripId),
     supabase.from('key_info').select('id, label, value, url, url_label').eq('trip_id', tripId).eq('show_in_overview', true).is('deleted_at', null).order('sort_order'),
     ...(sectionCounts ? [] : [
       supabase.from('flights').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
@@ -65,6 +68,11 @@ export async function OverviewSection({ tripId, trip, sectionCounts }: OverviewS
   const rowCountMap = new Map<string, number>();
   for (const row of (rowsResult.data ?? [])) {
     rowCountMap.set(row.day_id, (rowCountMap.get(row.day_id) ?? 0) + 1);
+  }
+  const dayIdByDate = new Map((daysResult.data ?? []).map(day => [day.day_date, day.id]));
+  for (const entry of linkedEntries) {
+    const dayId = dayIdByDate.get(entry.day_date);
+    if (dayId) rowCountMap.set(dayId, (rowCountMap.get(dayId) ?? 0) + 1);
   }
 
   const timeline = (daysResult.data ?? []).map((day) => ({

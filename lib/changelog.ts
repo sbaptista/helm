@@ -6,6 +6,44 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.02.0051',
+    date: '2026-08-24',
+    changes: [
+      'Added the current Helm version directly beneath the trip name and date range in the travel-data sidebar.',
+      'Retained the existing version display on the dashboard and the trip-detail footer.',
+    ],
+  },
+  {
+    version: 'v00.02.0050',
+    date: '2026-08-24',
+    changes: [
+      'Consolidated each Flight back into one Google Calendar event spanning departure through arrival, with both endpoint-local times in its responsive title.',
+      'Applied one-time cleanup state for the separate arrival events created by v00.02.0048/0049 so the next Update All removes them without leaving orphan Calendar entries.',
+      'Kept separate Flight departure and arrival entries in Helm Itinerary while limiting the Calendar representation to one authoritative event per Flight.',
+    ],
+  },
+  {
+    version: 'v00.02.0049',
+    date: '2026-08-24',
+    changes: [
+      'Expanded Flight arrival Calendar titles to show the flight number, operating airline and parsed check-in instruction, departure airport and local time, and destination city and local arrival time.',
+      'Used one comma-separated title so Google Calendar can wrap it across two lines when space permits while preserving the complete information in compact one-line views.',
+      'Marked all four Calendar-included trip Flights for resync so Update All applies the revised arrival titles to their existing events.',
+    ],
+  },
+  {
+    version: 'v00.02.0048',
+    date: '2026-08-24',
+    changes: [
+      'Automatically projected Flight departures and arrivals, Hotel check-ins and check-outs, Restaurant reservations, and Transportation pickups into the daily Itinerary without duplicating source records in itinerary_rows.',
+      'Made projected itinerary entries read-only links to their owning source records, included them in Overview day counts and daily 3×5 cards, and added bounded mutation/focus refresh without Realtime subscriptions.',
+      'Added independent All Day and Estimated timing controls for every projected occurrence and assigned each entry to the source location\'s local calendar date.',
+      'Changed included Flights to create two Google Calendar events: a departure event spanning the actual flight and a 30-minute arrival marker; Hotel check-in/check-out and Restaurant events now use legible 30-minute blocks.',
+      'Made Calendar unchecks remain dirty until Update All deletes the corresponding Google events and clears their stored IDs, with accurate two-event progress totals and visible activity messaging during waits.',
+      'Applied the source metadata and dual Flight Calendar ID Supabase migration without a new table, new index pattern, high-frequency write path, or Realtime/WAL subscription.',
+    ],
+  },
+  {
     version: 'v00.02.0047',
     date: '2026-08-24',
     changes: [

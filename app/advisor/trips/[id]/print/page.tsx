@@ -6,6 +6,7 @@ import { CardPrintView, type ReferenceCardType } from '@/components/advisor/prin
 import { CardPdfGenerator } from '@/components/advisor/print/CardPdfGenerator';
 import { stripEmojiForPrint, formatPrintDateRange } from '@/lib/printing/printing-service';
 import type { FlightRow, HotelRow, TransportationRow, RestaurantRow, ItineraryDayRow, ItineraryRowRow, ChecklistRow, PackingRow, KeyInfoRow } from '@/types/sections';
+import { projectLinkedItineraryEntries } from '@/lib/itinerary/linked-entries';
 
 export default async function TripPrintPage({
   params,
@@ -63,6 +64,13 @@ export default async function TripPrintPage({
 
   if (!trip) return <div>Trip not found</div>;
 
+  const linkedEntries = projectLinkedItineraryEntries({
+    flights: (flights ?? []) as FlightRow[],
+    hotels: (hotels ?? []) as HotelRow[],
+    transportation: (transport ?? []) as TransportationRow[],
+    restaurants: (restaurants ?? []) as RestaurantRow[],
+  });
+
   if (mode === 'cards') {
     const selectedError = card === 'flights' ? flightsError
       : card === 'hotels' ? hotelsError
@@ -93,6 +101,7 @@ export default async function TripPrintPage({
           keyInfo={((keyInfo ?? []) as KeyInfoRow[]).filter(item => item.show_in_overview)}
           days={(days ?? []) as ItineraryDayRow[]}
           itineraryRows={(rows ?? []) as ItineraryRowRow[]}
+          linkedEntries={linkedEntries}
         />
       </CardPdfGenerator>
     );
@@ -144,6 +153,7 @@ export default async function TripPrintPage({
           <h2>Daily Itinerary</h2>
           {days.map((day: ItineraryDayRow) => {
             const dayRows = rows?.filter((r: ItineraryRowRow) => r.day_id === day.id) || [];
+            const dayLinkedEntries = linkedEntries.filter(entry => entry.day_date === day.day_date);
             return (
               <div key={day.id} style={{ marginBottom: '20pt', pageBreakInside: 'avoid' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1pt solid #EEE', paddingBottom: '4pt', marginBottom: '8pt' }}>
@@ -156,6 +166,15 @@ export default async function TripPrintPage({
                     <div>
                       <div className="itin-title">{stripEmojiForPrint(row.title ?? '')}</div>
                       {row.description && <div className="itin-detail">{stripEmojiForPrint(row.description)}</div>}
+                    </div>
+                  </div>
+                ))}
+                {itinFull && dayLinkedEntries.map(entry => (
+                  <div key={entry.id} className="itin-row">
+                    <div className="itin-time">{entry.is_all_day ? 'All Day' : entry.start_time ? new Intl.DateTimeFormat('en-US', { timeZone: entry.timezone ?? undefined, hour: 'numeric', minute: '2-digit' }).format(new Date(entry.start_time)) : 'Time TBD'}</div>
+                    <div>
+                      <div className="itin-title">{entry.is_approx ? '≈ ' : ''}{stripEmojiForPrint(entry.title)}</div>
+                      {entry.description && <div className="itin-detail">{stripEmojiForPrint(entry.description)}</div>}
                     </div>
                   </div>
                 ))}

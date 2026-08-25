@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/Toast'
 import { scrollToFirstError } from '@/lib/form-utils'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
+import type { LinkedItineraryEntry } from '@/lib/itinerary/linked-entries'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,8 +55,25 @@ type Props = {
   tripId: string
   initialDays: ItineraryDay[]
   initialRows: ItineraryRow[]
+  initialLinkedEntries: LinkedItineraryEntry[]
   tripStartDate: string   // YYYY-MM-DD from trips.departure_date
   tripEndDate: string     // YYYY-MM-DD from trips.return_date
+}
+
+type DisplayItineraryEntry = {
+  id: string
+  title: string
+  start_time: string | null
+  end_time: string | null
+  timezone: string | null
+  end_timezone: string | null
+  is_all_day: boolean
+  is_approx: boolean
+  description: string | null
+  location: string | null
+  category: string
+  manualRow: ItineraryRow | null
+  linkedEntry: LinkedItineraryEntry | null
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -233,9 +251,10 @@ function categoryColor(cat: string): { bg: string; text: string; border: string 
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ItineraryClient({ tripId, initialDays, initialRows, tripStartDate, tripEndDate }: Props) {
+export default function ItineraryClient({ tripId, initialDays, initialRows, initialLinkedEntries, tripStartDate, tripEndDate }: Props) {
   const [days, setDays] = useState<ItineraryDay[]>(initialDays)
   const [rows, setRows] = useState<ItineraryRow[]>(initialRows)
+  const [linkedEntries, setLinkedEntries] = useState<LinkedItineraryEntry[]>(initialLinkedEntries)
 
   const [daySheetOpen, setDaySheetOpen] = useState(false)
   const [rowSheetOpen, setRowSheetOpen] = useState(false)
@@ -246,7 +265,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
 
   const router = useRouter()
-  const { pendingItemId, clearPendingItem, pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
+  const { pendingItemId, clearPendingItem, pendingSheetRecordId, clearPendingSheetRecord, openSourceRecord } = useContext(TabNavigationContext)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -289,7 +308,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
   function toggleDay(dayId: string) {
     setExpandedDays(prev => {
       const next = new Set(prev)
-      next.has(dayId) ? next.delete(dayId) : next.add(dayId)
+      if (next.has(dayId)) next.delete(dayId)
+      else next.add(dayId)
       return next
     })
   }
@@ -344,13 +364,28 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
   const toast = useToast()
 
   const refetch = useCallback(async () => {
-    const [daysRes, rowsRes] = await Promise.all([
+    const [daysRes, rowsRes, linkedRes] = await Promise.all([
       fetch(`/api/trips/${tripId}/itinerary/days`),
       fetch(`/api/trips/${tripId}/itinerary/rows`),
+      fetch(`/api/trips/${tripId}/itinerary/linked`),
     ])
     if (daysRes.ok) setDays(await daysRes.json())
     if (rowsRes.ok) setRows(await rowsRes.json())
+    if (linkedRes.ok) setLinkedEntries(await linkedRes.json())
   }, [tripId])
+
+  useEffect(() => {
+    const refreshLinked = () => { void refetch() }
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') void refetch() }
+    window.addEventListener('itinerary:linked-dirty', refreshLinked)
+    window.addEventListener('focus', refreshLinked)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      window.removeEventListener('itinerary:linked-dirty', refreshLinked)
+      window.removeEventListener('focus', refreshLinked)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [refetch])
 
   // ── Actions: Days ─────────────────────────────────────────────────────────
 
@@ -537,21 +572,43 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
     () => [...days].sort((a, b) => a.day_date.localeCompare(b.day_date)),
     [days]
   )
-  const rowsByDay = useMemo(() => {
-    const map = new Map<string, ItineraryRow[]>()
+  const entriesByDay = useMemo(() => {
+    const map = new Map<string, DisplayItineraryEntry[]>()
     rows.forEach(r => {
       const arr = map.get(r.day_id) ?? []
-      arr.push(r)
+      arr.push({
+        id: r.id, title: r.title, start_time: r.start_time, end_time: r.end_time,
+        timezone: r.start_timezone, end_timezone: r.end_timezone,
+        is_all_day: r.is_all_day, is_approx: r.is_approx,
+        description: r.description, location: r.location, category: r.category,
+        manualRow: r, linkedEntry: null,
+      })
       map.set(r.day_id, arr)
+    })
+    const dayIdByDate = new Map(days.map(day => [day.day_date, day.id]))
+    linkedEntries.forEach(entry => {
+      const dayId = dayIdByDate.get(entry.day_date)
+      if (!dayId) return
+      const arr = map.get(dayId) ?? []
+      arr.push({
+        id: entry.id, title: entry.title, start_time: entry.start_time, end_time: null,
+        timezone: entry.timezone, end_timezone: null,
+        is_all_day: entry.is_all_day, is_approx: entry.is_approx,
+        description: entry.description, location: entry.location, category: entry.category,
+        manualRow: null, linkedEntry: entry,
+      })
+      map.set(dayId, arr)
     })
     map.forEach(arr => arr.sort((a, b) => {
       if (a.is_all_day && !b.is_all_day) return -1
       if (!a.is_all_day && b.is_all_day) return 1
       if (a.start_time && b.start_time) return a.start_time.localeCompare(b.start_time)
-      return a.sort_order - b.sort_order
+      if (a.start_time) return -1
+      if (b.start_time) return 1
+      return a.title.localeCompare(b.title)
     }))
     return map
-  }, [rows])
+  }, [days, rows, linkedEntries])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -588,7 +645,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       )}
 
       {sortedDays.map(day => {
-        const dayRows = rowsByDay.get(day.id) ?? []
+        const dayRows = entriesByDay.get(day.id) ?? []
         return (
           <div key={day.id} id={`item-${day.id}`} style={{ marginBottom: '0' }}>
             <div
@@ -698,7 +755,9 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                   <button
                     key={row.id}
                     id={`item-${row.id}`}
-                    onClick={() => openEditRow(row)}
+                    onClick={() => row.linkedEntry
+                      ? openSourceRecord(row.linkedEntry.source_section, row.linkedEntry.source_id)
+                      : row.manualRow && openEditRow(row.manualRow)}
                     className={`section-row${highlightedId === row.id ? ' item-highlight' : ''}`}
                     style={{ padding: '18px 16px', borderRadius: 'var(--r)', minHeight: '44px', width: '100%', textAlign: 'left' }}
                   >
@@ -708,11 +767,11 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '80px' }}>
                           <span suppressHydrationWarning style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--gold-text)' }}>
-                            {row.is_approx ? '≈ ' : ''}{formatLocalTime(row.start_time, row.start_timezone)}
-                            {row.end_time ? ` – ${formatLocalTime(row.end_time, row.end_timezone ?? row.start_timezone)}` : ''}
-                            {' '}{formatTzAbbr(row.start_time, row.start_timezone)}
+                            {row.is_approx ? '≈ ' : ''}{row.start_time ? formatLocalTime(row.start_time, row.timezone) : 'Time TBD'}
+                            {row.end_time ? ` – ${formatLocalTime(row.end_time, row.end_timezone ?? row.timezone)}` : ''}
+                            {row.start_time ? ` ${formatTzAbbr(row.start_time, row.timezone)}` : ''}
                           </span>
-                          {row.start_timezone !== HST_TZ && (
+                          {row.start_time && row.timezone !== HST_TZ && (
                             <span suppressHydrationWarning style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)' }}>
                               {formatLocalTime(row.start_time, HST_TZ)} HST
                             </span>
@@ -721,7 +780,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                       )}
                       <span style={{ fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-bold)', color: 'var(--text)', flex: 1 }}>
                         {row.title}
-                        {row.is_provided && (
+                        {row.manualRow?.is_provided && (
                           <span style={{
                             display: 'inline-block', fontSize: 'var(--fs-xs)', fontWeight: 'var(--fw-bold)',
                             color: 'var(--green)', background: 'rgba(45,90,61,0.08)',
@@ -730,19 +789,27 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                             whiteSpace: 'nowrap', verticalAlign: 'middle', marginLeft: '6px'
                           }}>✓ Included</span>
                         )}
+                        {row.linkedEntry && (
+                          <span style={{
+                            display: 'inline-block', fontSize: 'var(--fs-xs)', fontWeight: 'var(--fw-bold)',
+                            color: 'var(--navy)', background: 'var(--bg3)', border: '1px solid var(--border2)',
+                            borderRadius: '10px', padding: '1px 8px', whiteSpace: 'nowrap',
+                            verticalAlign: 'middle', marginLeft: '6px',
+                          }}>View in {row.linkedEntry.source_section}</span>
+                        )}
                       </span>
                       {row.category && <Badge color={categoryColor(row.category)}>{row.category}</Badge>}
                     </div>
-                    {getItineraryWarns(row).length > 0 && (
+                    {row.manualRow && getItineraryWarns(row.manualRow).length > 0 && (
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                        {getItineraryWarns(row).map(w => (
+                        {getItineraryWarns(row.manualRow).map(w => (
                           <WarnBadge key={w} label={w} />
                         ))}
                       </div>
                     )}
-                    {row.action_required && row.action_note && (
+                    {row.manualRow?.action_required && row.manualRow.action_note && (
                       <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '3px' }}>
-                        {row.action_note}
+                        {row.manualRow.action_note}
                       </div>
                     )}
                     {row.description && (

@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
+import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
+import { useRouter } from 'next/navigation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +38,10 @@ type Hotel = {
   province: string | null
   postal_code: string | null
   maps_url: string | null
+  check_in_is_all_day: boolean
+  check_in_is_approx: boolean
+  check_out_is_all_day: boolean
+  check_out_is_approx: boolean
 }
 
 type NearbyDining = {
@@ -76,6 +82,10 @@ const EMPTY_FORM = {
   province: '',
   postal_code: '',
   maps_url: '',
+  check_in_is_all_day: false,
+  check_in_is_approx: false,
+  check_out_is_all_day: false,
+  check_out_is_approx: false,
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -171,6 +181,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [touched, setTouched] = useState<Set<string>>(new Set())
   const toast = useToast()
+  const router = useRouter()
   const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
 
   useEffect(() => {
@@ -241,6 +252,10 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       province: hotel.province ?? '',
       postal_code: hotel.postal_code ?? '',
       maps_url: hotel.maps_url ?? '',
+      check_in_is_all_day: hotel.check_in_is_all_day ?? false,
+      check_in_is_approx: hotel.check_in_is_approx ?? false,
+      check_out_is_all_day: hotel.check_out_is_all_day ?? false,
+      check_out_is_approx: hotel.check_out_is_approx ?? false,
     })
     setConfirmDelete(false)
     setSheetOpen(true)
@@ -280,6 +295,10 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
         province: form.province.trim() || null,
         postal_code: form.postal_code.trim() || null,
         maps_url: form.maps_url.trim() || null,
+        check_in_is_all_day: form.check_in_is_all_day,
+        check_in_is_approx: form.check_in_is_all_day ? false : form.check_in_is_approx,
+        check_out_is_all_day: form.check_out_is_all_day,
+        check_out_is_approx: form.check_out_is_all_day ? false : form.check_out_is_approx,
       }
 
       if (editingHotel) {
@@ -301,7 +320,9 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       }
 
       window.dispatchEvent(new CustomEvent('gcal:dirty'))
+      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'))
       await refetch()
+      router.refresh()
       closeSheet()
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -317,7 +338,9 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       const res = await fetch(`/api/hotels/${editingHotel.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.show('Hotel removed', 'neutral')
+      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'))
       await refetch()
+      router.refresh()
       closeSheet()
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -615,6 +638,14 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
             </FormField>
           </div>
 
+          <ItineraryTimingFlags
+            label="Check-in"
+            allDay={form.check_in_is_all_day}
+            estimated={form.check_in_is_approx}
+            onAllDayChange={checked => setForm(prev => ({ ...prev, check_in_is_all_day: checked, check_in_is_approx: checked ? false : prev.check_in_is_approx }))}
+            onEstimatedChange={checked => setField('check_in_is_approx', checked)}
+          />
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <FormField label="Check-out Date">
               <input
@@ -634,6 +665,14 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
               />
             </FormField>
           </div>
+
+          <ItineraryTimingFlags
+            label="Check-out"
+            allDay={form.check_out_is_all_day}
+            estimated={form.check_out_is_approx}
+            onAllDayChange={checked => setForm(prev => ({ ...prev, check_out_is_all_day: checked, check_out_is_approx: checked ? false : prev.check_out_is_approx }))}
+            onEstimatedChange={checked => setField('check_out_is_approx', checked)}
+          />
 
           <FormField label="Confirmation Number">
             <input

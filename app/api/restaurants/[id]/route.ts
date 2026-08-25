@@ -37,7 +37,7 @@ export async function PATCH(
     const supabase = serviceClient()
     const { data: record } = await supabase
       .from('restaurants')
-      .select('trip_id')
+      .select('trip_id, gcal_include, gcal_event_id')
       .eq('id', id)
       .single()
     if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -57,16 +57,20 @@ export async function PATCH(
       gcal_include,
       display_label, reservation_status, confirmed, booking_source, maps_url,
       action_note, state_province, postal_code, email, booking_url,
+      reservation_is_all_day, reservation_is_approx,
     } = body
+    const nextInclude = 'gcal_include' in body ? gcal_include === true : record.gcal_include === true
+    const gcalDirty = nextInclude || record.gcal_include === true || !!record.gcal_event_id
     const { data, error } = await supabase
       .from('restaurants')
       .update({
         name, cuisine, city, address, reservation_time, party_size, style,
         confirmation_number, phone, website_url, notes, included, action_required,
         gcal_include,
-        gcal_dirty: gcal_include === true ? true : false,
+        gcal_dirty: gcalDirty,
         display_label, reservation_status, confirmed, booking_source, maps_url,
         action_note, state_province, postal_code, email, booking_url,
+        reservation_is_all_day, reservation_is_approx,
       })
       .eq('id', id)
       .select()

@@ -6,10 +6,11 @@ import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
-import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
+import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
+import { useRouter } from 'next/navigation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,8 @@ export type Restaurant = {
   booking_source: string | null
   state_province: string | null
   postal_code: string | null
+  reservation_is_all_day: boolean
+  reservation_is_approx: boolean
 }
 
 type Props = {
@@ -83,6 +86,8 @@ const EMPTY_FORM = {
   booking_source: '',
   state_province: '',
   postal_code: '',
+  reservation_is_all_day: false,
+  reservation_is_approx: false,
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -143,6 +148,8 @@ function recordToForm(r: Restaurant) {
     booking_source:       r.booking_source       ?? '',
     state_province:       r.state_province       ?? '',
     postal_code:          r.postal_code          ?? '',
+    reservation_is_all_day: r.reservation_is_all_day ?? false,
+    reservation_is_approx:  r.reservation_is_approx  ?? false,
   }
 }
 
@@ -178,6 +185,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [touched, setTouched] = useState<Set<string>>(new Set())
   const toast = useToast()
+  const router = useRouter()
   const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
 
   useEffect(() => {
@@ -268,6 +276,8 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
         booking_source:      form.booking_source.trim() || null,
         state_province:      form.state_province.trim() || null,
         postal_code:         form.postal_code.trim() || null,
+        reservation_is_all_day: form.reservation_is_all_day,
+        reservation_is_approx: form.reservation_is_all_day ? false : form.reservation_is_approx,
       }
 
       if (editingRecord) {
@@ -288,7 +298,9 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
         toast.show('Restaurant added', 'success')
       }
       window.dispatchEvent(new CustomEvent('gcal:dirty'))
+      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'))
       await refetch()
+      router.refresh()
       closeSheet()
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -304,7 +316,9 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
       const res = await fetch(`/api/restaurants/${editingRecord.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.show('Restaurant removed', 'success')
+      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'))
       await refetch()
+      router.refresh()
       closeSheet()
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -711,6 +725,14 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
               />
             </div>
           </FormField>
+
+          <ItineraryTimingFlags
+            label="Reservation"
+            allDay={form.reservation_is_all_day}
+            estimated={form.reservation_is_approx}
+            onAllDayChange={checked => setForm(prev => ({ ...prev, reservation_is_all_day: checked, reservation_is_approx: checked ? false : prev.reservation_is_approx }))}
+            onEstimatedChange={checked => setField('reservation_is_approx', checked)}
+          />
 
           <FormField label="Party Size">
             <input

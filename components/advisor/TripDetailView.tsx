@@ -17,6 +17,7 @@ import type { Trip } from '@/types/trips';
 
 export const TabNavigationContext = React.createContext<{
   navigateTo: (tab: string, itemId?: string) => void
+  openSourceRecord: (tab: string, recordId: string) => void
   pendingItemId: string | null
   clearPendingItem: () => void
   pendingSheetRecordId: string | null
@@ -25,6 +26,7 @@ export const TabNavigationContext = React.createContext<{
   setWarnCount: (section: string, count: number) => void
 }>({
   navigateTo: () => {},
+  openSourceRecord: () => {},
   pendingItemId: null,
   clearPendingItem: () => {},
   pendingSheetRecordId: null,
@@ -322,6 +324,10 @@ const handleImportClose = () => {
       navigateTo: (tab, itemId) => {
         switchTab(tab as Tab)
         if (itemId) setPendingItemId(itemId)
+      },
+      openSourceRecord: (tab, recordId) => {
+        setPendingSheetRecordId(recordId)
+        switchTab(tab as Tab)
       },
       pendingItemId,
       clearPendingItem: () => setPendingItemId(null),

@@ -73,6 +73,8 @@ export async function POST(
       confirmation_number, phone, website_url, notes, included, action_required,
       display_label, reservation_status, confirmed, booking_source, maps_url,
       action_note, state_province, postal_code, email, booking_url,
+      reservation_is_all_day, reservation_is_approx,
+      gcal_include,
     } = body
     const { data, error } = await supabase
       .from('restaurants')
@@ -82,8 +84,9 @@ export async function POST(
         confirmation_number, phone, website_url, notes, included, action_required,
         display_label, reservation_status, confirmed, booking_source, maps_url,
         action_note, state_province, postal_code, email, booking_url,
-        gcal_include: false,
-        gcal_dirty: false,
+        reservation_is_all_day, reservation_is_approx,
+        gcal_include: gcal_include === true,
+        gcal_dirty: gcal_include === true,
       })
       .select()
       .single()

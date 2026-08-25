@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     let body: Record<string, unknown>;
     try { body = await request.json(); } catch { return Response.json({ error: 'Invalid request body.' }, { status: 400 }); }
-    const allowed = ['flight_number', 'airline', 'origin_airport', 'destination_airport', 'origin_city', 'destination_city', 'departure_time', 'arrival_time', 'departure_timezone', 'arrival_timezone', 'cabin_class', 'seat_number', 'confirmation_number', 'notes', 'departure_terminal', 'departure_gate', 'arrival_terminal', 'arrival_gate', 'action_required', 'gcal_include'];
+    const allowed = ['flight_number', 'airline', 'origin_airport', 'destination_airport', 'origin_city', 'destination_city', 'departure_time', 'arrival_time', 'departure_timezone', 'arrival_timezone', 'cabin_class', 'seat_number', 'confirmation_number', 'notes', 'departure_terminal', 'departure_gate', 'arrival_terminal', 'arrival_gate', 'action_required', 'gcal_include', 'departure_is_all_day', 'departure_is_approx', 'arrival_is_all_day', 'arrival_is_approx'];
     const updates: Record<string, unknown> = {};
     for (const key of allowed) { if (key in body) updates[key] = body[key]; }
     if (Object.keys(updates).length === 0) return Response.json({ error: 'No valid fields to update.' }, { status: 400 });
@@ -37,13 +37,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if ('arrival_time' in updates) {
       updates.arrival_time = normalizeZonedDateTime(updates.arrival_time, updates.arrival_timezone);
     }
-    updates.gcal_dirty = updates.gcal_include === true ? true : false;
     let supabase;
     try { supabase = serviceClient(); } catch (e) { return Response.json({ error: (e as Error).message }, { status: 500 }); }
-    const { data: flight } = await supabase.from('flights').select('trip_id').eq('id', id).is('deleted_at', null).maybeSingle();
+    const { data: flight } = await supabase.from('flights').select('trip_id, gcal_include, gcal_event_id, gcal_legacy_arrival_event_id').eq('id', id).is('deleted_at', null).maybeSingle();
     if (!flight) return Response.json({ error: 'Flight not found.' }, { status: 404 });
     const { data: member } = await supabase.from('trip_members').select('id').eq('trip_id', flight.trip_id).eq('user_id', userId).maybeSingle();
     if (!member) return Response.json({ error: 'Access denied.' }, { status: 403 });
+    const nextInclude = 'gcal_include' in updates ? updates.gcal_include === true : flight.gcal_include === true;
+    updates.gcal_dirty = nextInclude || flight.gcal_include === true || !!flight.gcal_event_id || !!flight.gcal_legacy_arrival_event_id;
     const { data, error } = await supabase.from('flights').update(updates).eq('id', id).select().single();
     if (error) {
       logger.error('api/flights', 'Supabase error on PATCH', { error: error.message, recordId: id });
