@@ -40,7 +40,7 @@ export async function OverviewSection({ tripId, trip, sectionCounts }: OverviewS
     supabase.from('key_info').select('id, label, action_note').eq('trip_id', tripId).eq('action_required', true).is('deleted_at', null).order('sort_order'),
     supabase.from('itinerary_days').select('id, day_date, day_number, title, location, type').eq('trip_id', tripId).is('deleted_at', null).order('day_date', { ascending: true, nullsFirst: false }).order('day_number', { ascending: true }),
     supabase.from('itinerary_rows').select('id, day_id').eq('trip_id', tripId).is('deleted_at', null),
-    supabase.from('key_info').select('id, label, value, url, url_label').eq('trip_id', tripId).eq('show_in_overview', true).order('sort_order'),
+    supabase.from('key_info').select('id, label, value, url, url_label').eq('trip_id', tripId).eq('show_in_overview', true).is('deleted_at', null).order('sort_order'),
     ...(sectionCounts ? [] : [
       supabase.from('flights').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
       supabase.from('hotels').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),

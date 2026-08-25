@@ -2,6 +2,8 @@ import { getDataClient } from '@/lib/supabase/data-client';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { PrintStyles } from '@/components/advisor/print/PrintStyles';
+import { CardPrintView, type ReferenceCardType } from '@/components/advisor/print/CardPrintView';
+import { CardPdfGenerator } from '@/components/advisor/print/CardPdfGenerator';
 import { stripEmojiForPrint, formatPrintDateRange } from '@/lib/printing/printing-service';
 import type { FlightRow, HotelRow, TransportationRow, RestaurantRow, ItineraryDayRow, ItineraryRowRow, ChecklistRow, PackingRow, KeyInfoRow } from '@/types/sections';
 
@@ -14,6 +16,12 @@ export default async function TripPrintPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  const mode = sp.mode === 'cards' ? 'cards' : 'packet';
+  const requestedCard = typeof sp.card === 'string' ? sp.card : 'flights';
+  const card: ReferenceCardType = (
+    ['flights', 'hotels', 'transportation', 'restaurants', 'key-info', 'daily'].includes(requestedCard)
+    || /^day-\d+$/.test(requestedCard)
+  ) ? requestedCard as ReferenceCardType : 'flights';
 
   const supabase = await getDataClient();
   const BYPASS = process.env.BYPASS_AUTH_USER_ID
@@ -31,13 +39,13 @@ export default async function TripPrintPage({
   // Fetch all data in parallel
   const [
     { data: trip },
-    { data: days },
-    { data: rows },
-    { data: flights },
-    { data: hotels },
-    { data: transport },
-    { data: restaurants },
-    { data: keyInfo },
+    { data: days, error: daysError },
+    { data: rows, error: rowsError },
+    { data: flights, error: flightsError },
+    { data: hotels, error: hotelsError },
+    { data: transport, error: transportError },
+    { data: restaurants, error: restaurantsError },
+    { data: keyInfo, error: keyInfoError },
     { data: checklist },
     { data: packing },
   ] = await Promise.all([
@@ -45,15 +53,50 @@ export default async function TripPrintPage({
     serviceClient.from('itinerary_days').select('*').eq('trip_id', id).is('deleted_at', null).order('day_number'),
     serviceClient.from('itinerary_rows').select('*').eq('trip_id', id).is('deleted_at', null).order('sort_order'),
     serviceClient.from('flights').select('*').eq('trip_id', id).is('deleted_at', null).order('departure_time'),
-    serviceClient.from('hotels').select('*').eq('trip_id', id).is('deleted_at', null).order('checkin_date'),
+    serviceClient.from('hotels').select('*').eq('trip_id', id).is('deleted_at', null).order('check_in_date'),
     serviceClient.from('transportation').select('*').eq('trip_id', id).is('deleted_at', null).order('departure_time'),
     serviceClient.from('restaurants').select('*').eq('trip_id', id).is('deleted_at', null),
-    serviceClient.from('key_info').select('*').eq('trip_id', id),
+    serviceClient.from('key_info').select('*').eq('trip_id', id).is('deleted_at', null).order('sort_order'),
     serviceClient.from('checklist_items').select('*').eq('trip_id', id).eq('is_completed', false),
     serviceClient.from('packing').select('*').eq('trip_id', id),
   ]);
 
   if (!trip) return <div>Trip not found</div>;
+
+  if (mode === 'cards') {
+    const selectedError = card === 'flights' ? flightsError
+      : card === 'hotels' ? hotelsError
+      : card === 'transportation' ? transportError
+      : card === 'restaurants' ? restaurantsError
+      : card === 'key-info' ? keyInfoError
+      : daysError ?? rowsError;
+
+    if (selectedError) {
+      return (
+        <main role="alert" style={{ width: 'min(520px, calc(100vw - 48px))', margin: '64px auto', padding: '32px', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--bg2)', color: 'var(--text)', textAlign: 'center' }}>
+          <h1>Unable to prepare reference cards</h1>
+          <p>{selectedError.message}</p>
+        </main>
+      );
+    }
+
+    const filename = `${String(trip.title).replace(/\s+/g, '_')}_3x5_${card}.pdf`;
+    return (
+      <CardPdfGenerator filename={filename}>
+        <CardPrintView
+          card={card}
+          tripTitle={trip.title}
+          flights={(flights ?? []) as FlightRow[]}
+          hotels={(hotels ?? []) as HotelRow[]}
+          transportation={(transport ?? []) as TransportationRow[]}
+          restaurants={(restaurants ?? []) as RestaurantRow[]}
+          keyInfo={((keyInfo ?? []) as KeyInfoRow[]).filter(item => item.show_in_overview)}
+          days={(days ?? []) as ItineraryDayRow[]}
+          itineraryRows={(rows ?? []) as ItineraryRowRow[]}
+        />
+      </CardPdfGenerator>
+    );
+  }
 
   const showSection = (key: string) => sp[key] === '1';
   const itinFull = sp.detail === 'full';
@@ -143,7 +186,7 @@ export default async function TripPrintPage({
                   <td>{f.origin_airport} \u2192 {f.destination_airport}</td>
                   <td>{f.departure_time ? new Date(f.departure_time).toLocaleString() : '—'}</td>
                   <td>{f.arrival_time ? new Date(f.arrival_time).toLocaleString() : '—'}</td>
-                  <td style={{ fontSize: '9pt' }}>{f.seat_assignment || '-'}<br/><span style={{ color: '#6E4C10' }}>{f.confirmation_number}</span></td>
+                  <td style={{ fontSize: '9pt' }}>{f.seat_number || '-'}<br/><span style={{ color: '#6E4C10' }}>{f.confirmation_number}</span></td>
                 </tr>
               ))}
             </tbody>

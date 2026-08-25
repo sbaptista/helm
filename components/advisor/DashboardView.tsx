@@ -821,8 +821,6 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
           open={printOpen}
           onClose={() => setPrintOpen(false)}
           tripId={selectedTrip.id}
-          tripTitle={selectedTrip.title}
-          days={[]}
         />
       )}
     </div>

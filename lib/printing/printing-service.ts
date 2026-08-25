@@ -98,7 +98,11 @@ export function drawMountainIntoCanvas(ctx: CanvasRenderingContext2D, width: num
  * Orchestrates the generation of a 3x5 card PDF.
  * Expects a DOM element containing the card(s) to capture.
  */
-export async function generate3x5CardPDF(pages: HTMLElement[], filename: string) {
+export async function generate3x5CardPDF(
+  pages: HTMLElement[],
+  filename: string,
+  onProgress?: (current: number, total: number) => void
+) {
   // We dynamic import these to avoid issues with SSR or if they aren't installed yet
   const { jsPDF } = await import('jspdf');
   const html2canvas = (await import('html2canvas')).default;
@@ -130,6 +134,7 @@ export async function generate3x5CardPDF(pages: HTMLElement[], filename: string)
     }
     
     pdf.addImage(imgData, 'PNG', 0, 0, 360, 216);
+    onProgress?.(i + 1, pages.length);
   }
 
   pdf.save(filename);

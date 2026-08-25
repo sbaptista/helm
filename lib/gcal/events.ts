@@ -46,6 +46,18 @@ export function buildFlightEvent(row: FlightRow): GCalEvent {
 
 // ── Hotels ────────────────────────────────────────────────────────
 
+function buildHotelAddress(row: HotelRow): string | null {
+  const provinceAndPostalCode = [row.province, row.postal_code]
+    .map(part => part?.trim())
+    .filter(Boolean)
+    .join(' ')
+  const address = [row.address, row.city, provinceAndPostalCode]
+    .map(part => part?.trim())
+    .filter(Boolean)
+    .join(', ')
+  return address || null
+}
+
 export function buildHotelCheckinEvent(row: HotelRow): GCalEvent {
   const tz = getCityTimezone(row.city ?? '')
   const time = row.check_in_time ?? '15:00:00'
@@ -54,7 +66,7 @@ export function buildHotelCheckinEvent(row: HotelRow): GCalEvent {
   return {
     summary: `${row.name} · Check-in`,
     description: buildDescription({
-      Address: row.address,
+      Address: buildHotelAddress(row),
       Confirmation: row.confirmation_number,
       Phone: row.phone,
       Notes: row.notes,
@@ -72,7 +84,7 @@ export function buildHotelCheckoutEvent(row: HotelRow): GCalEvent {
   return {
     summary: `${row.name} · Check-out`,
     description: buildDescription({
-      Address: row.address,
+      Address: buildHotelAddress(row),
       Confirmation: row.confirmation_number,
       Notes: row.notes,
     }),

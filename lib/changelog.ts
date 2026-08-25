@@ -6,6 +6,44 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.02.0047',
+    date: '2026-08-24',
+    changes: [
+      'Expanded hotel Calendar event addresses to include the stored city, province/state, and postal/ZIP code for both check-in and check-out events.',
+      'Centralized hotel address formatting so both event types consistently use the same complete mailing address.',
+      'Marked the five active Calendar-included hotels for resync so their ten existing Google events can receive the complete addresses on the next Update All.',
+    ],
+  },
+  {
+    version: 'v00.02.0046',
+    date: '2026-08-24',
+    changes: [
+      'Added Print Trip to the travel-data sidebar menu while retaining the same action on dashboard trip cards.',
+      'Reused the repaired print modal and authenticated print route without restoring the former trip-detail data queries or removed CRUD actions.',
+      'Mounted the print modal outside the sidebar and kept the action in the scrollable APP group to avoid the prior clipping and iOS fixed-footer failure modes.',
+    ],
+  },
+  {
+    version: 'v00.02.0045',
+    date: '2026-08-23',
+    changes: [
+      'Renamed the Contacts reference-card option to Key Info and made it produce exactly one 3×5 card.',
+      'Limited the Key Info card to active records explicitly included in Overview → Key Info, preserving their configured order.',
+      'Excluded soft-deleted Key Info records from the Overview and print loaders so obsolete links no longer appear.',
+    ],
+  },
+  {
+    version: 'v00.02.0044',
+    date: '2026-08-23',
+    changes: [
+      'Moved 3×5 reference-card data loading into the existing authenticated print route so cards no longer depend on silent browser-side Supabase queries.',
+      'Preserved the exact-size html2canvas and jsPDF card engine, including the Epson-tested card margins, while adding visible preparation and card-by-card PDF progress.',
+      'Added server-rendered flights, hotels, transportation, restaurants, contacts, and daily itinerary card modes with clear empty and error states.',
+      'Fixed daily cards to load real itinerary days and include only the rows assigned to each day.',
+      'Corrected both print layouts to read the canonical flight seat_number field so saved seat assignments appear instead of TBD or a dash.',
+    ],
+  },
+  {
     version: 'v00.02.0043',
     date: '2026-07-21',
     changes: [

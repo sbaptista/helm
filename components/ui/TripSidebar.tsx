@@ -13,6 +13,7 @@ import {
   Utensils,
   Info,
   ScrollText,
+  Printer,
   FileUp,
 } from 'lucide-react'
 import type { GCalState } from '@/components/advisor/CalendarModal'
@@ -26,6 +27,7 @@ interface TripSidebarProps {
   tripDates: string
   warnCounts: Record<string, number>
   tripId: string
+  onPrint: () => void
   onImport: () => void
   onShowLogs: () => void
   onShowCalendar: () => void
@@ -151,6 +153,7 @@ export function TripSidebar({
   tripName,
   tripDates,
   warnCounts,
+  onPrint,
   onImport,
   onShowLogs,
   onShowCalendar,
@@ -306,6 +309,7 @@ export function TripSidebar({
               ) : undefined
             }
           />
+          <ActionItem icon={Printer}    label="Print Trip"       onClick={() => { onPrint(); onClose() }} />
           <ActionItem icon={FileUp}     label="Import Document"  onClick={() => { onImport(); onClose() }} />
         </div>
       </aside>

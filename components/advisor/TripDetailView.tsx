@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
-import UpdateBanner, { BANNER_HEIGHT } from '@/components/ui/UpdateBanner';
+import UpdateBanner from '@/components/ui/UpdateBanner';
 import { Button } from '@/components/ui/Button';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { CalendarModal, type GCalState } from '@/components/advisor/CalendarModal';
+import { PrintExportModal } from '@/components/advisor/PrintExportModal';
 import { LogsClient } from '@/components/sections/LogsClient';
 import { DashboardBar } from '@/components/ui/DashboardBar';
 import { TripTopBar } from '@/components/ui/TripTopBar';
@@ -183,6 +184,9 @@ function TripDetailViewInner({
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarStatus, setCalendarStatus] = useState<GCalState>('loading');
 
+  // Print modal
+  const [printOpen, setPrintOpen] = useState(false);
+
   useEffect(() => {
     if (calendarStatus === 'update_required') {
       toast.show('Calendar update required — tap the calendar icon to sync.', 'neutral');
@@ -353,6 +357,7 @@ const handleImportClose = () => {
         tripDates={formatDateRange(localTrip.departure_date, localTrip.return_date)}
         warnCounts={warnCounts}
         tripId={trip.id}
+        onPrint={() => setPrintOpen(true)}
         onImport={() => {
           if (importDone && hasSectionData) {
             setReimportConfirmOpen(true);
@@ -371,6 +376,12 @@ const handleImportClose = () => {
         open={showCalendar}
         onOpenChange={setShowCalendar}
         onStatusChange={setCalendarStatus}
+      />
+
+      <PrintExportModal
+        open={printOpen}
+        onClose={() => setPrintOpen(false)}
+        tripId={localTrip.id}
       />
 
       {/* Main */}

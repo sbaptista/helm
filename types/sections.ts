@@ -10,7 +10,7 @@ export interface FlightRow {
   departure_timezone: string | null
   arrival_timezone: string | null
   cabin_class: string | null
-  seat_assignment: string | null
+  seat_number: string | null
   confirmation_number: string | null
   notes: string | null
   gcal_include: boolean
@@ -25,6 +25,8 @@ export interface HotelRow {
   name: string | null
   address: string | null
   city: string | null
+  province: string | null
+  postal_code: string | null
   phone: string | null
   check_in_date: string | null
   check_in_time: string | null
@@ -141,4 +143,6 @@ export interface KeyInfoRow {
   value: string | null
   url: string | null
   flag: boolean
+  show_in_overview: boolean
+  deleted_at: string | null
 }
