@@ -1,5 +1,7 @@
 # Linked source records in Itinerary
 
+> Superseded in v00.02.0055. Helm no longer projects source-section records into Itinerary; this document remains as historical context for the former behavior.
+
 ## Purpose
 
 Helm treats flights, hotels, restaurant reservations, and transportation pickups as itinerary facts without copying those records into `itinerary_rows`. The source section remains the single place where each record is edited or deleted.

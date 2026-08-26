@@ -49,6 +49,7 @@ export async function GET(
       checklistOpenCount,
       checklistTotalCount,
       urgentResult,
+      hotelAttentionResult,
       daysResult,
       rowsResult,
       keyInfoResult,
@@ -57,13 +58,14 @@ export async function GET(
       supabase.from('hotels').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
       supabase.from('transportation').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
       supabase.from('restaurants').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
-      supabase.from('packing').select('*', { count: 'exact', head: true }).eq('trip_id', id),
-      supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', id).eq('status', 'open'),
-      supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', id),
-      supabase.from('checklist').select('id, task, group_name').eq('trip_id', id).eq('action_required', true).neq('status', 'completed').order('sort_order'),
+      supabase.from('packing').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
+      supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', id).eq('status', 'open').is('deleted_at', null),
+      supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
+      supabase.from('checklist').select('id, task, group_name').eq('trip_id', id).eq('action_required', true).neq('status', 'completed').is('deleted_at', null).order('sort_order'),
+      supabase.from('hotels').select('id, name, check_in_date, action_note').eq('trip_id', id).eq('action_required', true).is('deleted_at', null).order('check_in_date'),
       supabase.from('itinerary_days').select('id, day_date, day_number, title, location, type').eq('trip_id', id).is('deleted_at', null).order('day_date', { ascending: true, nullsFirst: false }).order('day_number', { ascending: true }),
       supabase.from('itinerary_rows').select('id, day_id').eq('trip_id', id).is('deleted_at', null),
-      supabase.from('key_info').select('id, label, value, url, url_label').eq('trip_id', id).eq('show_in_overview', true).order('sort_order'),
+      supabase.from('key_info').select('id, label, value, url, url_label').eq('trip_id', id).eq('show_in_overview', true).is('deleted_at', null).order('sort_order'),
     ]);
 
     const rowCountMap = new Map<string, number>();
@@ -102,6 +104,12 @@ export async function GET(
         id: item.id,
         task: item.task,
         group_name: item.group_name,
+      })),
+      hotel_attention: (hotelAttentionResult.data ?? []).map((item) => ({
+        id: item.id,
+        name: item.name,
+        check_in_date: item.check_in_date,
+        action_note: item.action_note,
       })),
       timeline,
       key_info_flagged: (keyInfoResult.data ?? []).map((item) => ({

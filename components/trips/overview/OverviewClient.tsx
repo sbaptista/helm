@@ -7,13 +7,12 @@ import { TabNavigationContext } from '@/components/advisor/TripDetailView';
 
 interface AttentionItem {
   id: string
-  source: 'Checklist' | 'Itinerary' | 'Key Info'
+  source: 'Checklist' | 'Itinerary' | 'Key Info' | 'Hotels'
   label: string
   action_note: string | null
 }
 
 interface OverviewClientProps {
-  tripId: string
   trip: { title: string; departure_date: string | null; return_date: string | null }
   counts: { flights: number; hotels: number; transportation: number; restaurants: number; packing: number; checklist_open: number; checklist_total: number }
   attentionRequired: AttentionItem[]
@@ -75,6 +74,7 @@ const SOURCE_TAB: Record<AttentionItem['source'], string> = {
   'Checklist': 'Checklist',
   'Itinerary': 'Itinerary',
   'Key Info': 'Key Info',
+  'Hotels': 'Hotels',
 }
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
@@ -162,7 +162,6 @@ function StatCard({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function OverviewClient({
-  tripId,
   trip,
   counts,
   attentionRequired,

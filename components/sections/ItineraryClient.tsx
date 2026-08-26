@@ -11,7 +11,6 @@ import { useToast } from '@/components/ui/Toast'
 import { scrollToFirstError } from '@/lib/form-utils'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
-import type { LinkedItineraryEntry } from '@/lib/itinerary/linked-entries'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,7 +54,6 @@ type Props = {
   tripId: string
   initialDays: ItineraryDay[]
   initialRows: ItineraryRow[]
-  initialLinkedEntries: LinkedItineraryEntry[]
   tripStartDate: string   // YYYY-MM-DD from trips.departure_date
   tripEndDate: string     // YYYY-MM-DD from trips.return_date
 }
@@ -72,8 +70,7 @@ type DisplayItineraryEntry = {
   description: string | null
   location: string | null
   category: string
-  manualRow: ItineraryRow | null
-  linkedEntry: LinkedItineraryEntry | null
+  manualRow: ItineraryRow
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -251,10 +248,9 @@ function categoryColor(cat: string): { bg: string; text: string; border: string 
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ItineraryClient({ tripId, initialDays, initialRows, initialLinkedEntries, tripStartDate, tripEndDate }: Props) {
+export default function ItineraryClient({ tripId, initialDays, initialRows, tripStartDate, tripEndDate }: Props) {
   const [days, setDays] = useState<ItineraryDay[]>(initialDays)
   const [rows, setRows] = useState<ItineraryRow[]>(initialRows)
-  const [linkedEntries, setLinkedEntries] = useState<LinkedItineraryEntry[]>(initialLinkedEntries)
 
   const [daySheetOpen, setDaySheetOpen] = useState(false)
   const [rowSheetOpen, setRowSheetOpen] = useState(false)
@@ -265,7 +261,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, init
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
 
   const router = useRouter()
-  const { pendingItemId, clearPendingItem, pendingSheetRecordId, clearPendingSheetRecord, openSourceRecord } = useContext(TabNavigationContext)
+  const { pendingItemId, clearPendingItem, pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -364,25 +360,21 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, init
   const toast = useToast()
 
   const refetch = useCallback(async () => {
-    const [daysRes, rowsRes, linkedRes] = await Promise.all([
+    const [daysRes, rowsRes] = await Promise.all([
       fetch(`/api/trips/${tripId}/itinerary/days`),
       fetch(`/api/trips/${tripId}/itinerary/rows`),
-      fetch(`/api/trips/${tripId}/itinerary/linked`),
     ])
     if (daysRes.ok) setDays(await daysRes.json())
     if (rowsRes.ok) setRows(await rowsRes.json())
-    if (linkedRes.ok) setLinkedEntries(await linkedRes.json())
   }, [tripId])
 
   useEffect(() => {
-    const refreshLinked = () => { void refetch() }
+    const refreshWhenFocused = () => { void refetch() }
     const refreshWhenVisible = () => { if (document.visibilityState === 'visible') void refetch() }
-    window.addEventListener('itinerary:linked-dirty', refreshLinked)
-    window.addEventListener('focus', refreshLinked)
+    window.addEventListener('focus', refreshWhenFocused)
     document.addEventListener('visibilitychange', refreshWhenVisible)
     return () => {
-      window.removeEventListener('itinerary:linked-dirty', refreshLinked)
-      window.removeEventListener('focus', refreshLinked)
+      window.removeEventListener('focus', refreshWhenFocused)
       document.removeEventListener('visibilitychange', refreshWhenVisible)
     }
   }, [refetch])
@@ -581,23 +573,9 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, init
         timezone: r.start_timezone, end_timezone: r.end_timezone,
         is_all_day: r.is_all_day, is_approx: r.is_approx,
         description: r.description, location: r.location, category: r.category,
-        manualRow: r, linkedEntry: null,
+        manualRow: r,
       })
       map.set(r.day_id, arr)
-    })
-    const dayIdByDate = new Map(days.map(day => [day.day_date, day.id]))
-    linkedEntries.forEach(entry => {
-      const dayId = dayIdByDate.get(entry.day_date)
-      if (!dayId) return
-      const arr = map.get(dayId) ?? []
-      arr.push({
-        id: entry.id, title: entry.title, start_time: entry.start_time, end_time: null,
-        timezone: entry.timezone, end_timezone: null,
-        is_all_day: entry.is_all_day, is_approx: entry.is_approx,
-        description: entry.description, location: entry.location, category: entry.category,
-        manualRow: null, linkedEntry: entry,
-      })
-      map.set(dayId, arr)
     })
     map.forEach(arr => arr.sort((a, b) => {
       if (a.is_all_day && !b.is_all_day) return -1
@@ -608,7 +586,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, init
       return a.title.localeCompare(b.title)
     }))
     return map
-  }, [days, rows, linkedEntries])
+  }, [rows])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -755,9 +733,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, init
                   <button
                     key={row.id}
                     id={`item-${row.id}`}
-                    onClick={() => row.linkedEntry
-                      ? openSourceRecord(row.linkedEntry.source_section, row.linkedEntry.source_id)
-                      : row.manualRow && openEditRow(row.manualRow)}
+                    onClick={() => openEditRow(row.manualRow)}
                     className={`section-row${highlightedId === row.id ? ' item-highlight' : ''}`}
                     style={{ padding: '18px 16px', borderRadius: 'var(--r)', minHeight: '44px', width: '100%', textAlign: 'left' }}
                   >
@@ -788,14 +764,6 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, init
                             borderRadius: '10px', padding: '1px 8px',
                             whiteSpace: 'nowrap', verticalAlign: 'middle', marginLeft: '6px'
                           }}>✓ Included</span>
-                        )}
-                        {row.linkedEntry && (
-                          <span style={{
-                            display: 'inline-block', fontSize: 'var(--fs-xs)', fontWeight: 'var(--fw-bold)',
-                            color: 'var(--navy)', background: 'var(--bg3)', border: '1px solid var(--border2)',
-                            borderRadius: '10px', padding: '1px 8px', whiteSpace: 'nowrap',
-                            verticalAlign: 'middle', marginLeft: '6px',
-                          }}>View in {row.linkedEntry.source_section}</span>
                         )}
                       </span>
                       {row.category && <Badge color={categoryColor(row.category)}>{row.category}</Badge>}

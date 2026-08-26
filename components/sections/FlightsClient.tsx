@@ -346,7 +346,6 @@ export function FlightsClient({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Something went wrong.');
       window.dispatchEvent(new CustomEvent('gcal:dirty'));
-      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'));
       await refetch();
       router.refresh();
       closeSheet();
@@ -364,7 +363,6 @@ export function FlightsClient({
       const res = await fetch(`/api/flights/${editFlight.id}`, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Something went wrong.');
-      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'));
       await refetch();
       router.refresh();
       closeSheet();

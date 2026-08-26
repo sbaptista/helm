@@ -298,7 +298,6 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
         toast.show('Restaurant added', 'success')
       }
       window.dispatchEvent(new CustomEvent('gcal:dirty'))
-      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'))
       await refetch()
       router.refresh()
       closeSheet()
@@ -316,7 +315,6 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
       const res = await fetch(`/api/restaurants/${editingRecord.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.show('Restaurant removed', 'success')
-      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'))
       await refetch()
       router.refresh()
       closeSheet()

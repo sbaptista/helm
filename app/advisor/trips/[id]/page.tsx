@@ -64,8 +64,8 @@ export default async function TripDetailPage({
     serviceClient.from('restaurants').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('itinerary_rows').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('checklist').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
-    serviceClient.from('packing').select('id', { count: 'exact', head: true }).eq('trip_id', id),
-    serviceClient.from('key_info').select('id, label, value').eq('trip_id', id),
+    serviceClient.from('packing').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
+    serviceClient.from('key_info').select('id, label, value').eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('itinerary_days').select('id, day_number, day_date, title').eq('trip_id', id).is('deleted_at', null).order('day_number'),
   ]);
 

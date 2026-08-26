@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import ItineraryClient from './ItineraryClient';
-import { loadLinkedItineraryEntries } from '@/lib/itinerary/linked-entries';
 
 export async function ItinerarySection({ tripId }: { tripId: string }) {
   const supabase = createClient(
@@ -8,7 +7,7 @@ export async function ItinerarySection({ tripId }: { tripId: string }) {
     process.env.SUPABASE_SECRET_KEY!
   );
 
-  const [{ data: days }, { data: rows }, { data: trip }, linkedEntries] = await Promise.all([
+  const [{ data: days }, { data: rows }, { data: trip }] = await Promise.all([
     supabase
       .from('itinerary_days')
       .select('*')
@@ -26,7 +25,6 @@ export async function ItinerarySection({ tripId }: { tripId: string }) {
       .select('departure_date, return_date')
       .eq('id', tripId)
       .single(),
-    loadLinkedItineraryEntries(supabase, tripId),
   ]);
 
   return (
@@ -34,7 +32,6 @@ export async function ItinerarySection({ tripId }: { tripId: string }) {
       tripId={tripId}
       initialDays={days ?? []}
       initialRows={rows ?? []}
-      initialLinkedEntries={linkedEntries}
       tripStartDate={trip?.departure_date ?? ''}
       tripEndDate={trip?.return_date ?? ''}
     />

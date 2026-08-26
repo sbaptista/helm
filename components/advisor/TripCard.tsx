@@ -10,6 +10,7 @@ import type { Trip, TripStatus } from '@/types/trips';
 interface TripCardProps {
   trip: Trip;
   onEdit: () => void;
+  onCopy: () => void;
   onPrint: () => void;
   onDelete: () => void;
   onArchive: () => void;
@@ -44,7 +45,7 @@ const STATUS_LABELS: Record<TripStatus, string> = {
   archived: 'Archived',
 };
 
-export function TripCard({ trip, onEdit, onPrint, onDelete, onArchive, onClear, onStatusChange }: TripCardProps) {
+export function TripCard({ trip, onEdit, onCopy, onPrint, onDelete, onArchive, onClear, onStatusChange }: TripCardProps) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
 
@@ -91,6 +92,7 @@ export function TripCard({ trip, onEdit, onPrint, onDelete, onArchive, onClear, 
             tripId={trip.id}
             currentStatus={trip.status}
             onEdit={onEdit}
+            onCopy={onCopy}
             onPrint={onPrint}
             onDelete={onDelete}
             onArchive={onArchive}

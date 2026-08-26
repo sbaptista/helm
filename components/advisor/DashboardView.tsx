@@ -8,6 +8,7 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Moda
 import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { TripCard } from '@/components/advisor/TripCard';
 import { CreateTripModal } from '@/components/advisor/CreateTripModal';
+import { CopyTripModal } from '@/components/advisor/CopyTripModal';
 import { PrintExportModal } from '@/components/advisor/PrintExportModal';
 import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
 import UpdateBanner, { BANNER_HEIGHT } from '@/components/ui/UpdateBanner';
@@ -176,6 +177,7 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
   // Action modal state
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
@@ -224,6 +226,11 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
     setDeleteError(null);
     setDeleteConfirming(false);
     setDeleteOpen(true);
+  }
+
+  function openCopy(trip: Trip) {
+    setSelectedTrip(trip);
+    setCopyOpen(true);
   }
 
   function openClear(trip: Trip) {
@@ -603,6 +610,7 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
                 key={trip.id}
                 trip={trip}
                 onEdit={() => openEdit(trip)}
+                onCopy={() => openCopy(trip)}
                 onPrint={() => openPrint(trip)}
                 onDelete={() => openDelete(trip)}
                 onArchive={() => handleArchive(trip)}
@@ -676,6 +684,16 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSuccess={handleSuccess}
+      />
+
+      <CopyTripModal
+        open={copyOpen}
+        sourceTrip={selectedTrip}
+        onClose={() => setCopyOpen(false)}
+        onSuccess={(tripId) => {
+          setCopyOpen(false);
+          router.push(`/advisor/trips/${tripId}`);
+        }}
       />
 
       {/* Edit Trip modal */}

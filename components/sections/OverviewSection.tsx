@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { OverviewClient } from '@/components/trips/overview/OverviewClient';
-import { loadLinkedItineraryEntries } from '@/lib/itinerary/linked-entries';
 
 interface OverviewSectionProps {
   tripId: string;
@@ -15,6 +14,16 @@ interface OverviewSectionProps {
   };
 }
 
+function formatMonthDay(date: string | null): string | null {
+  if (!date) return null;
+  const [, month, day] = date.split('-').map(Number);
+  const monthName = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ][month - 1];
+  return monthName && day ? `${monthName} ${day}` : date;
+}
+
 export async function OverviewSection({ tripId, trip, sectionCounts }: OverviewSectionProps) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,29 +36,29 @@ export async function OverviewSection({ tripId, trip, sectionCounts }: OverviewS
     checklistAttentionResult,
     itineraryAttentionResult,
     keyInfoAttentionResult,
+    hotelAttentionResult,
     daysResult,
     rowsResult,
-    linkedEntries,
     keyInfoFlaggedResult,
     ...countResults
   ] = await Promise.all([
-    supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).eq('status', 'open'),
+    supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).eq('status', 'open').is('deleted_at', null),
     sectionCounts
       ? { count: sectionCounts.checklist }
-      : supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', tripId),
-    supabase.from('checklist').select('id, task, action_note').eq('trip_id', tripId).eq('action_required', true).neq('status', 'completed').order('sort_order'),
+      : supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
+    supabase.from('checklist').select('id, task, action_note').eq('trip_id', tripId).eq('action_required', true).neq('status', 'completed').is('deleted_at', null).order('sort_order'),
     supabase.from('itinerary_rows').select('id, title, action_note').eq('trip_id', tripId).eq('action_required', true).is('deleted_at', null).order('sort_order'),
     supabase.from('key_info').select('id, label, action_note').eq('trip_id', tripId).eq('action_required', true).is('deleted_at', null).order('sort_order'),
+    supabase.from('hotels').select('id, name, check_in_date, action_note').eq('trip_id', tripId).eq('action_required', true).is('deleted_at', null).order('check_in_date'),
     supabase.from('itinerary_days').select('id, day_date, day_number, title, location, type').eq('trip_id', tripId).is('deleted_at', null).order('day_date', { ascending: true, nullsFirst: false }).order('day_number', { ascending: true }),
     supabase.from('itinerary_rows').select('id, day_id').eq('trip_id', tripId).is('deleted_at', null),
-    loadLinkedItineraryEntries(supabase, tripId),
     supabase.from('key_info').select('id, label, value, url, url_label').eq('trip_id', tripId).eq('show_in_overview', true).is('deleted_at', null).order('sort_order'),
     ...(sectionCounts ? [] : [
       supabase.from('flights').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
       supabase.from('hotels').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
       supabase.from('transportation').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
       supabase.from('restaurants').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
-      supabase.from('packing').select('*', { count: 'exact', head: true }).eq('trip_id', tripId),
+      supabase.from('packing').select('*', { count: 'exact', head: true }).eq('trip_id', tripId).is('deleted_at', null),
     ]),
   ]);
 
@@ -69,12 +78,6 @@ export async function OverviewSection({ tripId, trip, sectionCounts }: OverviewS
   for (const row of (rowsResult.data ?? [])) {
     rowCountMap.set(row.day_id, (rowCountMap.get(row.day_id) ?? 0) + 1);
   }
-  const dayIdByDate = new Map((daysResult.data ?? []).map(day => [day.day_date, day.id]));
-  for (const entry of linkedEntries) {
-    const dayId = dayIdByDate.get(entry.day_date);
-    if (dayId) rowCountMap.set(dayId, (rowCountMap.get(dayId) ?? 0) + 1);
-  }
-
   const timeline = (daysResult.data ?? []).map((day) => ({
     id: day.id as string,
     day_date: day.day_date as string | null,
@@ -105,11 +108,19 @@ export async function OverviewSection({ tripId, trip, sectionCounts }: OverviewS
       label: item.label as string,
       action_note: item.action_note as string | null,
     })),
+    ...(hotelAttentionResult.data ?? []).map((item) => {
+      const dateLabel = formatMonthDay(item.check_in_date as string | null);
+      return {
+        id: item.id as string,
+        source: 'Hotels' as const,
+        label: `${item.name as string}${dateLabel ? ` — ${dateLabel}` : ''}`,
+        action_note: item.action_note as string | null,
+      };
+    }),
   ];
 
   return (
     <OverviewClient
-      tripId={tripId}
       trip={trip}
       counts={{
         flights: counts.flights,

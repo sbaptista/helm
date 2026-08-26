@@ -6,6 +6,42 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.03.0000',
+    date: '2026-08-25',
+    changes: [
+      'Completed the Canadian Rockies final-document reconciliation across Itinerary, Hotels, Transportation, Key Info, Checklist, Packing, Flights, and Restaurants while keeping each travel section independent.',
+      'Corrected Overview and its API to exclude soft-deleted Packing, Checklist, and Key Info records so displayed counts and active-record totals remain aligned.',
+      'Added dated Hotel attention items to Overview with direct navigation to each unresolved Kamloops accommodation record.',
+    ],
+  },
+  {
+    version: 'v00.02.0055',
+    date: '2026-08-25',
+    changes: [
+      'Separated Itinerary from Flights, Hotels, Restaurants, and Transportation by removing their automatic read-only projections from the app.',
+      'Limited Overview itinerary counts, 8.5×11 itinerary printing, and 3×5 Daily Itinerary cards to records explicitly stored in Itinerary.',
+      'Removed the obsolete linked-itinerary endpoint, projection utility, and source-section refresh events while preserving each section\'s independent Calendar behavior.',
+    ],
+  },
+  {
+    version: 'v00.02.0054',
+    date: '2026-08-25',
+    changes: [
+      'Added Copy Trip to each dashboard trip menu with an editable, responsive confirmation form and direct navigation to the new Draft.',
+      'Copied active itinerary, travel sections, checklist, packing, Key Info, nearby dining, and trip memberships in one transactional database operation with all relational IDs remapped.',
+      'Reset Google Calendar linkage and excluded deleted records, documents, logs, audit/import history, feedback, notifications, and generated Calendar records from copied trips.',
+    ],
+  },
+  {
+    version: 'v00.02.0053',
+    date: '2026-08-25',
+    changes: [
+      'Repaired New Trip creation in localhost development-bypass mode by moving authentication and writes into a server endpoint.',
+      'Added matching server-side required-field and date validation plus cleanup protection if advisor membership creation fails.',
+      'Made creation and validation errors scroll into view in both the desktop modal and mobile bottom sheet.',
+    ],
+  },
+  {
     version: 'v00.02.0052',
     date: '2026-08-25',
     changes: [

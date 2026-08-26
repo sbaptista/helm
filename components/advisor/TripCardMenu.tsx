@@ -7,6 +7,7 @@ interface TripCardMenuProps {
   tripId: string;
   currentStatus: TripStatus;
   onEdit: () => void;
+  onCopy: () => void;
   onPrint: () => void;
   onDelete: () => void;
   onArchive: () => void;
@@ -29,6 +30,7 @@ const STATUS_PILL_COLORS: Record<string, { bg: string; text: string; border: str
 export function TripCardMenu({
   currentStatus,
   onEdit,
+  onCopy,
   onPrint,
   onDelete,
   onArchive,
@@ -85,7 +87,7 @@ export function TripCardMenu({
             right: 0,
             marginTop: '4px',
             width: '200px',
-            maxHeight: '220px',
+            maxHeight: '270px',
             overflowY: 'auto',
             background: 'var(--bg)',
             border: '1px solid var(--border2)',
@@ -99,6 +101,7 @@ export function TripCardMenu({
           onClick={(e) => e.stopPropagation()}
         >
           <MenuItem label="Edit" onClick={() => { setOpen(false); onEdit(); }} />
+          <MenuItem label="Copy Trip" onClick={() => { setOpen(false); onCopy(); }} />
           <MenuItem label="Print" onClick={() => { setOpen(false); onPrint(); }} />
 
           <div style={{ height: '1px', background: 'var(--border2)', margin: '6px 0' }} />

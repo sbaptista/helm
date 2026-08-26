@@ -320,7 +320,6 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       }
 
       window.dispatchEvent(new CustomEvent('gcal:dirty'))
-      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'))
       await refetch()
       router.refresh()
       closeSheet()
@@ -338,7 +337,6 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       const res = await fetch(`/api/hotels/${editingHotel.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.show('Hotel removed', 'neutral')
-      window.dispatchEvent(new CustomEvent('itinerary:linked-dirty'))
       await refetch()
       router.refresh()
       closeSheet()

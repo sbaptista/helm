@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useToast } from '@/components/ui/Toast';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
+import { scrollToFirstError } from '@/lib/form-utils';
 
 interface CreateTripModalProps {
   open: boolean;
@@ -82,7 +82,9 @@ export function CreateTripModal({ open, onClose, onSuccess }: CreateTripModalPro
     }
 
     setErrors(next);
-    return Object.keys(next).length === 0;
+    const valid = Object.keys(next).length === 0;
+    if (!valid) scrollToFirstError();
+    return valid;
   };
 
   const handleClose = () => {
@@ -99,38 +101,13 @@ export function CreateTripModal({ open, onClose, onSuccess }: CreateTripModalPro
 
     setLoading(true);
     try {
-      const supabase = createClient();
-
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('Not authenticated.');
-
-      // Insert trip
-      const { data: trip, error: tripError } = await supabase
-        .from('trips')
-        .insert({
-          title:          values.title.trim(),
-          destination:    values.destination.trim(),
-          departure_date: values.departure_date,
-          return_date:    values.return_date,
-          description:    values.description.trim() || null,
-          status:         'draft',
-          created_by:     user.id,
-        })
-        .select('id')
-        .single();
-
-      if (tripError || !trip) throw new Error(tripError?.message ?? 'Failed to create trip.');
-
-      // Insert advisor membership
-      const { error: memberError } = await supabase
-        .from('trip_members')
-        .insert({
-          trip_id: trip.id,
-          user_id: user.id,
-          role:    'advisor',
-        });
-
-      if (memberError) throw new Error(memberError.message);
+      const response = await fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? 'Failed to create trip.');
 
       // Success
       setValues(EMPTY_FORM);
@@ -140,6 +117,7 @@ export function CreateTripModal({ open, onClose, onSuccess }: CreateTripModalPro
       toast.success('Trip created');
     } catch (err) {
       setGeneralError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      scrollToFirstError();
     } finally {
       setLoading(false);
     }
