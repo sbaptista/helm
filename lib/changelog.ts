@@ -6,6 +6,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.02.0052',
+    date: '2026-08-25',
+    changes: [
+      'Added each itinerary day date to the front header of its 3×5 Daily Itinerary reference card.',
+      'Used a compact weekday, month, and day format so the date remains legible without crowding the itinerary content.',
+    ],
+  },
+  {
     version: 'v00.02.0051',
     date: '2026-08-24',
     changes: [

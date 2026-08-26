@@ -44,6 +44,15 @@ function formatTime(value: string | null, timezone?: string | null): string {
   }).format(new Date(value))
 }
 
+function formatCardDate(value: string | null): string {
+  if (!value) return 'Date TBD'
+  return new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 function EmptyCardState({ card }: { card: string }) {
   return (
     <main className="card-empty-state">
@@ -236,7 +245,7 @@ export function CardPrintView({
     return chunks.map((chunk, index) => (
       <React.Fragment key={`${day.id}-${index}`}>
         <CardWrapper side="FRONT" page={index + 1} total={chunks.length}>
-          <CardHeader title={`Day ${day.day_number}: ${stripEmojiForPrint(day.title ?? '')}`} sub={tripTitle} pageLabel={chunks.length > 1 ? `${index + 1}/${chunks.length}` : undefined} />
+          <CardHeader title={`Day ${day.day_number}: ${stripEmojiForPrint(day.title ?? '')}`} sub={formatCardDate(day.day_date)} pageLabel={chunks.length > 1 ? `${index + 1}/${chunks.length}` : undefined} />
           <div style={{ marginTop: '4px' }}>
             {chunk.length > 0 ? chunk.map(row => (
               <div key={row.id} style={{ display: 'flex', gap: '8px', marginBottom: '4px', fontSize: '10px' }}>
