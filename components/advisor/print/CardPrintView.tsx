@@ -1,6 +1,7 @@
 import React from 'react'
 import { CardHeader, CardRow, CardWrapper } from './CardTemplates'
 import { chunkArray, stripEmojiForPrint } from '@/lib/printing/printing-service'
+import { formatZonedTimeRange } from '@/lib/zoned-time'
 import type {
   FlightRow,
   HotelRow,
@@ -226,7 +227,8 @@ export function CardPrintView({
 
   return selectedDays.map(day => {
     const dayRows = itineraryRows.filter(row => row.day_id === day.id).map(row => ({
-        id: row.id, title: row.title, start_time: row.start_time, start_timezone: row.start_timezone,
+        id: row.id, title: row.title, start_time: row.start_time, end_time: row.end_time,
+        start_timezone: row.start_timezone, end_timezone: row.end_timezone,
         is_all_day: row.is_all_day, is_approx: row.is_approx, description: row.description,
       })).sort((a, b) => {
       if (a.is_all_day !== b.is_all_day) return a.is_all_day ? -1 : 1
@@ -241,7 +243,13 @@ export function CardPrintView({
             {chunk.length > 0 ? chunk.map(row => (
               <div key={row.id} style={{ display: 'flex', gap: '8px', marginBottom: '4px', fontSize: '10px' }}>
                 <span style={{ fontWeight: 700, color: '#6E4C10', minWidth: '40px' }}>
-                  {row.is_all_day ? 'All day' : row.start_time ? `${row.is_approx ? '≈ ' : ''}${formatTime(row.start_time, row.start_timezone)}` : 'Time TBD'}
+                  {row.is_all_day ? 'All day' : formatZonedTimeRange({
+                    startTime: row.start_time,
+                    endTime: row.end_time,
+                    startTimezone: row.start_timezone,
+                    endTimezone: row.end_timezone,
+                    isApprox: row.is_approx,
+                  })}
                 </span>
                 <span>{stripEmojiForPrint(row.title ?? '')}</span>
               </div>

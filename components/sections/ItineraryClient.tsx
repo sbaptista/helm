@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect, useContext } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { CalendarCheck, Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/Toast'
 import { scrollToFirstError } from '@/lib/form-utils'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
+import { formatZonedTimeRange } from '@/lib/zoned-time'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,12 +93,10 @@ const DAY_TYPE_BORDER: Record<string, string> = {
 }
 
 const TRIP_CITIES = [
-  { city: 'Honolulu',    tzid: 'Pacific/Honolulu' },
-  { city: 'Vancouver',   tzid: 'America/Vancouver' },
-  { city: 'Kamloops',    tzid: 'America/Vancouver' },
-  { city: 'Jasper',      tzid: 'America/Edmonton' },
-  { city: 'Lake Louise', tzid: 'America/Edmonton' },
-  { city: 'Banff',       tzid: 'America/Edmonton' },
+  { city: 'Honolulu',                      tzid: 'Pacific/Honolulu' },
+  { city: 'Seattle',                       tzid: 'America/Los_Angeles' },
+  { city: 'Vancouver / Kamloops',           tzid: 'America/Vancouver' },
+  { city: 'Jasper / Lake Louise / Banff',   tzid: 'America/Edmonton' },
 ]
 
 const HST_TZ = 'Pacific/Honolulu'
@@ -118,16 +117,6 @@ function formatLocalTime(iso: string | null, tzid: string | null): string {
       hour: 'numeric', minute: '2-digit', hour12: true,
       timeZone: tzid,
     }).format(new Date(iso))
-  } catch { return '' }
-}
-
-// Display the abbreviated timezone name (e.g. "PDT", "HST")
-function formatTzAbbr(iso: string | null, tzid: string | null): string {
-  if (!iso || !tzid) return ''
-  try {
-    return new Intl.DateTimeFormat('en-US', {
-      timeZoneName: 'short', timeZone: tzid,
-    }).formatToParts(new Date(iso)).find(p => p.type === 'timeZoneName')?.value ?? ''
   } catch { return '' }
 }
 
@@ -187,6 +176,7 @@ function rowToForm(r: ItineraryRow) {
     category: r.category ?? '',
     sort_order: r.sort_order,
     is_all_day: r.is_all_day ?? false,
+    is_time_tbd: !r.is_all_day && !r.start_time,
     is_approx: r.is_approx ?? false,
     is_provided: r.is_provided ?? false,
     action_required: r.action_required ?? false,
@@ -198,7 +188,7 @@ function rowToForm(r: ItineraryRow) {
 function validateRowForm(form: ReturnType<typeof rowToForm>): RowErrors {
   const errs: RowErrors = {}
   if (!form.title.trim()) errs.title = 'Required'
-  if (!form.is_all_day) {
+  if (!form.is_all_day && !form.is_time_tbd) {
     const hasStartDate = !!form.start_date
     const hasStartTime = !!form.start_time_val
     const hasStartTz   = !!form.start_timezone
@@ -332,6 +322,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
     category: 'Activity',
     sort_order: 0,
     is_all_day: false,
+    is_time_tbd: false,
     is_approx: false,
     is_provided: false,
     action_required: false,
@@ -495,17 +486,17 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
         description: rowForm.description.trim() || null,
         location: rowForm.location.trim() || null,
         category: rowForm.category.trim() || null,
-        start_timezone: rowForm.is_all_day ? null : rowForm.start_timezone || null,
-        end_timezone: rowForm.is_all_day ? null : rowForm.end_timezone || null,
+        start_timezone: rowForm.is_all_day || rowForm.is_time_tbd ? null : rowForm.start_timezone || null,
+        end_timezone: rowForm.is_all_day || rowForm.is_time_tbd ? null : rowForm.end_timezone || null,
         is_all_day: rowForm.is_all_day,
-        start_time: rowForm.is_all_day ? null : localToUtc(rowForm.start_date, rowForm.start_time_val, rowForm.start_timezone),
-        end_time: rowForm.is_all_day ? null : (rowForm.end_date && rowForm.end_time_val ? localToUtc(rowForm.end_date, rowForm.end_time_val, rowForm.end_timezone || rowForm.start_timezone) : null),
+        start_time: rowForm.is_all_day || rowForm.is_time_tbd ? null : localToUtc(rowForm.start_date, rowForm.start_time_val, rowForm.start_timezone),
+        end_time: rowForm.is_all_day || rowForm.is_time_tbd ? null : (rowForm.end_date && rowForm.end_time_val ? localToUtc(rowForm.end_date, rowForm.end_time_val, rowForm.end_timezone || rowForm.start_timezone) : null),
         sort_order: rowForm.sort_order,
-        is_approx: rowForm.is_approx,
+        is_approx: rowForm.is_all_day || rowForm.is_time_tbd ? false : rowForm.is_approx,
         is_provided: rowForm.is_provided,
         action_required: rowForm.action_required,
         action_note: rowForm.action_required ? (rowForm.action_note.trim() || null) : null,
-        gcal_include: rowForm.gcal_include,
+        gcal_include: rowForm.is_all_day || rowForm.is_time_tbd ? false : rowForm.gcal_include,
       }
       const res = editingRow
         ? await fetch(`/api/itinerary/rows/${editingRow.id}`, {
@@ -743,9 +734,13 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '80px' }}>
                           <span suppressHydrationWarning style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--gold-text)' }}>
-                            {row.is_approx ? '≈ ' : ''}{row.start_time ? formatLocalTime(row.start_time, row.timezone) : 'Time TBD'}
-                            {row.end_time ? ` – ${formatLocalTime(row.end_time, row.end_timezone ?? row.timezone)}` : ''}
-                            {row.start_time ? ` ${formatTzAbbr(row.start_time, row.timezone)}` : ''}
+                            {formatZonedTimeRange({
+                              startTime: row.start_time,
+                              endTime: row.end_time,
+                              startTimezone: row.timezone,
+                              endTimezone: row.end_timezone,
+                              isApprox: row.is_approx,
+                            })}
                           </span>
                           {row.start_time && row.timezone !== HST_TZ && (
                             <span suppressHydrationWarning style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)' }}>
@@ -766,6 +761,16 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                           }}>✓ Included</span>
                         )}
                       </span>
+                      {row.manualRow.gcal_include && (
+                        <span
+                          role="img"
+                          aria-label="Included in Google Calendar"
+                          title="Included in Google Calendar"
+                          style={{ display: 'inline-flex', flexShrink: 0 }}
+                        >
+                          <CalendarCheck size={18} color="var(--gold-text)" aria-hidden="true" />
+                        </span>
+                      )}
                       {row.category && <Badge color={categoryColor(row.category)}>{row.category}</Badge>}
                     </div>
                     {row.manualRow && getItineraryWarns(row.manualRow).length > 0 && (
@@ -959,7 +964,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                   min={tripStartDate}
                   max={tripEndDate}
                   onChange={e => { setRowForm(f => ({ ...f, start_date: e.target.value })); clearError('start_date') }}
-                  disabled={rowForm.is_all_day}
+                  disabled={rowForm.is_all_day || rowForm.is_time_tbd}
                   style={inputStyle(!!rowErrors.start_date)}
                 />
               </FormField>
@@ -968,7 +973,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                   type="time"
                   value={rowForm.start_time_val}
                   onChange={e => { setRowForm(f => ({ ...f, start_time_val: e.target.value })); clearError('start_time_val') }}
-                  disabled={rowForm.is_all_day}
+                  disabled={rowForm.is_all_day || rowForm.is_time_tbd}
                   style={inputStyle(!!rowErrors.start_time_val)}
                 />
               </FormField>
@@ -976,7 +981,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 <select
                   value={rowForm.start_timezone}
                   onChange={e => { setRowForm(f => ({ ...f, start_timezone: e.target.value })); clearError('start_timezone') }}
-                  disabled={rowForm.is_all_day}
+                  disabled={rowForm.is_all_day || rowForm.is_time_tbd}
                   style={inputStyle(!!rowErrors.start_timezone)}
                 >
                   <option value="">— Select —</option>
@@ -996,7 +1001,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                   min={tripStartDate}
                   max={tripEndDate}
                   onChange={e => { setRowForm(f => ({ ...f, end_date: e.target.value })); clearError('end_date') }}
-                  disabled={rowForm.is_all_day}
+                  disabled={rowForm.is_all_day || rowForm.is_time_tbd}
                   style={inputStyle(!!rowErrors.end_date)}
                 />
               </FormField>
@@ -1005,7 +1010,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                   type="time"
                   value={rowForm.end_time_val}
                   onChange={e => { setRowForm(f => ({ ...f, end_time_val: e.target.value })); clearError('end_time_val') }}
-                  disabled={rowForm.is_all_day}
+                  disabled={rowForm.is_all_day || rowForm.is_time_tbd}
                   style={inputStyle(!!rowErrors.end_time_val)}
                 />
               </FormField>
@@ -1013,7 +1018,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 <select
                   value={rowForm.end_timezone}
                   onChange={e => setRowForm(f => ({ ...f, end_timezone: e.target.value }))}
-                  disabled={rowForm.is_all_day}
+                  disabled={rowForm.is_all_day || rowForm.is_time_tbd}
                   style={inputStyle()}
                 >
                   <option value="">— Same as start —</option>
@@ -1035,7 +1040,13 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                     setRowForm(f => ({
                       ...f,
                       is_all_day: checked,
-                      ...(checked ? { start_date: '', start_time_val: '', end_date: '', end_time_val: '', start_timezone: '', end_timezone: '' } : {}),
+                      is_time_tbd: checked ? false : f.is_time_tbd,
+                      ...(checked
+                        ? { start_date: '', start_time_val: '', end_date: '', end_time_val: '', start_timezone: '', end_timezone: '', is_approx: false, gcal_include: false }
+                        : {
+                            start_date: days.find(day => day.id === f.day_id)?.day_date ?? '',
+                            end_date: days.find(day => day.id === f.day_id)?.day_date ?? '',
+                          }),
                     }))
                   }}
                   style={{ marginTop: '2px' }}
@@ -1048,7 +1059,35 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
+                  checked={rowForm.is_time_tbd}
+                  disabled={rowForm.is_all_day}
+                  onChange={e => {
+                    const checked = e.target.checked
+                    setRowForm(f => {
+                      const attachedDate = days.find(day => day.id === f.day_id)?.day_date ?? ''
+                      return {
+                        ...f,
+                        is_time_tbd: checked,
+                        ...(checked
+                          ? { start_date: '', start_time_val: '', end_date: '', end_time_val: '', start_timezone: '', end_timezone: '', is_approx: false, gcal_include: false }
+                          : { start_date: attachedDate, end_date: attachedDate }),
+                      }
+                    })
+                  }}
+                  style={{ marginTop: '2px' }}
+                />
+                <div>
+                  <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-medium)' }}>Time TBD</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)' }}>
+                    Attached to {formatDayDate(days.find(day => day.id === rowForm.day_id)?.day_date ?? '')}; exact time not yet known
+                  </div>
+                </div>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
                   checked={rowForm.is_approx}
+                  disabled={rowForm.is_all_day || rowForm.is_time_tbd}
                   onChange={e => setRowForm(f => ({ ...f, is_approx: e.target.checked }))}
                   style={{ marginTop: '2px' }}
                 />
@@ -1135,19 +1174,19 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
           {/* Google Calendar */}
           <div style={{ marginBottom: 'var(--sp-md)' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: rowForm.start_date ? 1 : 0.4 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: rowForm.start_date && !rowForm.is_time_tbd ? 1 : 0.4 }}>
               <input
                 type="checkbox"
                 checked={rowForm.gcal_include ?? false}
-                disabled={!rowForm.start_date}
+                disabled={!rowForm.start_date || rowForm.is_time_tbd}
                 onChange={e => setRowForm(f => ({ ...f, gcal_include: e.target.checked }))}
                 style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
               />
               <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
             </label>
-            {!rowForm.start_date && (
+            {(!rowForm.start_date || rowForm.is_time_tbd) && (
               <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 16px)' }}>
-                Set an activity date to enable calendar sync
+                {rowForm.is_time_tbd ? 'Set an exact time to enable calendar sync' : 'Set an activity date to enable calendar sync'}
               </p>
             )}
           </div>

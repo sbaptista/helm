@@ -98,7 +98,7 @@ export async function DELETE(
     const supabase = serviceClient()
     const { data: record } = await supabase
       .from('restaurants')
-      .select('trip_id')
+      .select('trip_id, gcal_event_id')
       .eq('id', id)
       .single()
     if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -113,7 +113,11 @@ export async function DELETE(
 
     const { error } = await supabase
       .from('restaurants')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({
+        deleted_at: new Date().toISOString(),
+        gcal_include: false,
+        gcal_dirty: !!record.gcal_event_id,
+      })
       .eq('id', id)
     if (error) {
       logger.error('api/restaurants', 'Supabase error on DELETE', { error: error.message, recordId: id })

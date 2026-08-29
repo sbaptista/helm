@@ -99,3 +99,53 @@ export function formatZonedDateTime(iso: string | null, timezone: string | null)
     timeZoneName: 'short',
   }).format(new Date(iso))
 }
+
+function formatZonedClockTime(iso: string, timezone: string | null): string {
+  return new Intl.DateTimeFormat('en-US', {
+    ...(timezone ? { timeZone: timezone } : {}),
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(iso))
+}
+
+function formatTimezoneAbbreviation(iso: string, timezone: string | null): string {
+  if (!timezone) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    timeZoneName: 'short',
+  }).formatToParts(new Date(iso)).find(part => part.type === 'timeZoneName')?.value ?? ''
+}
+
+interface ZonedTimeRangeOptions {
+  startTime: string | null
+  endTime?: string | null
+  startTimezone: string | null
+  endTimezone?: string | null
+  isApprox?: boolean
+}
+
+/** Format an itinerary time range, showing both timezone abbreviations when its endpoints differ. */
+export function formatZonedTimeRange({
+  startTime,
+  endTime = null,
+  startTimezone,
+  endTimezone = null,
+  isApprox = false,
+}: ZonedTimeRangeOptions): string {
+  if (!startTime) return 'Time TBD'
+
+  const prefix = isApprox ? '≈ ' : ''
+  const start = formatZonedClockTime(startTime, startTimezone)
+  const startAbbreviation = formatTimezoneAbbreviation(startTime, startTimezone)
+  if (!endTime) return `${prefix}${start}${startAbbreviation ? ` ${startAbbreviation}` : ''}`
+
+  const effectiveEndTimezone = endTimezone ?? startTimezone
+  const end = formatZonedClockTime(endTime, effectiveEndTimezone)
+  const endAbbreviation = formatTimezoneAbbreviation(endTime, effectiveEndTimezone)
+
+  if (effectiveEndTimezone === startTimezone && endAbbreviation === startAbbreviation) {
+    return `${prefix}${start} – ${end}${startAbbreviation ? ` ${startAbbreviation}` : ''}`
+  }
+
+  return `${prefix}${start}${startAbbreviation ? ` ${startAbbreviation}` : ''} – ${end}${endAbbreviation ? ` ${endAbbreviation}` : ''}`
+}

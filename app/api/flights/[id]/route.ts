@@ -64,11 +64,15 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (!userId) return Response.json({ error: 'Unauthorized.' }, { status: 401 });
     let supabase;
     try { supabase = serviceClient(); } catch (e) { return Response.json({ error: (e as Error).message }, { status: 500 }); }
-    const { data: flight } = await supabase.from('flights').select('trip_id').eq('id', id).is('deleted_at', null).maybeSingle();
+    const { data: flight } = await supabase.from('flights').select('trip_id, gcal_event_id, gcal_legacy_arrival_event_id').eq('id', id).is('deleted_at', null).maybeSingle();
     if (!flight) return Response.json({ error: 'Flight not found.' }, { status: 404 });
     const { data: member } = await supabase.from('trip_members').select('id').eq('trip_id', flight.trip_id).eq('user_id', userId).maybeSingle();
     if (!member) return Response.json({ error: 'Access denied.' }, { status: 403 });
-    const { error } = await supabase.from('flights').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+    const { error } = await supabase.from('flights').update({
+      deleted_at: new Date().toISOString(),
+      gcal_include: false,
+      gcal_dirty: !!flight.gcal_event_id || !!flight.gcal_legacy_arrival_event_id,
+    }).eq('id', id);
     if (error) {
       logger.error('api/flights', 'Supabase error on DELETE', { error: error.message, recordId: id });
       return Response.json({ error: error.message }, { status: 500 });

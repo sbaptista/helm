@@ -309,14 +309,24 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
   };
 
   const handleClear = async () => {
-    await fetch('/api/gcal/calendar/clear', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tripId }),
-    });
-    setConfirmAction(null);
-    onOpenChange(false);
-    await fetchStatus();
+    setCalendarActionBusy(true);
+    setCalendarActionError('');
+    try {
+      const response = await fetch('/api/gcal/calendar/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tripId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? 'Could not clear Google Calendar.');
+      setConfirmAction(null);
+      onOpenChange(false);
+      await fetchStatus();
+    } catch (error) {
+      setCalendarActionError(error instanceof Error ? error.message : 'Could not clear Google Calendar.');
+    } finally {
+      setCalendarActionBusy(false);
+    }
   };
 
   const handleDisconnect = async () => {
@@ -492,13 +502,19 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
                   <p style={{ margin: '0 0 12px', fontSize: '14px', color: 'var(--text2)' }}>
                     This will remove all events from Google Calendar and reset sync state. Are you sure?
                   </p>
+                  {calendarActionError && (
+                    <div role="alert" style={{ color: 'var(--red)', fontSize: '13px', marginBottom: '12px' }}>
+                      {calendarActionError}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <Button variant="secondary" onClick={() => setConfirmAction(null)}>Cancel</Button>
+                    <Button variant="secondary" disabled={calendarActionBusy} onClick={() => setConfirmAction(null)}>Cancel</Button>
                     <button
-                      onClick={handleClear}
-                      style={{ padding: '8px 16px', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 'var(--r)', cursor: 'pointer', fontFamily: "'Lato', sans-serif", fontSize: '14px', fontWeight: 700 }}
+                      onClick={() => void handleClear()}
+                      disabled={calendarActionBusy}
+                      style={{ padding: '8px 16px', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 'var(--r)', cursor: calendarActionBusy ? 'not-allowed' : 'pointer', opacity: calendarActionBusy ? 0.65 : 1, fontFamily: "'Lato', sans-serif", fontSize: '14px', fontWeight: 700 }}
                     >
-                      Clear Calendar
+                      {calendarActionBusy ? 'Clearing…' : 'Clear Calendar'}
                     </button>
                   </div>
                 </div>
@@ -534,7 +550,7 @@ export function CalendarModal({ tripId, tripName, open, onOpenChange, onStatusCh
                   <Button variant="secondary" onClick={() => { setRenameValue(status.calendarName ?? ''); setRenaming(true); }}>
                     Rename Calendar
                   </Button>
-                  <button style={destructiveBtnStyle} onClick={() => setConfirmAction('clear')}>
+                  <button style={destructiveBtnStyle} onClick={() => { setCalendarActionError(''); setConfirmAction('clear'); }}>
                     Clear Calendar
                   </button>
                   <button style={destructiveBtnStyle} onClick={() => setConfirmAction('disconnect')}>

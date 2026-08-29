@@ -37,7 +37,7 @@ export async function PATCH(
     const supabase = serviceClient()
     const { data: record } = await supabase
       .from('checklist')
-      .select('trip_id')
+      .select('trip_id, gcal_include, gcal_due_event_id, gcal_warning_event_id')
       .eq('id', id)
       .single()
     if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -51,10 +51,11 @@ export async function PATCH(
     if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await req.json()
-    const { gcal_include } = body
+    const nextInclude = 'gcal_include' in body ? body.gcal_include === true : record.gcal_include === true
+    const gcalDirty = nextInclude || record.gcal_include === true || !!record.gcal_due_event_id || !!record.gcal_warning_event_id
     const { data, error } = await supabase
       .from('checklist')
-      .update({ ...body, gcal_dirty: gcal_include === true ? true : false })
+      .update({ ...body, gcal_dirty: gcalDirty })
       .eq('id', id)
       .select()
       .single()
@@ -81,7 +82,7 @@ export async function DELETE(
     const supabase = serviceClient()
     const { data: record } = await supabase
       .from('checklist')
-      .select('trip_id')
+      .select('trip_id, gcal_due_event_id, gcal_warning_event_id')
       .eq('id', id)
       .single()
     if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -96,7 +97,11 @@ export async function DELETE(
 
     const { error } = await supabase
       .from('checklist')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({
+        deleted_at: new Date().toISOString(),
+        gcal_include: false,
+        gcal_dirty: !!record.gcal_due_event_id || !!record.gcal_warning_event_id,
+      })
       .eq('id', id)
     if (error) {
       logger.error('api/checklist', 'Supabase error on DELETE', { error: error.message, recordId: id })

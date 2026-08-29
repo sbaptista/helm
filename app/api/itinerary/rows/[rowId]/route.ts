@@ -38,7 +38,7 @@ export async function PATCH(
 
     const { data: rowData } = await supabase
       .from('itinerary_rows')
-      .select('trip_id')
+      .select('trip_id, gcal_include, gcal_event_id')
       .eq('id', rowId)
       .single()
 
@@ -63,7 +63,8 @@ export async function PATCH(
     for (const key of allowed) {
       if (key in body) update[key] = body[key]
     }
-    update.gcal_dirty = update.gcal_include === true ? true : false
+    const nextInclude = 'gcal_include' in update ? update.gcal_include === true : rowData.gcal_include === true
+    update.gcal_dirty = nextInclude || rowData.gcal_include === true || !!rowData.gcal_event_id
     const { data, error } = await supabase
       .from('itinerary_rows')
       .update(update)
@@ -95,7 +96,7 @@ export async function DELETE(
 
     const { data: rowData } = await supabase
       .from('itinerary_rows')
-      .select('trip_id')
+      .select('trip_id, gcal_event_id')
       .eq('id', rowId)
       .single()
 
@@ -112,7 +113,11 @@ export async function DELETE(
 
     const { error } = await supabase
       .from('itinerary_rows')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({
+        deleted_at: new Date().toISOString(),
+        gcal_include: false,
+        gcal_dirty: !!rowData.gcal_event_id,
+      })
       .eq('id', rowId)
 
     if (error) {

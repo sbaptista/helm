@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDataClient } from '@/lib/supabase/data-client'
 import { getValidAccessToken } from '@/lib/gcal/token'
-import { gcalRequest } from '@/lib/gcal/client'
-import { resetTripCalendarSyncState } from '@/lib/gcal/sync-state'
+import { GoogleCalendarApiError } from '@/lib/gcal/client'
+import { clearGoogleCalendarEvents, resetTripCalendarSyncState } from '@/lib/gcal/sync-state'
 
 function getAuthUserId(): string {
   if (process.env.BYPASS_AUTH_USER_ID) return process.env.BYPASS_AUTH_USER_ID
@@ -31,8 +31,10 @@ export async function POST(request: NextRequest) {
 
     const accessToken = await getValidAccessToken(userId)
 
-    // Google Calendar clear — deletes all events in the calendar
-    await gcalRequest(accessToken, `/calendars/${trip.gcal_calendar_id}/clear`, 'POST')
+    const clearResult = await clearGoogleCalendarEvents(
+      accessToken,
+      trip.gcal_calendar_id
+    )
 
     // Clear obsolete event IDs, then queue every included record for a full rebuild.
     // Excluded records remain clean and never enter the Update All queue.
@@ -44,9 +46,12 @@ export async function POST(request: NextRequest) {
       .eq('id', tripId)
     if (tripUpdateError) throw new Error(`Failed to reset trip calendar state: ${tripUpdateError.message}`)
 
-    return NextResponse.json({ cleared: true })
+    return NextResponse.json({ cleared: true, ...clearResult })
   } catch (err) {
     console.error('GCal calendar clear error:', err)
-    return NextResponse.json({ error: 'Failed to clear calendar' }, { status: 500 })
+    const error = err instanceof GoogleCalendarApiError
+      ? `Google Calendar could not be cleared (Google error ${err.status}).`
+      : 'Failed to clear calendar.'
+    return NextResponse.json({ error }, { status: 500 })
   }
 }

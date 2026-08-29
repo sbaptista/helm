@@ -70,10 +70,21 @@ export async function DELETE(
   const { id } = await params
   try {
     const supabase = serverClient()
+    const { data: hotel } = await supabase
+      .from('hotels')
+      .select('gcal_checkin_event_id, gcal_checkout_event_id')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (!hotel) return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
 
     const { error } = await supabase
       .from('hotels')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({
+        deleted_at: new Date().toISOString(),
+        gcal_include: false,
+        gcal_dirty: !!hotel.gcal_checkin_event_id || !!hotel.gcal_checkout_event_id,
+      })
       .eq('id', id)
 
     if (error) {

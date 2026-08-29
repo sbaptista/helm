@@ -50,13 +50,12 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
       const config = progressFields[section]
       const { data: dirtyRows, error: countError } = await supabase
         .from(config.table)
-        .select(['gcal_include', ...config.ids, ...(config.extra ? [config.extra] : [])].join(','))
+        .select(['gcal_include', 'deleted_at', ...config.ids, ...(config.extra ? [config.extra] : [])].join(','))
         .eq('trip_id', tripId)
-        .is('deleted_at', null)
         .eq('gcal_dirty', true)
       if (countError) throw countError
       for (const row of (dirtyRows ?? []) as unknown as Array<Record<string, unknown>>) {
-        if (row.gcal_include) {
+        if (row.gcal_include && !row.deleted_at) {
           totalDirty += section === 'checklist'
             ? 1 + (row.warning_days ? 1 : 0)
             : section === 'flights'

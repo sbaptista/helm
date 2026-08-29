@@ -152,7 +152,9 @@ export default async function TripPrintPage({
                 </div>
                 {itinFull && dayRows.map((row: ItineraryRowRow) => (
                   <div key={row.id} className="itin-row">
-                    <div className="itin-time">{row.start_time ? row.start_time.split('T')[1].substring(0, 5) : 'All Day'}</div>
+                    <div className="itin-time">
+                      {row.is_all_day ? 'All Day' : row.start_time ? row.start_time.split('T')[1].substring(0, 5) : 'Time TBD'}
+                    </div>
                     <div>
                       <div className="itin-title">{stripEmojiForPrint(row.title ?? '')}</div>
                       {row.description && <div className="itin-detail">{stripEmojiForPrint(row.description)}</div>}

@@ -100,9 +100,34 @@ export async function DELETE(
 
     if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+    const deletedAt = new Date().toISOString()
+    const { error: linkedRowsError } = await supabase
+      .from('itinerary_rows')
+      .update({ deleted_at: deletedAt, gcal_include: false, gcal_dirty: true })
+      .eq('day_id', dayId)
+      .is('deleted_at', null)
+      .not('gcal_event_id', 'is', null)
+
+    if (linkedRowsError) {
+      logger.error('api/itinerary', 'Supabase error queueing linked rows on day DELETE', { error: linkedRowsError.message, recordId: dayId })
+      return NextResponse.json({ error: linkedRowsError.message }, { status: 500 })
+    }
+
+    const { error: unlinkedRowsError } = await supabase
+      .from('itinerary_rows')
+      .update({ deleted_at: deletedAt, gcal_include: false, gcal_dirty: false })
+      .eq('day_id', dayId)
+      .is('deleted_at', null)
+      .is('gcal_event_id', null)
+
+    if (unlinkedRowsError) {
+      logger.error('api/itinerary', 'Supabase error deleting unlinked rows on day DELETE', { error: unlinkedRowsError.message, recordId: dayId })
+      return NextResponse.json({ error: unlinkedRowsError.message }, { status: 500 })
+    }
+
     const { error } = await supabase
       .from('itinerary_days')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({ deleted_at: deletedAt })
       .eq('id', dayId)
 
     if (error) {

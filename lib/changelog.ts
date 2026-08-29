@@ -6,6 +6,63 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.03.0006',
+    date: '2026-08-26',
+    changes: [
+      'Added an explicit Time TBD workflow that keeps untimed Itinerary items attached to their dated day while disabling incomplete timestamp fields and Calendar inclusion.',
+      'Made existing untimed, non-all-day rows automatically appear as Time TBD and corrected full-size itinerary printing to distinguish TBD from All Day.',
+      'Moved the active untimed Jasper Skytram entry from Oct 9 to Oct 8 without restoring any reference-trip entries.',
+      'Repaired new Itinerary-row creation so checked Calendar inclusion is persisted and queued for Update All when an exact start time exists.',
+    ],
+  },
+  {
+    version: 'v00.03.0005',
+    date: '2026-08-26',
+    changes: [
+      'Added an at-a-glance gold Calendar Check icon to Itinerary rows marked for Google Calendar inclusion.',
+      'Made the indicator follow the existing inclusion flag exactly, appearing after a checked row is saved and disappearing after it is unchecked and saved.',
+      'Kept the indicator accessible and non-interactive so the existing row remains one forgiving touch target across Mac, iPad, and iPhone.',
+    ],
+  },
+  {
+    version: 'v00.03.0004',
+    date: '2026-08-26',
+    changes: [
+      'Consolidated Vancouver and Kamloops into one Pacific timezone option so the Itinerary selector no longer resolves Kamloops to a duplicate Vancouver value.',
+      'Consolidated Jasper, Lake Louise, and Banff into one Mountain timezone option to prevent the same duplicate-value selector defect.',
+      'Preserved existing IANA timezone storage, timestamps, Google Calendar behavior, and 3×5 time formatting.',
+    ],
+  },
+  {
+    version: 'v00.03.0003',
+    date: '2026-08-26',
+    changes: [
+      'Made deleted calendar-linked records remain pending until Update All removes their Google events, including flights, hotels, transportation, restaurants, itinerary rows, and checklist items.',
+      'Made Calendar status and progress include dirty soft-deleted records while preventing deleted records from ever creating or updating remote events.',
+      'Made Clear Calendar remove obsolete event IDs from deleted tombstones before queuing only included active records for rebuilding.',
+      'Queued linked itinerary rows when deleting a whole day and repaired dirty-state handling for Itinerary edits and Checklist exclusion.',
+      'Queued the previously deleted Arrive SEA itinerary event for removal during the next Update All.',
+    ],
+  },
+  {
+    version: 'v00.03.0002',
+    date: '2026-08-26',
+    changes: [
+      'Repaired Clear Calendar for Helm\'s dedicated secondary Google calendars by deleting every paginated event while preserving the calendar itself.',
+      'Preserved Add to Google Calendar selections, cleared obsolete event IDs, and queued every included active record for a complete Update All rebuild after clearing succeeds.',
+      'Kept the Calendar modal open with a visible error and duplicate-submit protection when Google clearing fails.',
+    ],
+  },
+  {
+    version: 'v00.03.0001',
+    date: '2026-08-26',
+    changes: [
+      'Added Seattle to the Itinerary start and end timezone choices.',
+      'Made Itinerary entry cards display both date-correct timezone abbreviations when a timed entry crosses zones while retaining a compact single-zone format.',
+      'Added end times and cross-zone abbreviations to Daily Itinerary 3×5 cards without changing the other reference-card categories.',
+    ],
+  },
+  {
     version: 'v00.03.0000',
     date: '2026-08-25',
     changes: [

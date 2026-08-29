@@ -74,11 +74,14 @@ export async function POST(
     const allowed = [
       'day_id', 'title', 'description', 'location', 'category',
       'start_timezone', 'end_timezone', 'is_all_day', 'start_time', 'end_time', 'sort_order',
-      'is_approx', 'is_provided', 'action_required', 'action_note',
+      'is_approx', 'is_provided', 'action_required', 'action_note', 'gcal_include',
     ]
     for (const key of allowed) {
       if (key in body) insert[key] = body[key]
     }
+    const canIncludeInCalendar = insert.gcal_include === true && typeof insert.start_time === 'string' && !!insert.start_time
+    insert.gcal_include = canIncludeInCalendar
+    insert.gcal_dirty = canIncludeInCalendar
     const { data, error } = await supabase
       .from('itinerary_rows')
       .insert(insert)

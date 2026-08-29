@@ -39,6 +39,50 @@ export async function listWritableGoogleCalendars(
   }))
 }
 
+export interface ClearGoogleCalendarResult {
+  method: 'primary-clear' | 'event-delete'
+  deletedEvents: number
+}
+
+/** Remove every event while preserving the linked Google calendar itself. */
+export async function clearGoogleCalendarEvents(
+  accessToken: string,
+  calendarId: string
+): Promise<ClearGoogleCalendarResult> {
+  const calendar = await getGoogleCalendar(accessToken, calendarId)
+  const encodedCalendarId = encodeURIComponent(calendarId)
+
+  if (calendar.primary) {
+    await gcalRequest(accessToken, `/calendars/${encodedCalendarId}/clear`, 'POST')
+    return { method: 'primary-clear', deletedEvents: 0 }
+  }
+
+  const eventIds = new Set<string>()
+  let pageToken: string | null = null
+  do {
+    const params = new URLSearchParams({ maxResults: '2500', showDeleted: 'false' })
+    if (pageToken) params.set('pageToken', pageToken)
+    const result = await gcalRequest(
+      accessToken,
+      `/calendars/${encodedCalendarId}/events?${params.toString()}`
+    )
+    for (const item of result.items ?? []) {
+      if (typeof item.id === 'string' && item.id) eventIds.add(item.id)
+    }
+    pageToken = typeof result.nextPageToken === 'string' ? result.nextPageToken : null
+  } while (pageToken)
+
+  for (const eventId of eventIds) {
+    await gcalRequest(
+      accessToken,
+      `/calendars/${encodedCalendarId}/events/${encodeURIComponent(eventId)}?sendUpdates=none`,
+      'DELETE'
+    )
+  }
+
+  return { method: 'event-delete', deletedEvents: eventIds.size }
+}
+
 const SYNC_TABLES = [
   { table: 'flights', eventIds: ['gcal_event_id', 'gcal_legacy_arrival_event_id'] },
   { table: 'hotels', eventIds: ['gcal_checkin_event_id', 'gcal_checkout_event_id'] },
@@ -60,7 +104,6 @@ export async function resetTripCalendarSyncState(
       .from(table)
       .update(reset)
       .eq('trip_id', tripId)
-      .is('deleted_at', null)
     if (resetError) throw new Error(`Failed to reset ${table}: ${resetError.message}`)
 
     const { error: dirtyError } = await supabase
