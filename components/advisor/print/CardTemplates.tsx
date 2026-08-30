@@ -103,7 +103,7 @@ export function CardHeader({ title, sub, pageLabel }: { title: string; sub: stri
       marginBottom: '8px',
     }}>
       <div style={{ 
-        fontSize: '14.7px',
+        fontSize: '13.3px',
         fontWeight: 700,
         letterSpacing: '1.5px',
         textTransform: 'uppercase',

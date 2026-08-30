@@ -6,7 +6,7 @@
 
 ## App State
 
-- **Version:** `00.03.0006`
+- **Version:** `00.03.0007`
 - **Branch:** main
 - **Dev server:** user-started on localhost:3000
 - **Live URL:** https://helm-gilt.vercel.app
@@ -26,7 +26,7 @@
 | Flights | Functional + local endpoint timing + source-owned departure/arrival itinerary timing | 00.02.0048 |
 | Restaurants | Functional + WARN system + source-owned reservation itinerary timing | 00.02.0048 |
 | Itinerary | Explicit rows; shared-city zones, Time TBD, cross-zone ranges, Calendar indicator | 00.03.0006 |
-| Printing | Packet + server-data 3×5 PDF modes; Daily cards show dates and cross-zone time ranges | 00.03.0001 |
+| Printing | Packet + server-data 3×5 PDF modes; compact shared card headers | 00.03.0007 |
 | Calendar | Secondary-calendar clearing, rebuild queue, and deleted-event cleanup | 00.03.0003 |
 | Logs | Complete — Phase 1–4 done + clear-all option | 00.02.0014 |
 | Search | Rebuilt — whole-word toggle, match highlighting | 00.02.0000 |
@@ -40,36 +40,18 @@
 
 ## Last Session Completed
 
-**2026-08-26 — Itinerary timezone display and Calendar lifecycle repair (Codex GPT-5) — v00.03.0001–00.03.0006**
+**2026-08-29 — HELM-71 shared 3×5 card header compaction (Codex GPT-5.6 Sol) — v00.03.0007**
 
-1. Added Seattle (`America/Los_Angeles`) to the Itinerary start and end timezone selectors.
-2. Added one shared formatter that keeps same-zone ranges compact and shows both date-correct abbreviations for cross-zone or daylight-saving transitions.
-3. Updated Daily Itinerary 3×5 cards to include end times and end timezones.
-4. Verified the live HNL→SEA entry as `11:30 PM HST – 8:13 AM PDT` on the Itinerary page and Daily 3×5 card.
-5. Repaired Clear Calendar for Helm's dedicated secondary Google calendars by listing and deleting every event while preserving the calendar.
-6. Added visible clear errors, a busy state, and duplicate-submit protection to the Calendar modal.
-7. Preserved Add to Google Calendar selections, cleared obsolete event IDs, marked every included active record dirty, and left excluded records clean after a successful clear.
-8. Stan completed the live clear successfully. Database verification found one checked Itinerary row still included and dirty with no event ID; every excluded active row remained clean and all stored event IDs were null.
-9. TypeScript, focused lint, production builds, Daily 3×5 PDF preparation, `git diff --check`, and browser-console checks passed.
-10. Database impact: existing bounded reset writes only; no schema, index, RLS, Realtime, or new query-pattern change.
-11. Made deleted calendar-linked records remain visible to Calendar status and Update All as pending-deletion tombstones across all six sections.
-12. Made itinerary-day deletion queue every linked child row, and corrected dirty-state handling for Itinerary edits and Checklist exclusion.
-13. Marked the already deleted `Arrive SEA` row dirty and excluded while retaining its event ID, so the next Update All will remove the orphan Google event.
-14. Database impact for deleted-event cleanup: the existing trip-scoped `gcal_dirty` reads now include soft-deleted tombstones; no schema, index, RLS, Realtime, or high-frequency-write change.
-15. Made Clear Calendar reset event IDs on active and deleted records before queuing only included active records for rebuilding.
-16. Restored the archived `Canadian Rockies Adventure` itinerary from the exact soft-deleted copy snapshot: 11 days and 43 rows. The active v2 itinerary remained at 11 days and 26 rows.
-17. Consolidated duplicate city options that share one IANA timezone into `Vancouver / Kamloops` and `Jasper / Lake Louise / Banff`, preventing native selects from reverting to the first duplicate label.
-18. Added an accessible gold Calendar Check icon to every Itinerary row with `gcal_include = true`; unchecking and saving removes it after the existing refetch.
-19. Added explicit Time TBD form behavior using the existing `day_id` plus null timestamps, including automatic recognition of current untimed rows and clear attached-day messaging.
-20. Disabled incomplete timestamp, estimated-time, and Calendar states for TBD rows; updated full-size printing to distinguish Time TBD from All Day. Daily 3×5 and the Itinerary page already use the shared Time TBD formatter.
-21. Repaired new Itinerary-row Calendar inclusion persistence and moved the active untimed Jasper Skytram record from Oct 9 to Oct 8. No reference entries were restored.
-22. Database impact: one bounded `day_id` repair only; no schema, index, RLS, Realtime, or new query-pattern change.
+1. Confirmed through browser geometry that front and rear 3×5 cards use identical dimensions and padding.
+2. Reduced the shared card title from `14.7px` to `13.3px`, matching the date/subtitle and freeing vertical space across every card category.
+3. Preserved the established 5×3-inch capture geometry, footer, watermark, content sizing, and Epson-tested outer margins.
+4. Database impact: none.
 
 ---
 
 ## Uncommitted Changes
 
-- None. The v00.03.0001–00.03.0006 changes are included in the local commit prepared on 2026-08-29.
+- None. HELM-71 and the v00.03.0007 release documentation are included in the local commit prepared on 2026-08-29.
 
 ---
 
@@ -118,4 +100,4 @@
 
 ## AI Tool Used Last Session
 
-2026-08-26 — Codex (GPT-5)
+2026-08-29 — Codex (GPT-5.6 Sol)

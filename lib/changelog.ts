@@ -6,6 +6,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.03.0007',
+    date: '2026-08-29',
+    changes: [
+      'Completed HELM-71 by reducing the shared 3×5 card header title to the same font size as its date or subtitle, freeing vertical space consistently across every reference-card category.',
+      'Preserved the existing card dimensions, padding, footer, watermark, content sizing, and Epson-tested PDF margins.',
+    ],
+  },
+  {
     version: 'v00.03.0006',
     date: '2026-08-26',
     changes: [
