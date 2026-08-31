@@ -6,7 +6,7 @@
 
 ## App State
 
-- **Version:** `00.03.0007`
+- **Version:** `00.03.0010`
 - **Branch:** main
 - **Dev server:** user-started on localhost:3000
 - **Live URL:** https://helm-gilt.vercel.app
@@ -26,7 +26,7 @@
 | Flights | Functional + local endpoint timing + source-owned departure/arrival itinerary timing | 00.02.0048 |
 | Restaurants | Functional + WARN system + source-owned reservation itinerary timing | 00.02.0048 |
 | Itinerary | Explicit rows; shared-city zones, Time TBD, cross-zone ranges, Calendar indicator | 00.03.0006 |
-| Printing | Packet + server-data 3×5 PDF modes; compact shared card headers | 00.03.0007 |
+| Printing | Packet + server-data 3×5 PDF modes; Hotel phone and city included | 00.03.0009 |
 | Calendar | Secondary-calendar clearing, rebuild queue, and deleted-event cleanup | 00.03.0003 |
 | Logs | Complete — Phase 1–4 done + clear-all option | 00.02.0014 |
 | Search | Rebuilt — whole-word toggle, match highlighting | 00.02.0000 |
@@ -40,18 +40,19 @@
 
 ## Last Session Completed
 
-**2026-08-29 — HELM-71 shared 3×5 card header compaction (Codex GPT-5.6 Sol) — v00.03.0007**
+**2026-08-30 — Hotel contact and location details in print (Codex GPT-5.6 Sol) — v00.03.0008–00.03.0010**
 
-1. Confirmed through browser geometry that front and rear 3×5 cards use identical dimensions and padding.
-2. Reduced the shared card title from `14.7px` to `13.3px`, matching the date/subtitle and freeing vertical space across every card category.
-3. Preserved the established 5×3-inch capture geometry, footer, watermark, content sizing, and Epson-tested outer margins.
-4. Database impact: none.
+1. Added Hotel phone numbers inline beside the check-in date on 3×5 Hotel card fronts without adding another content line.
+2. Added Hotel phone numbers beneath addresses in the 8.5×11 Accommodations section.
+3. Added each Hotel city beside its street address in both print formats with clean missing-value punctuation.
+4. Preserved the existing print data boundary, card counts, PDF geometry, and card back layout.
+5. Database impact: none; the existing Hotel phone and city fields were already loaded.
 
 ---
 
 ## Uncommitted Changes
 
-- None. HELM-71 and the v00.03.0007 release documentation are included in the local commit prepared on 2026-08-29.
+- None. The v00.03.0008–00.03.0010 Hotel print changes and release documentation are included in the local commit prepared on 2026-08-30.
 
 ---
 
@@ -100,4 +101,4 @@
 
 ## AI Tool Used Last Session
 
-2026-08-29 — Codex (GPT-5.6 Sol)
+2026-08-30 — Codex (GPT-5.6 Sol)

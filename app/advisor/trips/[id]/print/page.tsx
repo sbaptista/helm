@@ -208,7 +208,9 @@ export default async function TripPrintPage({
                   <div style={{ fontSize: '9pt', color: '#666', textTransform: 'uppercase' }}>Check-in</div>
                   <div>{h.check_in_date ? new Date(h.check_in_date).toLocaleDateString() : '—'} at {h.check_in_time || '4:00 PM'}</div>
                   <div style={{ fontSize: '9pt', color: '#666', textTransform: 'uppercase', marginTop: '8pt' }}>Address</div>
-                  <div style={{ fontSize: '10pt' }}>{h.address}</div>
+                  <div style={{ fontSize: '10pt' }}>{[h.address, h.city].filter(Boolean).join(', ') || '—'}</div>
+                  <div style={{ fontSize: '9pt', color: '#666', textTransform: 'uppercase', marginTop: '8pt' }}>Phone</div>
+                  <div style={{ fontSize: '10pt' }}>{h.phone || '—'}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '9pt', color: '#666', textTransform: 'uppercase' }}>Check-out</div>

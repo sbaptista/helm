@@ -119,8 +119,10 @@ export function CardPrintView({
             {chunk.map(hotel => (
               <div key={hotel.id} style={{ marginBottom: '8px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 700 }}>{hotel.name}</div>
-                <div style={{ fontSize: '10px', color: '#3D3020' }}>{hotel.address}</div>
-                <div style={{ fontSize: '10px', color: '#6E4C10' }}>Check-in: {hotel.check_in_date ? new Date(`${hotel.check_in_date}T00:00:00`).toLocaleDateString('en-US') : '—'}</div>
+                <div style={{ fontSize: '10px', color: '#3D3020' }}>{[hotel.address, hotel.city].filter(Boolean).join(', ') || '—'}</div>
+                <div style={{ fontSize: '10px', color: '#6E4C10' }}>
+                  Check-in: {hotel.check_in_date ? new Date(`${hotel.check_in_date}T00:00:00`).toLocaleDateString('en-US') : '—'} • Phone: {hotel.phone || '—'}
+                </div>
               </div>
             ))}
           </div>

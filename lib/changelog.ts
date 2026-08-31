@@ -6,6 +6,29 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.03.0010',
+    date: '2026-08-30',
+    changes: [
+      'Moved Hotel phone numbers inline beside the check-in date on 3×5 Hotel cards instead of right-aligning them at the opposite card edge.',
+    ],
+  },
+  {
+    version: 'v00.03.0009',
+    date: '2026-08-30',
+    changes: [
+      'Added each Hotel city beside its street address in both the 3×5 Hotel cards and 8.5×11 Accommodations print section.',
+      'Kept address punctuation clean when either the street address or city is unavailable.',
+    ],
+  },
+  {
+    version: 'v00.03.0008',
+    date: '2026-08-30',
+    changes: [
+      'Added each Hotel phone number to the 3×5 Hotel card front beside its check-in date without increasing the entry height.',
+      'Added Hotel phone numbers beneath addresses in the 8.5×11 Accommodations print section.',
+    ],
+  },
+  {
     version: 'v00.03.0007',
     date: '2026-08-29',
     changes: [
