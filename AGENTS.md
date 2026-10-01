@@ -15,7 +15,7 @@
 - **Never build/implement changes without explicit permission/confirmation from Stan.**
 - **Never `git push` without Stan's explicit in-chat approval.** Commit locally when asked. Never push. Push triggers a production deploy — that is always Stan's call. See shared AGENTS.md "Git — Commits and Pushes" for the full rule.
 - **Repeat verbatim the release documentation rule at the start of every session:** Before any code push/release, the agent must document all changes in `lib/changelog.ts` by adding a new `Release` entry with the bumped version, release date, and details of changes, and bump the patch version in `lib/version.ts`.
-- **Knowledge Repository Access:** The knowledgebase is stored in the database (`knowledge_repo` table). Always query it at the start of a task using the `SUPABASE_SECRET_KEY` (service role) to bypass Row Level Security (RLS) constraints. See the **Knowledge Repository Access** section below for connection details and query examples.
+- **Knowledge Repository Access:** Helm is in **Manual Data-Transfer Mode** (see shared AGENTS.md). Agents never read, query or write `knowledge_repo` directly and never use Supabase credentials. Stan supplies entries via Orb's **Copy** / **Copy Results**; agents return paste-ready blocks for Stan to save. See the **Knowledge Repository Access** section below.
 - Your first and only message before any tool use must be a numbered list answering all questions.
 - After answering, read `HANDOFF.md`, then **re-read every file listed in the "Uncommitted Changes" section** (both modified and new) before using any tools or continuing. This prevents stale-context overwrites when multiple AI tools edit the same directory.
 - Do not summarize. Do not say "ready." Do not ask "what do you need?" Answer every question directly.
@@ -38,33 +38,20 @@ The following file contains cross-project rules, conventions, and shared resourc
 
 ### Knowledge Repository (agents)
 
-- **Research reads:** ALWAYS use the Service Role key (`SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY` depending on the project's env naming) to query the knowledge repository.
-- **RLS Warning:** Never use the publishable key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or anonymous key). RLS rules restrict public access, meaning you will either see an empty list `[]` or only a subset of entries. If you are seeing zero or very few entries, verify you have switched to the Service Role key to bypass RLS.
-- **When closing a todo:** Search `knowledge_repo` for the same topic; supersede or link — don't assume old entries are still true (shared working rule #12).
+- **Mode:** Manual Data-Transfer Mode, as defined in shared AGENTS.md. This overrides any older instruction to query with a service-role key.
+- **Research reads:** Ask Stan to search Settings → Knowledge and paste **Copy Results**. Report the query, match mode and copied/total coverage; never imply entries beyond the copied set were reviewed.
+- **When closing a todo:** Return separate paste-ready **Resolution notes** and Knowledge **Title**, **Content**, **Tags**, **Project** blocks, with `YYYY-MM-DD — Tool (Model)` as the first line of Resolution notes and Content. Ask Stan for a Copy Results search on the same topic so related entries can be superseded or linked (shared working rule #12). Never report a write as done until Stan confirms he saved it.
 
 ---
 
 # Knowledge Repository Access
 
-The Knowledge Repo stores distilled lessons, decisions, and resolution notes across all projects in the database.
+The Knowledge Repo stores distilled lessons, decisions, and resolution notes across all projects. It lives in Orb's database.
 
-- **API URL:** `https://livwkbnkdlrbmzgythys.supabase.co`
-- **Key:** `SUPABASE_SECRET_KEY` (service role) located in `/Users/stanleybaptista/Projects/helm/.env.local`
-- **Rule:** Bypasses RLS to guarantee complete results. Never query using the publishable/anon key.
-
-### Query all entries:
-```bash
-curl -s "https://livwkbnkdlrbmzgythys.supabase.co/rest/v1/knowledge_repo?select=*,projects(code,name)&order=created_at.desc" \
-  -H "apikey: $(grep SUPABASE_SECRET_KEY /Users/stanleybaptista/Projects/helm/.env.local | cut -d= -f2)" \
-  -H "Authorization: Bearer $(grep SUPABASE_SECRET_KEY /Users/stanleybaptista/Projects/helm/.env.local | cut -d= -f2)"
-```
-
-### Search by topic/keyword:
-```bash
-curl -s "https://livwkbnkdlrbmzgythys.supabase.co/rest/v1/knowledge_repo?or=(title.ilike.*<term>*,content.ilike.*<term>*)&select=id,title,created_at,content&order=created_at.desc" \
-  -H "apikey: $(grep SUPABASE_SECRET_KEY /Users/stanleybaptista/Projects/helm/.env.local | cut -d= -f2)" \
-  -H "Authorization: Bearer $(grep SUPABASE_SECRET_KEY /Users/stanleybaptista/Projects/helm/.env.local | cut -d= -f2)"
-```
+- **Agent access:** none. Helm follows Manual Data-Transfer Mode (shared AGENTS.md). Agents do not hold or read `SUPABASE_SECRET_KEY`, and must not ask Stan to expose it.
+- **Reading:** Stan pastes entries or search results copied from Orb.
+- **Writing:** Agents prepare paste-ready field blocks; Stan saves them in Orb and confirms.
+- **Future:** If Helm moves to the `orb-agent` read-only broker (as Orb did on 2026-08-19), this section will be replaced with broker commands.
 
 ---
 
@@ -117,7 +104,7 @@ Version bumps happen on every local change — no exceptions. The dev server alw
    - `HANDOFF.md` → understand current state
 2. **Answer the comprehension check** (top of this file)
 3. **Declare role:** `"Acting as AI1+AI2 (both roles)"`
-4. **Optional: Fetch live backlog** (see shared AGENTS.md for curl command, use `product=HELM`)
+4. **Optional: Review the backlog** — ask Stan to paste open HELM todos via Orb's **Copy All** (manual mode; no direct API calls).
 
 ## During session (when requested or at session end)
 
@@ -171,7 +158,7 @@ The version is also tracked in HANDOFF.md for quick reference, but `lib/version.
 
 ### gcal_include checkbox (standardised 00.02.0002)
 - All 6 sections: `width: 20px; height: 20px; accentColor: 'var(--gold)'`
-- Disabled when date field is empty
+- Disabled when date field is empty — except Itinerary All Day and Time TBD rows, which are enabled when attached to a day (`day_id`) and sync as all-day events on `itinerary_days.day_date` (00.03.0011)
 
 ### Known gotchas
 - **params pattern**: all route handlers use `params: Promise<{ id: string }>` with `await params`
