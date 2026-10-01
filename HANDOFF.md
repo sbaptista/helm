@@ -48,13 +48,15 @@
 4. Fixed a latent bug: all-day Itinerary events previously derived their date from `start_time`, which is always null for All Day rows.
 5. UpdateBanner: callback ref now updated in an effect (resolves `react-hooks/refs` error); version-check effect declares `checkVersion`, which depends only on the stable `toast.neutral`. One `set-state-in-effect` warning remains (intentional mount-time check). Project lint: 0 errors, 11 warnings.
 6. Database impact: no schema change; one extra primary-key lookup per Itinerary calendar push.
-7. Committed locally as `b8e85c7`; not pushed. Not yet verified on localhost.
+7. Stan tested on localhost and pushed; production verified at `00.03.0012` (`dcf2f1a`).
+8. Prepared Knowledge entries (All Day/Time TBD calendar opt-in; UpdateBanner ref/useToast pattern); Stan saved both in Orb.
+9. Aligned Helm `AGENTS.md` with shared Manual Data-Transfer Mode: removed service-role Knowledge Repo queries and the Orb API backlog curl, pointed agents to Copy/Copy Results, and noted the Itinerary All Day/Time TBD `gcal_include` exception. Docs-only, no version bump; pushed as `7562cc0`.
 
 ---
 
 ## Uncommitted Changes
 
-- None. All v00.03.0011–00.03.0012 work is in local commit `b8e85c7` (HANDOFF.md update pending commit).
+- None besides this HANDOFF.md update. All session work is pushed (`origin/main` at `7562cc0`).
 
 ---
 
@@ -85,13 +87,12 @@
 
 ## Next Priorities
 
-1. Stan tests on localhost: tick Add to Google Calendar on one All Day and one Time TBD Itinerary item, run Update All, confirm all-day events on the correct dates; confirm the update banner still appears and reloads via the DEV simulate-update toggle.
-2. Push `b8e85c7` when satisfied (Stan's call).
-3. Stan continues recreating the Itinerary and reports issues as encountered.
-4. Run Calendar Update All and verify the deleted `Arrive SEA` event is removed and the currently checked Itinerary record is recreated.
-5. Activate the remaining intended Add to Google Calendar checkboxes, then verify complete event creation/deletion behavior.
-6. Stan verifies all six 3×5 PDF categories and physical Epson output.
-7. Work down the remaining 11 lint warnings.
+1. Stan searches Knowledge for related entries ("all day", "Time TBD", "gcal_include", "UpdateBanner") and supersedes any older entry saying All Day/Time TBD items cannot sync to the calendar.
+2. Stan continues recreating the Itinerary and reports issues as encountered.
+3. Run Calendar Update All and verify the deleted `Arrive SEA` event is removed and the currently checked Itinerary record is recreated.
+4. Activate the remaining intended Add to Google Calendar checkboxes, then verify complete event creation/deletion behavior.
+5. Stan verifies all six 3×5 PDF categories and physical Epson output.
+6. Work down the remaining 11 lint warnings.
 
 ---
 
