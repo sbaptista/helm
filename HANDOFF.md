@@ -6,7 +6,7 @@
 
 ## App State
 
-- **Version:** `00.03.0010`
+- **Version:** `00.03.0012`
 - **Branch:** main
 - **Dev server:** user-started on localhost:3000
 - **Live URL:** https://helm-gilt.vercel.app
@@ -25,9 +25,9 @@
 | Hotels | Functional + WARN system + source-owned check-in/check-out itinerary timing | 00.02.0048 |
 | Flights | Functional + local endpoint timing + source-owned departure/arrival itinerary timing | 00.02.0048 |
 | Restaurants | Functional + WARN system + source-owned reservation itinerary timing | 00.02.0048 |
-| Itinerary | Explicit rows; shared-city zones, Time TBD, cross-zone ranges, Calendar indicator | 00.03.0006 |
+| Itinerary | Explicit rows; shared-city zones, Time TBD, cross-zone ranges, Calendar indicator; All Day/Time TBD calendar opt-in | 00.03.0011 |
 | Printing | Packet + server-data 3×5 PDF modes; Hotel phone and city included | 00.03.0009 |
-| Calendar | Secondary-calendar clearing, rebuild queue, and deleted-event cleanup | 00.03.0003 |
+| Calendar | Secondary-calendar clearing, rebuild queue, deleted-event cleanup; Itinerary all-day events dated from their day | 00.03.0011 |
 | Logs | Complete — Phase 1–4 done + clear-all option | 00.02.0014 |
 | Search | Rebuilt — whole-word toggle, match highlighting | 00.02.0000 |
 | Auth (OTP) | Complete — 6-digit code flow + Passkeys | 00.02.0034 |
@@ -40,19 +40,21 @@
 
 ## Last Session Completed
 
-**2026-08-30 — Hotel contact and location details in print (Codex GPT-5.6 Sol) — v00.03.0008–00.03.0010**
+**2026-09-30 — All Day/Time TBD calendar opt-in + UpdateBanner lint fix (Claude Code, Opus 5.5) — v00.03.0011–00.03.0012**
 
-1. Added Hotel phone numbers inline beside the check-in date on 3×5 Hotel card fronts without adding another content line.
-2. Added Hotel phone numbers beneath addresses in the 8.5×11 Accommodations section.
-3. Added each Hotel city beside its street address in both print formats with clean missing-value punctuation.
-4. Preserved the existing print data boundary, card counts, PDF geometry, and card back layout.
-5. Database impact: none; the existing Hotel phone and city fields were already loaded.
+1. Itinerary All Day and Time TBD items can now be added to Google Calendar via the existing Add to Google Calendar checkbox (opt-in only; toggling All Day or Time TBD still clears the tick). The form shows which day the all-day event will land on.
+2. POST `/api/trips/[id]/itinerary/rows` keeps `gcal_include` when the row has a `start_time` or a `day_id`.
+3. Calendar push resolves `itinerary_days.day_date` for dirty Itinerary rows (one `IN` lookup per Update All) and `buildItineraryEvent` emits an all-day event on that date; Time TBD events get `· Time TBD` appended to the title.
+4. Fixed a latent bug: all-day Itinerary events previously derived their date from `start_time`, which is always null for All Day rows.
+5. UpdateBanner: callback ref now updated in an effect (resolves `react-hooks/refs` error); version-check effect declares `checkVersion`, which depends only on the stable `toast.neutral`. One `set-state-in-effect` warning remains (intentional mount-time check). Project lint: 0 errors, 11 warnings.
+6. Database impact: no schema change; one extra primary-key lookup per Itinerary calendar push.
+7. Committed locally as `b8e85c7`; not pushed. Not yet verified on localhost.
 
 ---
 
 ## Uncommitted Changes
 
-- None. The v00.03.0008–00.03.0010 Hotel print changes and release documentation are included in the local commit prepared on 2026-08-30.
+- None. All v00.03.0011–00.03.0012 work is in local commit `b8e85c7` (HANDOFF.md update pending commit).
 
 ---
 
@@ -83,11 +85,13 @@
 
 ## Next Priorities
 
-1. Stan continues recreating the Itinerary and reports issues as encountered.
-2. Run Calendar Update All and verify the deleted `Arrive SEA` event is removed and the currently checked Itinerary record is recreated.
-3. Activate the remaining intended Add to Google Calendar checkboxes, then verify complete event creation/deletion behavior.
-4. Stan verifies all six 3×5 PDF categories and physical Epson output.
-5. Resolve the pre-existing `UpdateBanner.tsx` lint error and remaining warning backlog.
+1. Stan tests on localhost: tick Add to Google Calendar on one All Day and one Time TBD Itinerary item, run Update All, confirm all-day events on the correct dates; confirm the update banner still appears and reloads via the DEV simulate-update toggle.
+2. Push `b8e85c7` when satisfied (Stan's call).
+3. Stan continues recreating the Itinerary and reports issues as encountered.
+4. Run Calendar Update All and verify the deleted `Arrive SEA` event is removed and the currently checked Itinerary record is recreated.
+5. Activate the remaining intended Add to Google Calendar checkboxes, then verify complete event creation/deletion behavior.
+6. Stan verifies all six 3×5 PDF categories and physical Epson output.
+7. Work down the remaining 11 lint warnings.
 
 ---
 
@@ -101,4 +105,4 @@
 
 ## AI Tool Used Last Session
 
-2026-08-30 — Codex (GPT-5.6 Sol)
+2026-09-30 — Claude Code (Opus 5.5)
