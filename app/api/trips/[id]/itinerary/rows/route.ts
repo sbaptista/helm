@@ -79,7 +79,9 @@ export async function POST(
     for (const key of allowed) {
       if (key in body) insert[key] = body[key]
     }
-    const canIncludeInCalendar = insert.gcal_include === true && typeof insert.start_time === 'string' && !!insert.start_time
+    // All Day and Time TBD rows sync as all-day events on their attached day
+    const hasCalendarDate = (typeof insert.start_time === 'string' && !!insert.start_time) || !!insert.day_id
+    const canIncludeInCalendar = insert.gcal_include === true && hasCalendarDate
     insert.gcal_include = canIncludeInCalendar
     insert.gcal_dirty = canIncludeInCalendar
     const { data, error } = await supabase

@@ -332,6 +332,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
   const [dayForm, setDayForm] = useState(EMPTY_DAY_FORM)
   const [rowForm, setRowForm] = useState(EMPTY_ROW_FORM)
+  // All Day and Time TBD rows sync as all-day events on their attached day
+  const canSyncRowToCalendar = rowForm.is_all_day || rowForm.is_time_tbd ? !!rowForm.day_id : !!rowForm.start_date
 
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -496,7 +498,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
         is_provided: rowForm.is_provided,
         action_required: rowForm.action_required,
         action_note: rowForm.action_required ? (rowForm.action_note.trim() || null) : null,
-        gcal_include: rowForm.is_all_day || rowForm.is_time_tbd ? false : rowForm.gcal_include,
+        gcal_include: rowForm.gcal_include,
       }
       const res = editingRow
         ? await fetch(`/api/itinerary/rows/${editingRow.id}`, {
@@ -1174,19 +1176,24 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
 
           {/* Google Calendar */}
           <div style={{ marginBottom: 'var(--sp-md)' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: rowForm.start_date && !rowForm.is_time_tbd ? 1 : 0.4 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: canSyncRowToCalendar ? 1 : 0.4 }}>
               <input
                 type="checkbox"
                 checked={rowForm.gcal_include ?? false}
-                disabled={!rowForm.start_date || rowForm.is_time_tbd}
+                disabled={!canSyncRowToCalendar}
                 onChange={e => setRowForm(f => ({ ...f, gcal_include: e.target.checked }))}
                 style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
               />
               <span style={{ fontSize: 'var(--fs-sm)' }}>Add to Google Calendar</span>
             </label>
-            {(!rowForm.start_date || rowForm.is_time_tbd) && (
+            {!canSyncRowToCalendar && (
               <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 16px)' }}>
-                {rowForm.is_time_tbd ? 'Set an exact time to enable calendar sync' : 'Set an activity date to enable calendar sync'}
+                Set an activity date to enable calendar sync
+              </p>
+            )}
+            {canSyncRowToCalendar && (rowForm.is_all_day || rowForm.is_time_tbd) && (
+              <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 16px)' }}>
+                Adds an all-day event on {formatDayDate(days.find(day => day.id === rowForm.day_id)?.day_date ?? '')}
               </p>
             )}
           </div>

@@ -12,10 +12,13 @@ interface UpdateBannerProps {
 
 export default function UpdateBanner({ onVisibilityChange }: UpdateBannerProps) {
   const [updateAvailable, setUpdateAvailable] = useState(false)
-  const toast = useToast()
+  const { neutral: showNeutralToast } = useToast()
   const toastShownRef = useRef(false)
   const onVisibilityChangeRef = useRef(onVisibilityChange)
-  onVisibilityChangeRef.current = onVisibilityChange
+
+  useEffect(() => {
+    onVisibilityChangeRef.current = onVisibilityChange
+  }, [onVisibilityChange])
 
   const setAvailable = useCallback((value: boolean) => {
     setUpdateAvailable(value)
@@ -28,7 +31,7 @@ export default function UpdateBanner({ onVisibilityChange }: UpdateBannerProps) 
     if (isSimulated) {
       setAvailable(true)
       if (!toastShownRef.current) {
-        toast.neutral('A new version of Helm is available.')
+        showNeutralToast('A new version of Helm is available.')
         toastShownRef.current = true
       }
       return
@@ -42,7 +45,7 @@ export default function UpdateBanner({ onVisibilityChange }: UpdateBannerProps) 
       if (data.version && data.version !== VERSION) {
         setAvailable(true)
         if (!toastShownRef.current) {
-          toast.neutral('A new version of Helm is available.')
+          showNeutralToast('A new version of Helm is available.')
           toastShownRef.current = true
         }
       } else {
@@ -52,7 +55,7 @@ export default function UpdateBanner({ onVisibilityChange }: UpdateBannerProps) 
     } catch {
       // network error — skip silently
     }
-  }, [setAvailable, toast])
+  }, [setAvailable, showNeutralToast])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -74,7 +77,7 @@ export default function UpdateBanner({ onVisibilityChange }: UpdateBannerProps) 
       window.removeEventListener('helm-dev-update-change', checkVersion)
       clearInterval(interval)
     }
-  }, [])
+  }, [checkVersion])
 
   const handleUpdate = () => {
     setAvailable(false)

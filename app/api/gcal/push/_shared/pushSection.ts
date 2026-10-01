@@ -57,6 +57,7 @@ export async function pushSection(options: PushSectionOptions) {
         buildEvent: buildItineraryEvent,
         getLabel: (row) => row.title ?? '',
         gcalIdField: 'gcal_event_id',
+        prepareRows: (rows) => attachItineraryDayDates(supabase, rows),
       })
     case 'checklist':
       return pushChecklist({ tripId, calendarId, accessToken, supabase, onEvent })
@@ -88,7 +89,7 @@ async function deleteIfPresent(
 
 async function pushSimple<T extends { id: string; deleted_at?: string | null }>({
   table, tripId, calendarId, accessToken, supabase, onEvent,
-  buildEvent, getLabel, gcalIdField,
+  buildEvent, getLabel, gcalIdField, prepareRows,
 }: {
   table: string
   tripId: string
@@ -99,15 +100,17 @@ async function pushSimple<T extends { id: string; deleted_at?: string | null }>(
   buildEvent: (row: T) => GCalEvent
   getLabel: (row: T) => string
   gcalIdField: string
+  prepareRows?: (rows: T[]) => Promise<T[]>
 }) {
-  const { data: rows, error: readError } = await supabase
+  const { data, error: readError } = await supabase
     .from(table)
     .select('*')
     .eq('trip_id', tripId)
     .eq('gcal_dirty', true)
   if (readError) throw readError
+  const rows = prepareRows ? await prepareRows((data ?? []) as T[]) : (data ?? []) as T[]
 
-  for (const row of (rows ?? []) as T[]) {
+  for (const row of rows) {
     const label = getLabel(row)
     const existingEventId = (row as Record<string, unknown>)[gcalIdField] as string | null
     const shouldInclude = (row as Record<string, unknown>).gcal_include === true && !row.deleted_at
@@ -133,6 +136,22 @@ async function pushSimple<T extends { id: string; deleted_at?: string | null }>(
       })
     }
   }
+}
+
+// All Day and Time TBD itinerary rows take their calendar date from the attached day
+async function attachItineraryDayDates(
+  supabase: SupabaseClient,
+  rows: ItineraryRowRow[]
+): Promise<(ItineraryRowRow & { day_date: string | null })[]> {
+  const dayIds = [...new Set(rows.map(row => row.day_id).filter((id): id is string => !!id))]
+  if (dayIds.length === 0) return rows.map(row => ({ ...row, day_date: null }))
+  const { data: days, error } = await supabase
+    .from('itinerary_days')
+    .select('id, day_date')
+    .in('id', dayIds)
+  if (error) throw error
+  const dates = new Map((days ?? []).map(day => [day.id as string, day.day_date as string | null]))
+  return rows.map(row => ({ ...row, day_date: row.day_id ? dates.get(row.day_id) ?? null : null }))
 }
 
 async function pushFlights(options: Omit<PushSectionOptions, 'section'>) {

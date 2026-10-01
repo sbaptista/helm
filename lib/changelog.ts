@@ -6,6 +6,21 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.03.0012',
+    date: '2026-09-30',
+    changes: [
+      'Resolved the UpdateBanner lint error by updating its visibility callback ref in an effect instead of during render, and declared the version-check effect dependency without changing banner behavior.',
+    ],
+  },
+  {
+    version: 'v00.03.0011',
+    date: '2026-09-30',
+    changes: [
+      'All Day and Time TBD Itinerary items can now be added to Google Calendar by ticking Add to Google Calendar.',
+      'These items sync as all-day events on their Itinerary day; Time TBD events are labelled "Time TBD" in the event title.',
+    ],
+  },
+  {
     version: 'v00.03.0010',
     date: '2026-08-30',
     changes: [

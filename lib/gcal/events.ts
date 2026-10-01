@@ -209,13 +209,14 @@ export function buildRestaurantEvent(row: RestaurantRow): GCalEvent {
 
 // ── Itinerary ─────────────────────────────────────────────────────
 
-export function buildItineraryEvent(row: ItineraryRowRow): GCalEvent {
+// day_date is the attached itinerary day; All Day and Time TBD rows have no start_time
+export function buildItineraryEvent(row: ItineraryRowRow & { day_date?: string | null }): GCalEvent {
   const tz = row.start_timezone ?? 'America/Vancouver'
 
-  if (row.is_all_day) {
-    const date = new Date(row.start_time ?? '').toISOString().slice(0, 10)
+  if (row.is_all_day || !row.start_time) {
+    const date = row.day_date ?? ''
     return {
-      summary: row.title ?? '',
+      summary: row.is_all_day ? row.title ?? '' : `${row.title ?? ''} · Time TBD`,
       description: buildDescription({ Description: row.description, Location: row.location }),
       start: { date },
       end:   { date: nextDay(date) },
