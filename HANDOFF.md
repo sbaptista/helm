@@ -93,6 +93,7 @@
 4. Activate the remaining intended Add to Google Calendar checkboxes, then verify complete event creation/deletion behavior.
 5. Stan verifies all six 3×5 PDF categories and physical Epson output.
 6. Work down the remaining 11 lint warnings.
+7. **Security review parked for later** — `/Users/stanleybaptista/Projects/orb/docs/agent-security-review-2026-09-30.md` covers agent exposure (Helm's plaintext service-role key, GitHub/iCloud reach, Codex trust), Vercel Config vs Secret vars, separate macOS user, Track A (agent CRU on Knowledge/todos) and Track B (dev databases; Helm as pilot). §9 has Stan-only quick wins; §11 lists pending decisions.
 
 ---
 
