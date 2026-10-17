@@ -6,9 +6,10 @@
 
 ## App State
 
-- **Version:** `00.03.0012`
+- **Version:** `00.03.0013` (local, not pushed)
 - **Branch:** main
-- **Dev server:** user-started on localhost:3000
+- **Dev server:** user-started on port 3000 in the `developer` account; devices use `https://stanleys-macbook-pro.local:3000` (Bonjour only). Leaf `localhost+1.pem` re-issued 2026-10-16 from the admin mkcert CA for `localhost`, `127.0.0.1`, `::1`, `Stanleys-MacBook-Pro.local` (verified, expires 2029-01-16)
+- **Development account:** canonical clone `/Users/developer/Projects/helm`; read-only GitHub token; releases via `/Users/Shared/helm-review.git` (`review` remote not yet configured). See Orb `docs/orb-non-admin-development-account-plan.md`
 - **Live URL:** https://helm-gilt.vercel.app
 
 ---
@@ -40,23 +41,17 @@
 
 ## Last Session Completed
 
-**2026-09-30 — All Day/Time TBD calendar opt-in + UpdateBanner lint fix (Claude Code, Opus 5.5) — v00.03.0011–00.03.0012**
+**2026-10-16 — Development-account move: Bonjour dev origin + AGENTS.md paths (Claude Code, Opus 5.5) — v00.03.0013**
 
-1. Itinerary All Day and Time TBD items can now be added to Google Calendar via the existing Add to Google Calendar checkbox (opt-in only; toggling All Day or Time TBD still clears the tick). The form shows which day the all-day event will land on.
-2. POST `/api/trips/[id]/itinerary/rows` keeps `gcal_include` when the row has a `start_time` or a `day_id`.
-3. Calendar push resolves `itinerary_days.day_date` for dirty Itinerary rows (one `IN` lookup per Update All) and `buildItineraryEvent` emits an all-day event on that date; Time TBD events get `· Time TBD` appended to the title.
-4. Fixed a latent bug: all-day Itinerary events previously derived their date from `start_time`, which is always null for All Day rows.
-5. UpdateBanner: callback ref now updated in an effect (resolves `react-hooks/refs` error); version-check effect declares `checkVersion`, which depends only on the stable `toast.neutral`. One `set-state-in-effect` warning remains (intentional mount-time check). Project lint: 0 errors, 11 warnings.
-6. Database impact: no schema change; one extra primary-key lookup per Itinerary calendar push.
-7. Stan tested on localhost and pushed; production verified at `00.03.0012` (`dcf2f1a`).
-8. Prepared Knowledge entries (All Day/Time TBD calendar opt-in; UpdateBanner ref/useToast pattern); Stan saved both in Orb.
-9. Aligned Helm `AGENTS.md` with shared Manual Data-Transfer Mode: removed service-role Knowledge Repo queries and the Orb API backlog curl, pointed agents to Copy/Copy Results, and noted the Itinerary All Day/Time TBD `gcal_include` exception. Docs-only, no version bump; pushed as `7562cc0`.
+1. `next.config.ts` `allowedDevOrigins` is now `['stanleys-macbook-pro.local']` (was the stale `192.168.86.90`). Stan verified Helm on Mac, iPad and iPhone through `https://stanleys-macbook-pro.local:3000` before the commit.
+2. `AGENTS.md`: `/Users/developer` paths (version file, shared include, main directory, handoff, changelog, worktree patch command), Bonjour device URL, review-repository release path and admin-account rules.
+3. Not pushed. The review remote and fresh Codex setup are still pending (Orb plan §1a).
 
 ---
 
 ## Uncommitted Changes
 
-- None besides this HANDOFF.md update. All session work is pushed (`origin/main` at `7562cc0`).
+- None.
 
 ---
 
@@ -93,7 +88,7 @@
 4. Activate the remaining intended Add to Google Calendar checkboxes, then verify complete event creation/deletion behavior.
 5. Stan verifies all six 3×5 PDF categories and physical Epson output.
 6. Work down the remaining 11 lint warnings.
-7. **Security review parked for later** — `/Users/stanleybaptista/Projects/orb/docs/agent-security-review-2026-09-30.md` covers agent exposure (Helm's plaintext service-role key, GitHub/iCloud reach, Codex trust), Vercel Config vs Secret vars, separate macOS user, Track A (agent CRU on Knowledge/todos) and Track B (dev databases; Helm as pilot). §9 has Stan-only quick wins; §11 lists pending decisions.
+7. **Security review parked for later** — `/Users/developer/Projects/orb/docs/agent-security-review-2026-09-30.md` covers agent exposure (Helm's plaintext service-role key, GitHub/iCloud reach, Codex trust), Vercel Config vs Secret vars, separate macOS user, Track A (agent CRU on Knowledge/todos) and Track B (dev databases; Helm as pilot). §9 has Stan-only quick wins; §11 lists pending decisions (§11.1, separate macOS user, decided 2026-10-14).
 
 ---
 
@@ -107,4 +102,4 @@
 
 ## AI Tool Used Last Session
 
-2026-09-30 — Claude Code (Opus 5.5)
+2026-10-16 — Claude Code (Opus 5.5)

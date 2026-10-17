@@ -1,6 +1,6 @@
 ## Comprehension Check — Answer all questions below verbatim before any other response:
 
-1. Return the exact `VERSION` string from `/Users/stanleybaptista/Projects/helm/lib/version.ts`. If you are running in a worktree or isolated environment, also report your local version and note any difference.
+1. Return the exact `VERSION` string from `/Users/developer/Projects/helm/lib/version.ts`. If you are running in a worktree or isolated environment, also report your local version and note any difference.
 2. What port does the dev server run on?
 3. What is the version format and where is it stored?
 4. What are the working rules? (Read the shared file first.)
@@ -34,7 +34,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 The following file contains cross-project rules, conventions, and shared resource access (Orb API, Knowledge Repo, AI roles, git conventions). Read it before proceeding.
 
-**@/Users/stanleybaptista/Projects/shared/AGENTS.md**
+**@/Users/developer/Projects/shared/AGENTS.md**
 
 ### Knowledge Repository (agents)
 
@@ -74,15 +74,31 @@ Two environments:
 
 | Environment | URL | Branch | Purpose |
 |---|---|---|---|
-| **Localhost** | `https://localhost:3000` | working tree | Fast iteration — hot reload, DEV panel, instant feedback. Where AI + Stan build. |
+| **Localhost** | `https://localhost:3000` (Mac); `https://stanleys-macbook-pro.local:3000` (iPad, iPhone — Bonjour only, no LAN IP) | working tree | Fast iteration — hot reload, DEV panel, instant feedback. Where AI + Stan build. |
 | **Production** | `https://helm-gilt.vercel.app` | `main` | Live app used by travelers. |
 
 ## Deployment workflow
 
-1. AI commits changes on `main` locally
-2. Stan tests on localhost (Mac, iPad via network, iPhone via network)
-3. When satisfied: `git push origin main`
-4. Vercel auto-deploys to production
+Development happens in the Standard `developer` account, whose GitHub token is
+**read-only** — GitHub rejects a push from it (403, verified 2026-10-16).
+
+1. AI commits changes on `main` locally in `/Users/developer/Projects/helm`.
+2. Stan tests on localhost (Mac) and the Bonjour URL (iPad, iPhone).
+3. When Stan says so, `git push review main` (local bare repository
+   `/Users/Shared/helm-review.git`, never GitHub).
+4. Stan, in the admin account, clones the review repository into a temporary
+   `~/Release/helm`, reads `git log github/main..origin/main`, pushes to GitHub,
+   and deletes the clone.
+5. Vercel auto-deploys; the development clone picks up the published state with
+   `git fetch origin`.
+
+Detail and the admin-account rules: Orb
+`docs/orb-non-admin-development-account-plan.md` §8–8a. In short: Stan's own
+edits default to the `developer` login; an edit that must come from the admin
+account uses a temporary `~/Release` clone and is recorded in `HANDOFF.md`;
+never edit files inside `/Users/developer` with `sudo`. The dev TLS leaf
+(`localhost+1.pem`) is issued from the admin account's mkcert CA, which is
+never copied here.
 
 ---
 
@@ -123,18 +139,18 @@ When Stan asks "update the handoff" OR at natural session end:
 
 ## Working Directory
 
-The source of truth is always `/Users/stanleybaptista/Projects/helm/` (the **main directory**). All AI tools must read and write files there.
+The source of truth is always `/Users/developer/Projects/helm/` (the **main directory**). All AI tools must read and write files there.
 
 - **Worktree-based tools** (Claude Code Desktop) run in an isolated copy (`.claude/worktrees/<name>`). Before asking Stan to test, patch main:
   ```bash
-  git diff > /tmp/helm-patch.patch && git -C /Users/stanleybaptista/Projects/helm apply /tmp/helm-patch.patch
+  git diff > /Users/developer/helm-patch.patch && git -C /Users/developer/Projects/helm apply /Users/developer/helm-patch.patch && rm /Users/developer/helm-patch.patch
   ```
 
 ---
 
 # Handoff File Conventions
 
-The handoff is `/Users/stanleybaptista/Projects/helm/HANDOFF.md` — a single living file in the repo root, committed with each session's code changes.
+The handoff is `/Users/developer/Projects/helm/HANDOFF.md` — a single living file in the repo root, committed with each session's code changes.
 
 It contains:
 - Current version
@@ -204,7 +220,7 @@ Test design decisions across all three form factors. When in doubt, err on the s
 # Production Releases
 
 Before any production release or code push, you must document all changes in the release documentation file.
-- **File:** `/Users/stanleybaptista/Projects/helm/lib/changelog.ts`
+- **File:** `/Users/developer/Projects/helm/lib/changelog.ts`
 - **Action:** Bump the patch version in `lib/version.ts`, and add a new entry to the `CHANGELOG` array in `lib/changelog.ts` with the new version string, release date, and detailed bullet points describing the changes.
 
 ---

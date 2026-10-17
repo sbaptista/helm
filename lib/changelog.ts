@@ -6,6 +6,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.03.0013',
+    date: '2026-10-16',
+    changes: [
+      'The development server now accepts the Mac\'s Bonjour name (stanleys-macbook-pro.local) instead of a fixed, stale LAN IP address, so iPad and iPhone testing uses https://stanleys-macbook-pro.local:3000.',
+    ],
+  },
+  {
     version: 'v00.03.0012',
     date: '2026-09-30',
     changes: [
