@@ -6,6 +6,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.03.0014',
+    date: '2026-10-21',
+    changes: [
+      'Development tooling only: Claude Code now refuses to read Helm\'s .env.local or the Project-secrets folder, and refuses common shell commands (cat, head, grep and similar) that name them. These are guardrails, not enforcement. No change to the app.',
+    ],
+  },
+  {
     version: 'v00.03.0013',
     date: '2026-10-16',
     changes: [

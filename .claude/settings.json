@@ -3,7 +3,43 @@
   "permissions": {
     "deny": [
       "Bash(git push)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+
+      "Read(./.env.local)",
+      "Read(//Users/developer/Project-secrets/**)",
+
+      "Bash(cat *.env.local*)",
+      "Bash(cat *Project-secrets*)",
+      "Bash(head *.env.local*)",
+      "Bash(head *Project-secrets*)",
+      "Bash(tail *.env.local*)",
+      "Bash(tail *Project-secrets*)",
+      "Bash(less *.env.local*)",
+      "Bash(less *Project-secrets*)",
+      "Bash(more *.env.local*)",
+      "Bash(more *Project-secrets*)",
+      "Bash(grep *.env.local*)",
+      "Bash(grep *Project-secrets*)",
+      "Bash(rg *.env.local*)",
+      "Bash(rg *Project-secrets*)",
+      "Bash(sed *.env.local*)",
+      "Bash(sed *Project-secrets*)",
+      "Bash(awk *.env.local*)",
+      "Bash(awk *Project-secrets*)",
+      "Bash(cut *.env.local*)",
+      "Bash(cut *Project-secrets*)",
+      "Bash(strings *.env.local*)",
+      "Bash(strings *Project-secrets*)",
+      "Bash(xxd *.env.local*)",
+      "Bash(xxd *Project-secrets*)",
+      "Bash(od *.env.local*)",
+      "Bash(od *Project-secrets*)",
+      "Bash(base64 *.env.local*)",
+      "Bash(base64 *Project-secrets*)",
+      "Bash(cp *.env.local*)",
+      "Bash(cp *Project-secrets*)",
+      "Bash(source *.env.local*)",
+      "Bash(source *Project-secrets*)"
     ]
   }
 }
