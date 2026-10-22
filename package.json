@@ -3,7 +3,7 @@
   "version": "0.3.10",
   "private": true,
   "scripts": {
-    "dev": "[ -n \"$HELM_DEV_CERT\" ] && [ -n \"$HELM_DEV_KEY\" ] || { echo 'helm: start the dev server with /usr/local/helm-bin/helm-dev' >&2; exit 1; }; next dev --experimental-https --experimental-https-cert \"$HELM_DEV_CERT\" --experimental-https-key \"$HELM_DEV_KEY\" -H 0.0.0.0 -p 3000",
+    "dev": "[ -n \"$HELM_DEV_CERT\" ] && [ -n \"$HELM_DEV_KEY\" ] || { echo 'helm: start the dev server with /usr/local/helm-bin/helm-dev' >&2; echo 'helm: not installed yet? Put HELM_DEV_CERT=... HELM_DEV_KEY=... on the same line as npm run dev. Exact command: docs/helm-secrets-encryption-plan.md section 3.3' >&2; exit 1; }; next dev --experimental-https --experimental-https-cert \"$HELM_DEV_CERT\" --experimental-https-key \"$HELM_DEV_KEY\" -H 0.0.0.0 -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

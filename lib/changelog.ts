@@ -6,6 +6,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.03.0017',
+    date: '2026-10-22',
+    changes: [
+      'Development tooling only: when npm run dev refuses to start, it now also says how to start the server before the helm-dev launcher is installed. No change to the app.',
+    ],
+  },
+  {
     version: 'v00.03.0016',
     date: '2026-10-22',
     changes: [
