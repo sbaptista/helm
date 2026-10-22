@@ -5,6 +5,26 @@
       "Bash(git push)",
       "Bash(git push *)",
 
+      "Bash(helm-dev)",
+      "Bash(helm-dev *)",
+      "Bash(scripts/security/helm-dev)",
+      "Bash(scripts/security/helm-dev *)",
+      "Bash(/usr/local/helm-bin/helm-dev)",
+      "Bash(/usr/local/helm-bin/helm-dev *)",
+
+      "Bash(helm-secrets-seal)",
+      "Bash(helm-secrets-seal *)",
+      "Bash(scripts/security/helm-secrets-seal)",
+      "Bash(scripts/security/helm-secrets-seal *)",
+      "Bash(/usr/local/helm-bin/helm-secrets-seal)",
+      "Bash(/usr/local/helm-bin/helm-secrets-seal *)",
+      "Bash(helm-secrets-set)",
+      "Bash(helm-secrets-set *)",
+      "Bash(scripts/security/helm-secrets-set)",
+      "Bash(scripts/security/helm-secrets-set *)",
+      "Bash(/usr/local/helm-bin/helm-secrets-set)",
+      "Bash(/usr/local/helm-bin/helm-secrets-set *)",
+
       "Read(./.env.local)",
       "Read(//Users/developer/Project-secrets/**)",
 

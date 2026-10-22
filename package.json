@@ -3,7 +3,7 @@
   "version": "0.3.10",
   "private": true,
   "scripts": {
-    "dev": "next dev --experimental-https --experimental-https-cert localhost+1.pem --experimental-https-key localhost+1-key.pem -H 0.0.0.0 -p 3000",
+    "dev": "[ -n \"$HELM_DEV_CERT\" ] && [ -n \"$HELM_DEV_KEY\" ] || { echo 'helm: start the dev server with /usr/local/helm-bin/helm-dev' >&2; exit 1; }; next dev --experimental-https --experimental-https-cert \"$HELM_DEV_CERT\" --experimental-https-key \"$HELM_DEV_KEY\" -H 0.0.0.0 -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

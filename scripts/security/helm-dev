@@ -1,0 +1,255 @@
+#!/bin/bash
+
+set -euo pipefail
+set +x
+umask 077
+
+readonly HELM_PROJECT_ROOT="/Users/developer/Projects/helm"
+readonly HELM_SECRET_ROOT="/Users/developer/Project-secrets"
+readonly HELM_SECRET_DIR="$HELM_SECRET_ROOT/helm-secrets"
+readonly HELM_SECRET_FILE="$HELM_SECRET_DIR/helm.env.enc"
+readonly HELM_TLS_DIR="$HELM_SECRET_DIR/tls"
+readonly HELM_TLS_CERT="$HELM_TLS_DIR/helm-dev.pem"
+readonly HELM_TLS_KEY="$HELM_TLS_DIR/helm-dev-key.pem"
+# The leaf is issued from the admin account, where the mkcert CA lives; the CA
+# is never copied to this account. helm-dev only verifies the leaf. Devices use
+# the Bonjour name; there is no LAN-IP URL. (Same rule as Orb's orb-dev.)
+readonly HELM_TLS_ADMIN_STAGING="/Users/stanleybaptista/Release/helm-tls"
+readonly HELM_OPENSSL="/opt/homebrew/bin/openssl"
+readonly HELM_PORT="3000"
+
+# Encryption protects the store at rest only. Once this launcher runs, every
+# decrypted value is in the dev-server process environment, and code an agent
+# can edit (any route, next.config.ts, a dependency) can read it from there.
+# Same limit as Orb's F8. See docs/helm-secrets-encryption-plan.md §1.
+
+# ANTHROPIC_API_KEY is optional (Stan, 2026-10-21). BYPASS_AUTH_USER_ID is
+# deliberately not required; it is exported only if it is in the store.
+required_environment=(
+  NEXT_PUBLIC_SUPABASE_URL
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  SUPABASE_SECRET_KEY
+  GOOGLE_CLIENT_ID
+  GOOGLE_CLIENT_SECRET
+  GOOGLE_REDIRECT_URI
+)
+
+# Next.js loads these automatically, so any of them would put plaintext back in
+# the dev server's reach.
+plaintext_env_names=(
+  .env
+  .env.local
+  .env.development
+  .env.development.local
+)
+
+fail() {
+  printf 'helm-dev: %s\n' "$*" >&2
+  exit 1
+}
+
+mode_of() {
+  /usr/bin/stat -f '%Lp' "$1"
+}
+
+owner_of() {
+  /usr/bin/stat -f '%Su' "$1"
+}
+
+require_owner_only() {
+  local path="$1"
+  local expected_mode="$2"
+  local kind="$3"
+
+  [[ -e "$path" ]] || fail "$kind is missing: $path"
+  [[ "$(owner_of "$path")" == "$(/usr/bin/id -un)" ]] || fail "$kind is not owned by the current user: $path"
+  [[ "$(mode_of "$path")" == "$expected_mode" ]] || fail "$kind must have mode $expected_mode: $path"
+}
+
+# The argument is for the launcher test only: the launcher itself always checks
+# its fixed project root.
+refuse_plaintext_env() {
+  local root="${1:-$HELM_PROJECT_ROOT}"
+  local name=""
+
+  for name in "${plaintext_env_names[@]}"; do
+    if [[ -e "$root/$name" || -L "$root/$name" ]]; then
+      fail "plaintext environment file still exists: $root/$name
+Remove it (it may be a symlink into Project-secrets). Next.js would load it."
+    fi
+  done
+}
+
+detect_network() {
+  local local_hostname=""
+
+  local_hostname="$(/usr/sbin/scutil --get LocalHostName 2>/dev/null || true)"
+  [[ -n "$local_hostname" ]] || fail "macOS LocalHostName is not set; devices reach Helm only through <LocalHostName>.local"
+  [[ "$local_hostname" =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]] || fail "macOS LocalHostName contains unsupported characters"
+
+  # Original case for the admin-side mkcert command; lower case for the origin.
+  HELM_DEV_LOCAL_HOSTNAME="$local_hostname"
+  HELM_DEV_MDNS_HOST="$(printf '%s' "$local_hostname" | /usr/bin/tr '[:upper:]' '[:lower:]').local"
+}
+
+print_urls() {
+  printf '\nHelm development URLs\n'
+  printf '  Mac:     https://localhost:%s/\n' "$HELM_PORT"
+  printf '  Devices: https://%s:%s/\n' "$HELM_DEV_MDNS_HOST" "$HELM_PORT"
+  printf '\n'
+}
+
+tls_reissue_failure() {
+  local reason="$1"
+
+  fail "$reason
+The TLS leaf must be re-issued from the admin account, where the mkcert CA lives.
+The CA is never copied to this account. As stanleybaptista, run:
+
+  /bin/mkdir -p $HELM_TLS_ADMIN_STAGING && /opt/homebrew/bin/mkcert -cert-file $HELM_TLS_ADMIN_STAGING/helm-dev.pem -key-file $HELM_TLS_ADMIN_STAGING/helm-dev-key.pem localhost 127.0.0.1 ::1 $HELM_DEV_LOCAL_HOSTNAME.local && sudo install -o developer -g staff -m 600 $HELM_TLS_ADMIN_STAGING/helm-dev.pem $HELM_TLS_ADMIN_STAGING/helm-dev-key.pem $HELM_TLS_DIR/ && /bin/rm -rf $HELM_TLS_ADMIN_STAGING
+
+Then run /usr/local/helm-bin/helm-dev --check here."
+}
+
+# Verifies the existing leaf; never creates one. Arguments are for the launcher
+# test only: the launcher itself always checks its fixed paths.
+verify_tls_certificate() {
+  local cert="${1:-$HELM_TLS_CERT}"
+  local key="${2:-$HELM_TLS_KEY}"
+  local san_text=""
+  local entry=""
+  local wanted=""
+  local found=0
+  local missing=()
+  local cert_public=""
+  local key_public=""
+  local -a entries=()
+  local -a required=("dns:localhost" "ip address:127.0.0.1" "ip address:0:0:0:0:0:0:0:1" "dns:$HELM_DEV_MDNS_HOST")
+
+  [[ -x "$HELM_OPENSSL" ]] || fail "OpenSSL is required at $HELM_OPENSSL"
+  [[ -f "$cert" ]] || tls_reissue_failure "TLS leaf certificate is missing: $cert"
+  [[ -f "$key" ]] || tls_reissue_failure "TLS leaf key is missing: $key"
+  [[ "$(owner_of "$cert")" == "$(/usr/bin/id -un)" && "$(owner_of "$key")" == "$(/usr/bin/id -un)" ]] || \
+    fail "TLS leaf certificate and key must be owned by the current user: $cert, $key"
+  [[ "$(mode_of "$cert")" == "600" && "$(mode_of "$key")" == "600" ]] || \
+    fail "TLS leaf certificate and key must have mode 600: $cert, $key"
+
+  # OpenSSL prints ::1 in its expanded form, 0:0:0:0:0:0:0:1. DNS names compare
+  # case-insensitively. Extra names (for example an old LAN IP) are allowed.
+  san_text="$("$HELM_OPENSSL" x509 -in "$cert" -noout -ext subjectAltName 2>/dev/null)" || \
+    tls_reissue_failure "TLS leaf certificate could not be read or has no subjectAltName: $cert"
+  san_text="$(printf '%s' "$san_text" | /usr/bin/sed -n '2,$p' | /usr/bin/tr '[:upper:]' '[:lower:]')"
+  IFS=',' read -r -a entries <<< "$(printf '%s' "$san_text" | /usr/bin/tr -d '\n')"
+
+  for wanted in "${required[@]}"; do
+    found=0
+    for entry in "${entries[@]}"; do
+      entry="${entry#"${entry%%[![:space:]]*}"}"
+      entry="${entry%"${entry##*[![:space:]]}"}"
+      [[ "$entry" == "$wanted" ]] && found=1
+    done
+    (( found == 1 )) || missing+=("$wanted")
+  done
+  if (( ${#missing[@]} > 0 )); then
+    tls_reissue_failure "TLS leaf certificate does not cover: ${missing[*]}"
+  fi
+
+  "$HELM_OPENSSL" x509 -checkend 604800 -noout -in "$cert" >/dev/null 2>&1 || \
+    tls_reissue_failure "TLS leaf certificate expires within 7 days or has expired: $cert"
+
+  cert_public="$("$HELM_OPENSSL" x509 -in "$cert" -noout -pubkey 2>/dev/null)" || true
+  key_public="$("$HELM_OPENSSL" pkey -in "$key" -pubout 2>/dev/null)" || true
+  [[ -n "$cert_public" && "$cert_public" == "$key_public" ]] || \
+    tls_reissue_failure "TLS leaf key does not match the certificate: $key"
+}
+
+load_encrypted_environment() {
+  local line=""
+  local name=""
+  local value=""
+  local decrypted=""
+  local parsed=0
+  local missing=()
+
+  printf 'helm-dev: unlock the encrypted Helm development environment.\n'
+
+  # Success is the decrypt's exit status, taken through COMMAND substitution.
+  # Never infer it from the number of lines parsed: with the right passphrase
+  # and a truncated store, openssl emits valid plaintext for every complete
+  # block before failing (Orb R4-N1, Codex, 2026-09-05). The store is AES-CBC
+  # with no MAC, so a line count authenticates nothing.
+  if ! decrypted="$("$HELM_OPENSSL" enc -d -aes-256-cbc -pbkdf2 -iter 210000 -in "$HELM_SECRET_FILE")"; then
+    fail "could not decrypt the encrypted environment — NOTHING was loaded.
+Usually a wrong passphrase; openssl prints its own 'bad decrypt' above when so.
+It also fires if $HELM_SECRET_FILE is truncated or corrupt, in which case a
+partial decrypt may have succeeded and is being discarded deliberately."
+  fi
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    [[ "$line" == *=* ]] || fail "encrypted environment contains a malformed line"
+    name="${line%%=*}"
+    value="${line#*=}"
+    [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || fail "encrypted environment contains an invalid variable name"
+    export "$name=$value"
+    parsed=$(( parsed + 1 ))
+  done < <(printf '%s\n' "$decrypted")
+  unset decrypted
+
+  if (( parsed == 0 )); then
+    fail "the encrypted environment decrypted successfully but contained no
+variable assignments. $HELM_SECRET_FILE appears to be empty."
+  fi
+
+  for name in "${required_environment[@]}"; do
+    [[ -n "${!name:-}" ]] || missing+=("$name")
+  done
+  if (( ${#missing[@]} > 0 )); then
+    fail "encrypted environment decrypted ($parsed names) but is missing required names: ${missing[*]}"
+  fi
+}
+
+preflight() {
+  [[ -d "$HELM_PROJECT_ROOT" ]] || fail "project directory is missing: $HELM_PROJECT_ROOT"
+  refuse_plaintext_env
+  require_owner_only "$HELM_SECRET_ROOT" 700 "secret root"
+  require_owner_only "$HELM_SECRET_DIR" 700 "Helm secret directory"
+  require_owner_only "$HELM_SECRET_FILE" 600 "encrypted Helm environment"
+  require_owner_only "$HELM_TLS_DIR" 700 "Helm TLS directory"
+  detect_network
+  # Before the passphrase prompt, so a bad leaf never costs a passphrase entry.
+  verify_tls_certificate
+}
+
+main() {
+  local command="${1:-run}"
+
+  case "$command" in
+    run|--check)
+      ;;
+    *)
+      fail "usage: helm-dev [--check]"
+      ;;
+  esac
+
+  preflight
+  print_urls
+
+  if [[ "$command" == "--check" ]]; then
+    printf 'helm-dev: filesystem, encrypted-store, TLS, and network preflight passed.\n'
+    return 0
+  fi
+
+  load_encrypted_environment
+
+  cd "$HELM_PROJECT_ROOT"
+
+  export HELM_DEV_CERT="$HELM_TLS_CERT"
+  export HELM_DEV_KEY="$HELM_TLS_KEY"
+
+  exec /usr/bin/env npm run dev
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

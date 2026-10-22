@@ -6,6 +6,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.03.0015',
+    date: '2026-10-21',
+    changes: [
+      'Development tooling only: added the helm-dev launcher and helm-secrets-seal / helm-secrets-set, which keep Helm\'s development secrets in a passphrase-encrypted store instead of a plaintext .env.local, plus test-helm-launcher.sh. The encryption protects the file at rest only. Once the server is unlocked, the values are in the dev-server process.',
+      'npm run dev now refuses to start unless the launcher supplies its certificate paths. No change to the app.',
+    ],
+  },
+  {
     version: 'v00.03.0014',
     date: '2026-10-21',
     changes: [
