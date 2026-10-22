@@ -1,8 +1,10 @@
 # Google Calendar with normal login (no bypass)
 
 **Status:** Approved and built 2026-10-22 (v00.03.0016, committed locally, not
-pushed). Type check, lint and production build pass. Stan's verification (§6) is
-pending.
+pushed). Type check, lint and production build pass. **Verified by Stan
+2026-10-22** on `https://localhost:3000` with the bypass commented out: all five
+§6 checks passed (connect, status and calendar choice, Update All, Clear and
+disconnect, 401 when signed out). Not yet released.
 **Author:** 2026-10-22 — Claude Code (Opus 5.5)
 **Related:** `docs/helm-secrets-encryption-plan.md` §2.1 (how
 `BYPASS_AUTH_USER_ID` is gated).
