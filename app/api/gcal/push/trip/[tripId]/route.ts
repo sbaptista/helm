@@ -1,22 +1,19 @@
 import { NextRequest } from 'next/server'
-import { getDataClient } from '@/lib/supabase/data-client'
 import { getValidAccessToken } from '@/lib/gcal/token'
 import { pushSection } from '../../_shared/pushSection'
 import { logger } from '@/lib/logger'
 import { isMissingGoogleCalendarResource } from '@/lib/gcal/client'
 import { getGoogleCalendar } from '@/lib/gcal/sync-state'
-
-function getAuthUserId(): string {
-  if (process.env.BYPASS_AUTH_USER_ID) return process.env.BYPASS_AUTH_USER_ID
-  throw new Error('Not authenticated')
-}
+import { getRequestUserId, gcalServiceClient, isTripMember, unauthorized, forbidden } from '@/lib/gcal/request-user'
 
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ tripId: string }> }) {
   try {
     const { tripId } = await params
-    const userId = getAuthUserId()
-    const supabase = await getDataClient()
-    const accessToken = await getValidAccessToken(userId)
+    const userId = await getRequestUserId()
+    if (!userId) return unauthorized()
+    const supabase = gcalServiceClient()
+    if (!(await isTripMember(supabase, tripId, userId))) return forbidden()
+    const accessToken = await getValidAccessToken(supabase, userId)
 
     const { data: trip, error: tripError } = await supabase.from('trips').select('gcal_calendar_id').eq('id', tripId).single()
     if (tripError) throw tripError

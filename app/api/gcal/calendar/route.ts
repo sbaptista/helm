@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDataClient } from '@/lib/supabase/data-client'
 import { getValidAccessToken } from '@/lib/gcal/token'
 import { gcalRequest } from '@/lib/gcal/client'
 import {
@@ -7,17 +6,15 @@ import {
   listWritableGoogleCalendars,
   resetTripCalendarSyncState,
 } from '@/lib/gcal/sync-state'
-
-function getAuthUserId(): string {
-  if (process.env.BYPASS_AUTH_USER_ID) return process.env.BYPASS_AUTH_USER_ID
-  throw new Error('Not authenticated')
-}
+import { getRequestUserId, gcalServiceClient, isTripMember, unauthorized, forbidden } from '@/lib/gcal/request-user'
 
 // GET — list calendars this user can write to
 export async function GET() {
   try {
-    const userId = getAuthUserId()
-    const accessToken = await getValidAccessToken(userId)
+    const userId = await getRequestUserId()
+    if (!userId) return unauthorized()
+    const supabase = gcalServiceClient()
+    const accessToken = await getValidAccessToken(supabase, userId)
     const calendars = await listWritableGoogleCalendars(accessToken)
     return NextResponse.json({ calendars })
   } catch (err) {
@@ -34,15 +31,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'tripId and either calendarId or calendarName required' }, { status: 400 })
     }
 
-    const userId = getAuthUserId()
-    const accessToken = await getValidAccessToken(userId)
+    const userId = await getRequestUserId()
+    if (!userId) return unauthorized()
+    const supabase = gcalServiceClient()
+    if (!(await isTripMember(supabase, tripId, userId))) return forbidden()
+    const accessToken = await getValidAccessToken(supabase, userId)
 
     const calendar = calendarId
       ? await getGoogleCalendar(accessToken, calendarId)
       : await gcalRequest(accessToken, '/calendars', 'POST', { summary: calendarName })
     const resolvedName = calendar.summaryOverride ?? calendar.summary ?? calendarName ?? calendar.id
 
-    const supabase = await getDataClient()
     const { error: tripError } = await supabase
       .from('trips')
       .update({
@@ -70,8 +69,10 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'tripId and calendarName required' }, { status: 400 })
     }
 
-    const userId = getAuthUserId()
-    const supabase = await getDataClient()
+    const userId = await getRequestUserId()
+    if (!userId) return unauthorized()
+    const supabase = gcalServiceClient()
+    if (!(await isTripMember(supabase, tripId, userId))) return forbidden()
 
     const { data: trip, error: tripReadError } = await supabase
       .from('trips')
@@ -83,7 +84,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'No calendar found for trip' }, { status: 404 })
     }
 
-    const accessToken = await getValidAccessToken(userId)
+    const accessToken = await getValidAccessToken(supabase, userId)
 
     await gcalRequest(accessToken, `/calendars/${trip.gcal_calendar_id}`, 'PATCH', {
       summary: calendarName,

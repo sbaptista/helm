@@ -1,9 +1,7 @@
-import { getDataClient } from '@/lib/supabase/data-client'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { refreshAccessToken } from './auth'
 
-export async function getValidAccessToken(userId: string): Promise<string> {
-  const supabase = await getDataClient()
-
+export async function getValidAccessToken(supabase: SupabaseClient, userId: string): Promise<string> {
   const { data, error } = await supabase
     .from('google_oauth_tokens')
     .select('*')

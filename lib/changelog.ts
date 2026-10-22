@@ -6,6 +6,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.03.0016',
+    date: '2026-10-22',
+    changes: [
+      'Google Calendar now works with your normal sign-in (email code or Passkey). Before, it only worked through the development bypass.',
+      'Calendar actions now check that you belong to the trip before reading or changing its calendar.',
+      'Connecting Google now uses a one-time security check, so a Google account can only be attached by the person who started the connection.',
+    ],
+  },
+  {
     version: 'v00.03.0015',
     date: '2026-10-21',
     changes: [
