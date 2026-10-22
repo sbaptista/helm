@@ -25,6 +25,13 @@
       "Bash(/usr/local/helm-bin/helm-secrets-set)",
       "Bash(/usr/local/helm-bin/helm-secrets-set *)",
 
+      "Bash(helm-release)",
+      "Bash(helm-release *)",
+      "Bash(scripts/security/helm-release)",
+      "Bash(scripts/security/helm-release *)",
+      "Bash(/usr/local/helm-bin/helm-release)",
+      "Bash(/usr/local/helm-bin/helm-release *)",
+
       "Read(./.env.local)",
       "Read(//Users/developer/Project-secrets/**)",
 

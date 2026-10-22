@@ -6,6 +6,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.03.0018',
+    date: '2026-10-22',
+    changes: [
+      'Release tooling only: added helm-release, a one-command publish for the admin account. It refuses releases without a version bump, without a changelog entry, or that are not a fast-forward, shows what will ship, and asks for the new version to be typed before publishing. No change to the app.',
+    ],
+  },
+  {
     version: 'v00.03.0017',
     date: '2026-10-22',
     changes: [

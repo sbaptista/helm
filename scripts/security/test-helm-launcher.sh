@@ -154,6 +154,108 @@ printf 'Plaintext refusal checks passed (%d names, file and symlink).\n' "${#pla
 must_not /usr/bin/grep -q 'localhost+1' "$repo_root/package.json"
 
 # ------------------------------------------------------------------
+# helm-release (docs/helm-release-script-plan.md). Exercised end to end
+# against throwaway local repositories standing in for the review repository
+# and GitHub. It never touches either real one.
+# ------------------------------------------------------------------
+release_script="$repo_root/scripts/security/helm-release"
+/bin/bash -n "$release_script"
+source "$release_script"
+
+[[ "$HELM_REVIEW_REPO" == "/Users/Shared/helm-review.git" ]]
+[[ "$HELM_GITHUB_URL" == "https://github.com/sbaptista/helm.git" ]]
+must_not /usr/bin/grep -Eq -- '--force|--mirror|\+refs|"\+' "$release_script"
+must_not /usr/bin/grep -Eq '(^|[^[:alnum:]_-])(npm|npx|node)([^[:alnum:]_-]|$)' "$release_script"
+must_not /usr/bin/grep -q '/Users/stanleybaptista' "$release_script"
+/usr/bin/grep -q '\[\[ "$typed" == "$NEW_VERSION" \]\]' "$release_script"
+
+rel="$work_tmp/release"
+/bin/mkdir -p "$rel"
+review_repo="$rel/review.git"
+github_repo="$rel/github.git"
+seed="$rel/seed"
+
+gitc() {
+  /usr/bin/git -c user.name=Test -c user.email=test@example.invalid \
+    -c init.defaultBranch=main -c commit.gpgsign=false "$@"
+}
+
+# Writes lib/version.ts and lib/changelog.ts in the seed checkout. The third
+# argument says whether the changelog gets an entry for that version.
+write_release_files() {
+  local version="$1" with_entry="$2"
+  printf "// lib/version.ts\nexport const VERSION = '%s';\nexport const version = VERSION;\n" "$version" > "$seed/lib/version.ts"
+  {
+    printf 'export const CHANGELOG: Release[] = [\n'
+    if [[ "$with_entry" == yes ]]; then
+      printf "  {\n    version: 'v%s',\n    date: '2026-10-22',\n    changes: ['Test entry for %s.'],\n  },\n" "$version" "$version"
+    fi
+    printf "  {\n    version: 'v00.00.0001',\n    date: '2026-10-01',\n    changes: ['Seed.'],\n  },\n]\n"
+  } > "$seed/lib/changelog.ts"
+}
+
+seed_commit() {
+  gitc -C "$seed" add -A
+  gitc -C "$seed" commit --quiet -m "$1"
+  gitc -C "$seed" push --quiet "$review_repo" HEAD:main
+}
+
+release_must_fail() {
+  local label="$1" expected="$2" output=""
+  if output="$(prepare_release "$review_repo" "$github_repo" "$(/usr/bin/mktemp -d "$rel/wd.XXXXXX")" 2>&1)"; then
+    printf 'FAIL: helm-release accepted %s\n' "$label" >&2
+    exit 1
+  fi
+  [[ "$output" == *"$expected"* ]] || { printf 'FAIL: helm-release for %s did not say: %s\n%s\n' "$label" "$expected" "$output" >&2; exit 1; }
+}
+
+gitc init --quiet "$seed"
+/bin/mkdir -p "$seed/lib"
+write_release_files 00.00.0001 no
+gitc -C "$seed" add -A
+gitc -C "$seed" commit --quiet -m "seed"
+gitc clone --quiet --bare "$seed" "$github_repo"
+gitc clone --quiet --bare "$seed" "$review_repo"
+
+prepare_release "$review_repo" "$github_repo" "$(/usr/bin/mktemp -d "$rel/wd.XXXXXX")"
+(( NOTHING_TO_RELEASE == 1 )) || { printf 'FAIL: identical mains were not reported as nothing to release\n' >&2; exit 1; }
+
+printf 'unrelated\n' > "$seed/notes.txt"
+seed_commit "change without a version bump"
+release_must_fail "a release without a version bump" "the version was not bumped"
+
+write_release_files 00.00.0002 no
+seed_commit "bump without a changelog entry"
+release_must_fail "a release without a changelog entry" "no entry for v00.00.0002"
+
+write_release_files 00.00.0002 yes
+seed_commit "bump with a changelog entry"
+prepare_release "$review_repo" "$github_repo" "$(/usr/bin/mktemp -d "$rel/wd.XXXXXX")"
+(( NOTHING_TO_RELEASE == 0 )) && [[ "$OLD_VERSION" == "00.00.0001" && "$NEW_VERSION" == "00.00.0002" ]] || {
+  printf 'FAIL: a valid release was not prepared (%s -> %s)\n' "$OLD_VERSION" "$NEW_VERSION" >&2
+  exit 1
+}
+[[ "$(changelog_entry "$RELEASE_DIR" "$NEW_SHA" "$NEW_VERSION")" == *"Test entry for 00.00.0002."* ]]
+publish
+[[ "$(/usr/bin/git -C "$github_repo" rev-parse main)" == "$NEW_SHA" ]] || {
+  printf 'FAIL: publish did not move the stand-in GitHub main to the shown commit\n' >&2
+  exit 1
+}
+prepare_release "$review_repo" "$github_repo" "$(/usr/bin/mktemp -d "$rel/wd.XXXXXX")"
+(( NOTHING_TO_RELEASE == 1 )) || { printf 'FAIL: a published release was not reported as nothing to release\n' >&2; exit 1; }
+
+# GitHub gains a commit the review repository lacks: not a fast-forward.
+gitc clone --quiet "$github_repo" "$rel/other"
+printf 'hotfix\n' > "$rel/other/hotfix.txt"
+gitc -C "$rel/other" add -A
+gitc -C "$rel/other" commit --quiet -m "commit only on GitHub"
+gitc -C "$rel/other" push --quiet origin HEAD:main
+write_release_files 00.00.0003 yes
+seed_commit "release that would overwrite GitHub"
+release_must_fail "a release that is not a fast-forward" "not a fast-forward"
+printf 'helm-release checks passed (2 nothing-to-release, 1 published, 3 refused).\n'
+
+# ------------------------------------------------------------------
 # PATH shadowing. Prints each launcher name that the given PATH resolves to
 # anything other than the root-owned installed copy.
 #
@@ -181,7 +283,7 @@ shadowed_launchers() {
 # that a change to the PATH-resolved copy is detected. Not a boundary.
 # ------------------------------------------------------------------
 installed_dir="/usr/local/helm-bin"
-expected_launchers=(helm-dev helm-secrets-seal helm-secrets-set)
+expected_launchers=(helm-dev helm-secrets-seal helm-secrets-set helm-release)
 
 # The detector must see a planted copy ahead of the installed one.
 shadow_dir="$work_tmp/shadow"

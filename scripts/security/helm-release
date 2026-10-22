@@ -1,0 +1,163 @@
+#!/bin/bash
+
+set -euo pipefail
+set +x
+umask 077
+
+# Publishes the review repository's main to GitHub from the admin account.
+# Plan: docs/helm-release-script-plan.md. Nothing from the clone is ever
+# executed: agent-written content is only read here.
+
+readonly HELM_REVIEW_REPO="/Users/Shared/helm-review.git"
+readonly HELM_GITHUB_URL="https://github.com/sbaptista/helm.git"
+readonly HELM_SITE_URL="https://helm-gilt.vercel.app"
+readonly HELM_DEVELOPMENT_USER="developer"
+readonly GIT="/usr/bin/git"
+
+# Set by prepare_release.
+RELEASE_DIR=""
+OLD_SHA=""
+NEW_SHA=""
+OLD_VERSION=""
+NEW_VERSION=""
+NOTHING_TO_RELEASE=0
+
+fail() {
+  printf 'helm-release: %s\n' "$*" >&2
+  exit 1
+}
+
+# Prints the VERSION string from lib/version.ts at a commit, or nothing.
+version_at() {
+  local dir="$1"
+  local sha="$2"
+  local source=""
+
+  source="$("$GIT" -C "$dir" show "$sha:lib/version.ts" 2>/dev/null)" || return 0
+  printf '%s\n' "$source" | /usr/bin/sed -n "s/^export const VERSION = '\([0-9][0-9]\.[0-9][0-9]\.[0-9][0-9][0-9][0-9]\)';\$/\1/p"
+}
+
+# Prints the CHANGELOG entry for a version at a commit; fails when absent.
+# The file is read into a variable first so an early awk exit can't SIGPIPE
+# git under pipefail.
+changelog_entry() {
+  local dir="$1"
+  local sha="$2"
+  local version="$3"
+  local source=""
+
+  source="$("$GIT" -C "$dir" show "$sha:lib/changelog.ts" 2>/dev/null)" || return 1
+  /usr/bin/awk -v want="    version: 'v$version'," '
+    $0 == want { found = 1 }
+    found { print }
+    found && $0 == "  }," { exit }
+    END { exit !found }
+  ' <<< "$source"
+}
+
+# Arguments are for the release test only: main always passes the fixed
+# review repository and GitHub URL.
+prepare_release() {
+  local review="$1"
+  local github="$2"
+  local workdir="$3"
+
+  RELEASE_DIR="$workdir/helm"
+  NOTHING_TO_RELEASE=0
+
+  # --no-local: fetch objects through git's transport rather than copying the
+  # agent-writable repository's files directly.
+  if ! "$GIT" -c safe.directory="$review" clone --quiet --no-local --no-hardlinks --origin review "$review" "$RELEASE_DIR"; then
+    fail "could not clone the review repository: $review
+If git said 'dubious ownership', run this once in the admin account:
+
+  $GIT config --global --add safe.directory $review"
+  fi
+  "$GIT" -C "$RELEASE_DIR" remote add github "$github"
+  "$GIT" -C "$RELEASE_DIR" fetch --quiet github main || fail "could not fetch main from $github"
+
+  NEW_SHA="$("$GIT" -C "$RELEASE_DIR" rev-parse --verify --quiet refs/remotes/review/main)" || \
+    fail "the review repository has no main branch"
+  OLD_SHA="$("$GIT" -C "$RELEASE_DIR" rev-parse --verify --quiet refs/remotes/github/main)" || \
+    fail "GitHub has no main branch"
+
+  if [[ "$OLD_SHA" == "$NEW_SHA" ]]; then
+    NOTHING_TO_RELEASE=1
+    return 0
+  fi
+
+  "$GIT" -C "$RELEASE_DIR" merge-base --is-ancestor "$OLD_SHA" "$NEW_SHA" || \
+    fail "review main is not a fast-forward of GitHub main — nothing was pushed.
+GitHub has commits the review repository doesn't. Bring the development clone
+up to date (git fetch origin, then merge) and push to review again."
+
+  OLD_VERSION="$(version_at "$RELEASE_DIR" "$OLD_SHA")"
+  NEW_VERSION="$(version_at "$RELEASE_DIR" "$NEW_SHA")"
+  [[ -n "$NEW_VERSION" ]] || fail "could not read VERSION from lib/version.ts in review main"
+  [[ "$NEW_VERSION" != "$OLD_VERSION" ]] || \
+    fail "the version was not bumped (still $NEW_VERSION) — nothing was pushed"
+  changelog_entry "$RELEASE_DIR" "$NEW_SHA" "$NEW_VERSION" >/dev/null || \
+    fail "lib/changelog.ts has no entry for v$NEW_VERSION — nothing was pushed"
+}
+
+show_release() {
+  printf '\nHelm release: %s -> %s\n' "${OLD_VERSION:-unknown}" "$NEW_VERSION"
+  printf 'GitHub main %s -> review main %s\n\n' "${OLD_SHA:0:7}" "${NEW_SHA:0:7}"
+  printf 'Commits:\n'
+  "$GIT" -C "$RELEASE_DIR" log --oneline --no-decorate "$OLD_SHA..$NEW_SHA"
+  printf '\nFiles:\n'
+  "$GIT" -C "$RELEASE_DIR" diff --stat "$OLD_SHA" "$NEW_SHA"
+  printf '\nChangelog entry:\n'
+  changelog_entry "$RELEASE_DIR" "$NEW_SHA" "$NEW_VERSION"
+  printf '\n'
+}
+
+# Pushes exactly the commit that was shown. Never forced: GitHub rejects
+# anything that isn't a fast-forward.
+publish() {
+  "$GIT" -C "$RELEASE_DIR" push --quiet github "$NEW_SHA:refs/heads/main"
+}
+
+main() {
+  local command="${1:-run}"
+  local workdir=""
+  local typed=""
+
+  case "$command" in
+    run|--check) ;;
+    *) fail "usage: helm-release [--check]" ;;
+  esac
+
+  [[ "$(/usr/bin/id -u)" != "0" ]] || fail "don't run this with sudo; run it as the admin account itself"
+  [[ "$(/usr/bin/id -un)" != "$HELM_DEVELOPMENT_USER" ]] || \
+    fail "run this in the admin account; $HELM_DEVELOPMENT_USER can't push to GitHub"
+
+  workdir="$(/usr/bin/mktemp -d)"
+  trap '/bin/rm -rf "$workdir"' EXIT
+
+  prepare_release "$HELM_REVIEW_REPO" "$HELM_GITHUB_URL" "$workdir"
+
+  if (( NOTHING_TO_RELEASE == 1 )); then
+    printf 'helm-release: nothing to release; GitHub main is already at %s.\n' "${NEW_SHA:0:7}"
+    return 0
+  fi
+
+  show_release
+
+  if [[ "$command" == "--check" ]]; then
+    printf 'helm-release: check only — nothing was pushed.\n'
+    return 0
+  fi
+
+  [[ -t 0 ]] || fail "confirmation needs a terminal — nothing was pushed"
+  IFS= read -r -p "Publishing deploys to production. Type $NEW_VERSION to publish, anything else cancels: " typed
+  [[ "$typed" == "$NEW_VERSION" ]] || fail "cancelled — nothing was pushed"
+
+  publish
+  printf '\nPublished v%s to GitHub main (%s..%s).\n' "$NEW_VERSION" "${OLD_SHA:0:7}" "${NEW_SHA:0:7}"
+  printf 'Vercel deploys from there. Check the version label at %s\n' "$HELM_SITE_URL"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
