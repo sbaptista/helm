@@ -144,3 +144,36 @@ Agent checks: `npx tsc --noEmit`, `npm run lint` (no new warnings),
    build; commit locally.
 2. **S** — Verify (§6).
 3. **S** — Release (commands in the session reply and in HANDOFF).
+
+## 8. Known limitation: Connect Google from iPad or iPhone in local development
+
+**Found 2026-10-22. Deferred by Stan; not solved.**
+
+- **Symptom:** on the iPad or iPhone at `https://stanleys-macbook-pro.local:3000`,
+  Connect Google ends at `https://localhost:3000/api/gcal/callback?...` and
+  Safari says it can't connect to the server.
+- **Cause:** Google returns the browser to the fixed `GOOGLE_REDIRECT_URI`,
+  `https://localhost:3000/api/gcal/callback`, which must be on the OAuth
+  client's Authorized redirect URIs list. On a device, `localhost` is the
+  device itself. Helm can't pass "the address you came from", because Google
+  accepts only pre-registered addresses.
+- **Tried:** adding `https://stanleys-macbook-pro.local:3000/api/gcal/callback`
+  to Authorized redirect URIs in Google Cloud Console. **Google rejected it**
+  (2026-10-22): web redirect URIs must be `localhost` or a public domain, and
+  `.local` is neither.
+- **Not affected:** production (`helm-gilt.vercel.app` is a public domain and
+  works from every device), and everything in local Calendar except Connect and
+  Disconnect. The Google token is stored per user in the database, so a
+  connection made on the Mac serves every device.
+- **Workaround in use (Stan, 2026-10-22):** test Calendar on the Mac
+  (`https://localhost:3000`), release, then verify iPad and iPhone on
+  production. This is the same practice Orb used before its Bonjour setup.
+- **If it is solved later, the candidate design is a production relay:** register
+  `https://helm-gilt.vercel.app/api/gcal/dev-relay` with Google; local Connect
+  sends that as `redirect_uri`; the relay forwards the browser, with `code` and
+  `state`, only to a hard-coded allow-list (`https://stanleys-macbook-pro.local:3000`,
+  `https://localhost:3000`); the local callback checks the nonce and exchanges
+  the code, naming the relay URI, which Google requires to match. Costs: local
+  Connect depends on a deployed production route, and production carries a
+  dev-only route. A public tunnel (ngrok, Cloudflare Tunnel) was ruled out
+  because it would expose a dev server that holds the service-role key.

@@ -1,7 +1,13 @@
 # Helm secrets encryption plan
 
-**Status:** Proposed 2026-10-21. **Step 1 approved and built 2026-10-21**
-(v00.03.0015, committed locally, not pushed). Steps 2–11 are Stan's.
+**Status: complete 2026-10-23**, except step 9, which is deferred as an
+accepted risk. Step 1 was built 2026-10-21 (v00.03.0015) and released in
+v00.03.0018. Steps 2–8 were done 2026-10-22: install, TLS move, seal, symlink
+removed, Mac test, launcher test exit 0. Step 10, plaintext removed and
+`helm-dev` verified from the store alone, was done 2026-10-23. Step 11 was done
+2026-10-23 (AGENTS.md). Stan has not confirmed the Time Machine disk encryption
+check from step 10. iPad and iPhone are verified on production after the next
+release (step 7).
 **Author:** 2026-10-21 — Claude Code (Opus 5.5)
 **Model:** Orb's `orb-dev` / `orb-secrets-seal` / `orb-secrets-set` /
 `test-orb-launcher.sh` (Orb `scripts/security/`, as of `d7167ae`).
@@ -228,11 +234,22 @@ Who does each step: **A** = agent in `developer`, **S** = Stan in `developer`,
 6. **S** — Decide on `BYPASS_AUTH_USER_ID` (§2.1), then seal with a new
    Helm-only passphrase, keeping the plaintext for now:
    `/usr/local/helm-bin/helm-secrets-seal`
-7. **S** — Remove the repo symlink, check, start, and test on Mac, iPad and
-   iPhone (sign-in, a Supabase read and write, Google Calendar Update All):
+7. **S** — Remove the repo symlink, check, start, and test on the Mac
+   (sign-in, a Supabase read and write, Google Calendar Update All). iPad and
+   iPhone are verified on production after the next release (Stan, 2026-10-22):
+   Connect Google can't work from a device in local development
+   (`docs/gcal-session-auth-plan.md` §8).
    `rm /Users/developer/Projects/helm/.env.local && /usr/local/helm-bin/helm-dev --check && /usr/local/helm-bin/helm-dev`
 8. **A** — Run `test-helm-launcher.sh` (all green now that it is installed).
-9. **S — Rotate the exposed keys.** The plaintext was agent-readable from
+9. **DEFERRED — accepted risk (Stan, 2026-10-23).** Rotation is not done.
+   The keys below were readable as agent-accessible plaintext from April 2026
+   and as Vercel Config values until they were set to Secret on 2026-10-23.
+   Converting to Secret and encrypting the local store invalidate neither
+   exposure; only rotation would. Stan accepts that risk for now. If rotation
+   is taken up later, the procedure below still applies. Until then, the
+   "before rotating" rollback below is the one that applies.
+
+   **S — Rotate the exposed keys (when taken up).** The plaintext was agent-readable from
    April 2026, so treat these as exposed: `SUPABASE_SECRET_KEY`,
    `GOOGLE_CLIENT_SECRET`, `ANTHROPIC_API_KEY`. For each one, issue a new value
    in its console (Supabase, Google Cloud, Anthropic), then
@@ -242,6 +259,18 @@ Who does each step: **A** = agent in `developer`, **S** = Stan in `developer`,
    same Supabase project, the same OAuth client or the same Anthropic key,
    revoking the old value breaks production until Vercel has the new value and
    has redeployed. Update Vercel in the same sitting, before revoking.
+
+   **Rollback (any time before step 10).**
+   - **Before rotating:** put the symlink back and start with the moved
+     certificates. The plaintext file still holds working keys:
+     `ln -s /Users/developer/Project-secrets/helm-secrets/.env.local /Users/developer/Projects/helm/.env.local && cd /Users/developer/Projects/helm && HELM_DEV_CERT=/Users/developer/Project-secrets/helm-secrets/tls/helm-dev.pem HELM_DEV_KEY=/Users/developer/Project-secrets/helm-secrets/tls/helm-dev-key.pem npm run dev`
+   - **After rotating:** don't roll back; fix forward. The plaintext file
+     now holds revoked keys, and the new values exist only in the store, so
+     the symlink would start a server that can't reach Supabase, Google or
+     Anthropic. Keep using `helm-dev`: its refusal message names the failed
+     check, `helm-dev --check` re-runs the preflight without unlocking
+     anything, and `helm-secrets-set <NAME>` corrects a value. The new keys are
+     never copied into the plaintext file (decided 2026-10-22).
 10. **S** — Once everything is verified, remove the plaintext:
     `/usr/local/helm-bin/helm-secrets-seal --remove-plaintext`. Then confirm the
     Time Machine disk is encrypted: old backups retain the plaintext, and they
@@ -251,12 +280,6 @@ Who does each step: **A** = agent in `developer`, **S** = Stan in `developer`,
     window).
 11. **A** — Update `AGENTS.md` (Environments, Known Gotchas: start command,
     `.env.local` is gone) and `HANDOFF.md`.
-
-**Rollback before step 10:** put the symlink back
-(`ln -s /Users/developer/Project-secrets/helm-secrets/.env.local /Users/developer/Projects/helm/.env.local`)
-and start with the `HELM_DEV_CERT=… HELM_DEV_KEY=… npm run dev` form from §3.3.
-After step 9, the rotated values exist only in the store, so roll back by
-decrypting the store rather than by using the old file.
 
 ## 5. Platform and verification notes
 

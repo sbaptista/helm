@@ -83,12 +83,19 @@ Development happens in the Standard `developer` account, whose GitHub token is
 **read-only** — GitHub rejects a push from it (403, verified 2026-10-16).
 
 1. AI commits changes on `main` locally in `/Users/developer/Projects/helm`.
-2. Stan tests on localhost (Mac) and the Bonjour URL (iPad, iPhone).
+2. Stan tests on localhost (Mac) and the Bonjour URL (iPad, iPhone). Exception:
+   **Connect Google** can't work from a device in local development, because
+   Google rejects the `.local` redirect. Test Calendar connect on the Mac, then
+   check iPad and iPhone on production (`docs/gcal-session-auth-plan.md` §8).
 3. When Stan says so, `git push review main` (local bare repository
    `/Users/Shared/helm-review.git`, never GitHub).
-4. Stan, in the admin account, clones the review repository into a temporary
-   `~/Release/helm`, reads `git log github/main..origin/main`, pushes to GitHub,
-   and deletes the clone.
+4. Stan, in the admin account, runs `/usr/local/helm-bin/helm-release`
+   (since 2026-10-22). It clones the review repository into a throwaway
+   folder and refuses anything that isn't a fast-forward with a version bump
+   and a matching changelog entry. It shows the commits, files and entry, asks
+   for the new version to be typed, pushes exactly that commit to GitHub, and
+   deletes the clone. `helm-release --check` shows what would ship without
+   pushing (`docs/helm-release-script-plan.md`).
 5. Vercel auto-deploys; the development clone picks up the published state with
    `git fetch origin`.
 
@@ -97,8 +104,10 @@ Detail and the admin-account rules: Orb
 edits default to the `developer` login; an edit that must come from the admin
 account uses a temporary `~/Release` clone and is recorded in `HANDOFF.md`;
 never edit files inside `/Users/developer` with `sudo`. The dev TLS leaf
-(`localhost+1.pem`) is issued from the admin account's mkcert CA, which is
-never copied here.
+(`helm-secrets/tls/helm-dev.pem`, moved from the repo-root `localhost+1.pem` on
+2026-10-22) is issued from the admin account's mkcert CA, which is never copied
+here. Installing or updating anything in `/usr/local/helm-bin` is a manual
+admin step (`sudo install` from a reviewed clone).
 
 ---
 
@@ -191,7 +200,7 @@ The version is also tracked in HANDOFF.md for quick reference, but `lib/version.
 - **Hook declaration order**: computed values that reference state variables must be declared AFTER those `useState` calls — React TDZ will crash at runtime if not.
 - **Service worker**: `public/sw.js` registers via `ServiceWorkerRegistrar` in `layout.tsx`. Cache names are versioned — bump `helm-shell-vN` and `helm-assets-vN` in `sw.js` when deploying changes that require cache busting. Navigation uses **network-first** strategy (not stale-while-revalidate).
 - **OfflineGuard**: `components/ui/OfflineGuard.tsx` — wraps pages that need offline protection.
-- **.env.local**: stored outside the project directory, symlinked in.
+- **Development secrets**: there is **no `.env.local`** (removed 2026-10-22/23). Secrets live in the passphrase-encrypted store `/Users/developer/Project-secrets/helm-secrets/helm.env.enc`, unlocked by `/usr/local/helm-bin/helm-dev`, which refuses to start while any `.env`, `.env.local`, `.env.development` or `.env.development.local` exists in the repo. Agents never read, decrypt or edit the store; Stan changes a value with `helm-secrets-set <NAME>`. Encryption protects the file at rest only: while the server runs, agent-editable code can reach the decrypted values. Plan: `docs/helm-secrets-encryption-plan.md`. Key rotation is deferred as an accepted risk (2026-10-23).
 - **Auth: page-level `'use client'` + AuthShell** — causes hydration errors. Always split into server `page.tsx` + client `*Form.tsx` for auth pages.
 - **DevDebugPanel**: scrollable (`maxHeight: 70vh`). Auth variant toggle stores in `localStorage`. Never read `localStorage` in `useState` initializer — use `useEffect` to avoid hydration mismatch.
 
@@ -227,7 +236,7 @@ Before any production release or code push, you must document all changes in the
 
 # Known Gotchas (General)
 
-- **Dev server**: User-started only. No AI tool can start it — always blocked. Assume it's running when Stan says it is; if you need it, ask.
+- **Dev server**: User-started only. No AI tool can start it — always blocked. Assume it's running when Stan says it is; if you need it, ask. Stan starts it by absolute path, `/usr/local/helm-bin/helm-dev` (passphrase prompt); plain `npm run dev` refuses to start. `test-helm-launcher.sh` is agent-runnable and never decrypts anything.
 - **Version:** `lib/version.ts` is canonical. Bumped on every local change — no exceptions.
 
 ---
