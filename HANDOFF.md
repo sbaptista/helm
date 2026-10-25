@@ -66,18 +66,14 @@
 
 ## Uncommitted Changes
 
-- `HANDOFF.md` (modified)
-- `AGENTS.md` (modified: `helm-dev` start, no `.env.local`, `helm-release` in the deployment workflow, device Calendar connect via production, TLS leaf location)
-- `docs/helm-secrets-encryption-plan.md` (modified: complete; rollback note moved to step 9 and corrected; step 9 deferred; step 7 Mac-only, devices on production)
-- `docs/gcal-session-auth-plan.md` (modified: new §8, device Connect limitation)
-- `scratch/knowledge-drafts-2026-10-23.md` (new, untracked: Knowledge drafts a–c)
+- None in Helm except untracked `scratch/` (Knowledge drafts, all saved).
 - Orb repo: `docs/agent-security-review-2026-09-30.md` (modified 2026-10-23, uncommitted in Orb)
 
 ---
 
 ## Knowledge Entries Due at Completion
 
-To prepare as paste-ready **Title / Content / Tags / Project** blocks once the encryption work is finished (manual mode: Stan saves them in Orb, and first runs a Copy Results search on each topic so older entries can be superseded or linked):
+✅ **All nine saved by Stan:** 7–9 on 2026-10-23, and 1–6 on 2026-10-24, after a search for older matches on each topic. Drafts were in `scratch/knowledge-drafts-2026-10-23.md` (untracked). Agents can't verify Orb in manual mode; this rests on Stan's confirmation. Copy Results failed for the entry-1 search (`OAuth redirect`, `gcal callback`, `Bonjour`, Match Any); the likely cause is in Orb's `CopyButton`, which fetches before writing to the clipboard (Orb follow-up).
 
 1. **Google OAuth redirect can't target a `.local` dev address**: Google rejected `https://stanleys-macbook-pro.local:3000/api/gcal/callback` (2026-10-22). Connect Google works locally only on the Mac, so device Calendar testing goes through production. Candidate fix: production relay (`docs/gcal-session-auth-plan.md` §8).
 2. **Supabase SMTP 535 = deleted Resend key**: use one Resend key per Supabase project (Helm `adezucorxeybuwajeuqd`, Orb `livwkbnkdlrbmzgythys`).
@@ -85,7 +81,7 @@ To prepare as paste-ready **Title / Content / Tags / Project** blocks once the e
 4. **Helm dev secrets encrypted at rest only**: `helm-dev` / seal / set, F8-style limit, rotation, no plaintext.
 5. **`! cmd` never fails under `set -e`**: affects Orb's `test-orb-launcher.sh`; Helm uses `must_not`.
 6. **`helm-release`**: the one-command admin publish and its refusals.
-7–9. **Drafted 2026-10-23, paste-ready, not yet saved:** (a) agent exposure audit, (b) Vercel Config vs Secret, (c) security strategy status, in `scratch/knowledge-drafts-2026-10-23.md`.
+7–9. ✅ **Saved by Stan 2026-10-23:** (a) agent exposure audit, (b) Vercel Config vs Secret, (c) security strategy status, from `scratch/knowledge-drafts-2026-10-23.md`. Stan deleted the three earlier related entries they replace (deleted, not marked SUPERSEDED). Agents can't verify Orb in manual mode; this rests on Stan's confirmation.
 
 ---
 
@@ -117,7 +113,7 @@ To prepare as paste-ready **Title / Content / Tags / Project** blocks once the e
 ## Next Priorities
 
 1. **Done 2026-10-22:** v00.03.0018 released (the last manual release). All four launchers (`helm-dev`, `helm-secrets-seal`, `helm-secrets-set`, `helm-release`) installed in `/usr/local/helm-bin`; `test-helm-launcher.sh` passes fully (exit 0, install integrity included). From now on, release with `git -C /Users/developer/Projects/helm push review main` as `developer`, then `/usr/local/helm-bin/helm-release` as admin.
-2. **Encryption plan complete 2026-10-23** (`docs/helm-secrets-encryption-plan.md`): steps 1–8, 10 and 11 done; step 9 (key rotation) deferred as an accepted risk. Stan to confirm the Time Machine disk is encrypted (step 10). iPad and iPhone get checked on production after the next release.
+2. **Encryption plan complete 2026-10-23** (`docs/helm-secrets-encryption-plan.md`): steps 1–8, 10 and 11 done; step 9 (key rotation) deferred as an accepted risk. Time Machine backup disk confirmed encrypted (Stan, 2026-10-23). iPad and iPhone get checked on production after the next release.
 3. Stan searches Knowledge for related entries ("all day", "Time TBD", "gcal_include", "UpdateBanner") and supersedes any older entry saying All Day/Time TBD items cannot sync to the calendar.
 4. Stan continues recreating the Itinerary and reports issues as encountered.
 5. Run Calendar Update All and verify the deleted `Arrive SEA` event is removed and the currently checked Itinerary record is recreated.
@@ -138,4 +134,4 @@ To prepare as paste-ready **Title / Content / Tags / Project** blocks once the e
 
 ## AI Tool Used Last Session
 
-2026-10-21 — Claude Code (Opus 5.5)
+2026-10-24 — Claude Code (Opus 5.5)

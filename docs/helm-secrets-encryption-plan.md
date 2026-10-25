@@ -5,8 +5,8 @@ accepted risk. Step 1 was built 2026-10-21 (v00.03.0015) and released in
 v00.03.0018. Steps 2–8 were done 2026-10-22: install, TLS move, seal, symlink
 removed, Mac test, launcher test exit 0. Step 10, plaintext removed and
 `helm-dev` verified from the store alone, was done 2026-10-23. Step 11 was done
-2026-10-23 (AGENTS.md). Stan has not confirmed the Time Machine disk encryption
-check from step 10. iPad and iPhone are verified on production after the next
+2026-10-23 (AGENTS.md). Stan confirmed 2026-10-23 that the Time Machine backup disk is encrypted
+(step 10). iPad and iPhone are verified on production after the next
 release (step 7).
 **Author:** 2026-10-21 — Claude Code (Opus 5.5)
 **Model:** Orb's `orb-dev` / `orb-secrets-seal` / `orb-secrets-set` /
