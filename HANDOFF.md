@@ -67,7 +67,7 @@
 ## Uncommitted Changes
 
 - None in Helm except untracked `scratch/` (Knowledge drafts, all saved).
-- Orb repo: `docs/agent-security-review-2026-09-30.md` (modified 2026-10-23, uncommitted in Orb)
+- Orb repo: `docs/agent-security-review-2026-09-30.md` (modified 2026-10-23, uncommitted in Orb). **Deferred by Stan (2026-10-24):** leave it uncommitted for now; commit it from an Orb session later.
 
 ---
 
