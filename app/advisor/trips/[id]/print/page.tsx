@@ -5,6 +5,7 @@ import { PrintStyles } from '@/components/advisor/print/PrintStyles';
 import { CardPrintView, type ReferenceCardType } from '@/components/advisor/print/CardPrintView';
 import { CardPdfGenerator } from '@/components/advisor/print/CardPdfGenerator';
 import { stripEmojiForPrint, formatPrintDateRange } from '@/lib/printing/printing-service';
+import { tripRangeFromDays } from '@/lib/trip-range';
 import type { FlightRow, HotelRow, TransportationRow, RestaurantRow, ItineraryDayRow, ItineraryRowRow, ChecklistRow, PackingRow, KeyInfoRow } from '@/types/sections';
 
 export default async function TripPrintPage({
@@ -20,7 +21,6 @@ export default async function TripPrintPage({
   const requestedCard = typeof sp.card === 'string' ? sp.card : 'flights';
   const card: ReferenceCardType = (
     ['flights', 'hotels', 'transportation', 'restaurants', 'key-info', 'daily'].includes(requestedCard)
-    || /^day-\d+$/.test(requestedCard)
   ) ? requestedCard as ReferenceCardType : 'flights';
 
   const supabase = await getDataClient();
@@ -50,7 +50,7 @@ export default async function TripPrintPage({
     { data: packing },
   ] = await Promise.all([
     supabase.from('trips').select('*').eq('id', id).single(),
-    serviceClient.from('itinerary_days').select('*').eq('trip_id', id).is('deleted_at', null).order('day_number'),
+    serviceClient.from('itinerary_days').select('*').eq('trip_id', id).is('deleted_at', null).order('day_date', { ascending: true, nullsFirst: false }).order('sort_order'),
     serviceClient.from('itinerary_rows').select('*').eq('trip_id', id).is('deleted_at', null).order('sort_order'),
     serviceClient.from('flights').select('*').eq('trip_id', id).is('deleted_at', null).order('departure_time'),
     serviceClient.from('hotels').select('*').eq('trip_id', id).is('deleted_at', null).order('check_in_date'),
@@ -62,6 +62,7 @@ export default async function TripPrintPage({
   ]);
 
   if (!trip) return <div>Trip not found</div>;
+  const tripRange = tripRangeFromDays((days ?? []) as Array<{ day_date: string | null }>);
 
   if (mode === 'cards') {
     const selectedError = card === 'flights' ? flightsError
@@ -111,7 +112,7 @@ export default async function TripPrintPage({
         <h1 style={{ fontSize: '42pt' }}>{stripEmojiForPrint(trip.title)}</h1>
         <div style={{ fontSize: '18pt', fontStyle: 'italic', color: 'var(--navy)', marginBottom: '8pt' }}>{trip.destination}</div>
         <div style={{ fontSize: '14pt', fontWeight: 700, color: 'var(--gold-text)' }}>
-          {formatPrintDateRange(trip.departure_date, trip.return_date)}
+          {formatPrintDateRange(tripRange.start_date ?? '', tripRange.end_date ?? '') || 'No dates set'}
         </div>
       </section>
 
@@ -128,10 +129,10 @@ export default async function TripPrintPage({
                 <td>{trip.destination}</td>
               </tr>
               <tr>
-                <td className="label-cell">Departure</td>
-                <td>{new Date(trip.departure_date).toLocaleDateString()}</td>
-                <td className="label-cell">Return</td>
-                <td>{new Date(trip.return_date).toLocaleDateString()}</td>
+                <td className="label-cell">Start</td>
+                <td>{tripRange.start_date ? new Date(tripRange.start_date + 'T00:00:00').toLocaleDateString() : 'No dates set'}</td>
+                <td className="label-cell">End</td>
+                <td>{tripRange.end_date ? new Date(tripRange.end_date + 'T00:00:00').toLocaleDateString() : 'No dates set'}</td>
               </tr>
             </tbody>
           </table>
@@ -147,8 +148,7 @@ export default async function TripPrintPage({
             return (
               <div key={day.id} style={{ marginBottom: '20pt', pageBreakInside: 'avoid' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1pt solid #EEE', paddingBottom: '4pt', marginBottom: '8pt' }}>
-                  <h3 style={{ margin: 0 }}>Day {day.day_number}: {stripEmojiForPrint(day.title ?? '')}</h3>
-                  <span style={{ fontSize: '10pt', color: '#666' }}>{new Date((day.day_date ?? '') + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+                  <h3 style={{ margin: 0 }}>{day.day_date ? new Date(day.day_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) : 'No date'} — {stripEmojiForPrint(day.title ?? '')}</h3>
                 </div>
                 {itinFull && dayRows.map((row: ItineraryRowRow) => (
                   <div key={row.id} className="itin-row">

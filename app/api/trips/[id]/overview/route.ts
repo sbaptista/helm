@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createAuthClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
+import { tripRangeFromDays } from '@/lib/trip-range';
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -34,7 +35,7 @@ export async function GET(
 
     const { data: trip } = await supabase
       .from('trips')
-      .select('id, title, departure_date, return_date')
+      .select('id, title')
       .eq('id', id)
       .single();
 
@@ -63,7 +64,7 @@ export async function GET(
       supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
       supabase.from('checklist').select('id, task, group_name').eq('trip_id', id).eq('action_required', true).neq('status', 'completed').is('deleted_at', null).order('sort_order'),
       supabase.from('hotels').select('id, name, check_in_date, action_note').eq('trip_id', id).eq('action_required', true).is('deleted_at', null).order('check_in_date'),
-      supabase.from('itinerary_days').select('id, day_date, day_number, title, location, type').eq('trip_id', id).is('deleted_at', null).order('day_date', { ascending: true, nullsFirst: false }).order('day_number', { ascending: true }),
+      supabase.from('itinerary_days').select('id, day_date, title, location, type').eq('trip_id', id).is('deleted_at', null).order('day_date', { ascending: true, nullsFirst: false }).order('sort_order', { ascending: true }),
       supabase.from('itinerary_rows').select('id, day_id').eq('trip_id', id).is('deleted_at', null),
       supabase.from('key_info').select('id, label, value, url, url_label').eq('trip_id', id).eq('show_in_overview', true).is('deleted_at', null).order('sort_order'),
     ]);
@@ -77,8 +78,7 @@ export async function GET(
     const timeline = (daysResult.data ?? []).map((day) => ({
       id: day.id as string,
       day_date: day.day_date as string | null,
-      day_number: day.day_number as number,
-      title: day.title as string | null,
+        title: day.title as string | null,
       location: day.location as string | null,
       type: day.type as string | null,
       row_count: rowCountMap.get(day.id as string) ?? 0,
@@ -88,8 +88,7 @@ export async function GET(
       trip: {
         id: trip.id,
         title: trip.title,
-        departure_date: trip.departure_date,
-        return_date: trip.return_date,
+        ...tripRangeFromDays(timeline),
       },
       counts: {
         flights: flightsCount.count ?? 0,

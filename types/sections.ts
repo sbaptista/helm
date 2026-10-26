@@ -100,7 +100,6 @@ export interface RestaurantRow {
 export interface ItineraryDayRow {
   id: string
   trip_id: string
-  day_number: number
   day_date: string | null
   title: string | null
   sort_order: number

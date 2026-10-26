@@ -19,12 +19,14 @@ const STATUS_OPTIONS: { value: TripStatus; label: string }[] = [
   { value: 'draft', label: 'Draft' },
   { value: 'upcoming', label: 'Upcoming' },
   { value: 'active', label: 'Active' },
+  { value: 'done', label: 'Done' },
 ];
 
 const STATUS_PILL_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   active:   { bg: 'rgba(45,90,61,0.1)',   text: 'var(--green)',     border: 'rgba(45,90,61,0.2)' },
   draft:    { bg: 'rgba(90,109,122,0.1)',  text: 'var(--slate)',     border: 'rgba(90,109,122,0.2)' },
   upcoming: { bg: 'rgba(184,137,42,0.1)',  text: 'var(--gold-text)', border: 'rgba(184,137,42,0.2)' },
+  done:     { bg: 'rgba(13,30,53,0.08)',  text: 'var(--navy)',      border: 'rgba(13,30,53,0.25)' },
 };
 
 export function TripCardMenu({

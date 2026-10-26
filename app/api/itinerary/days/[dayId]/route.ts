@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
+import { findDayDateClash } from '@/lib/itinerary-days'
 
 function serviceClient() {
   return createClient(
@@ -38,7 +39,7 @@ export async function PATCH(
 
     const { data: dayData } = await supabase
       .from('itinerary_days')
-      .select('trip_id')
+      .select('trip_id, day_date')
       .eq('id', dayId)
       .single()
 
@@ -54,6 +55,13 @@ export async function PATCH(
     if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await req.json()
+
+    // Only a date change is checked, so an existing duplicate can still be
+    // edited in place.
+    if (body.day_date && body.day_date !== dayData.day_date) {
+      const clash = await findDayDateClash(supabase, dayData.trip_id, body.day_date, dayId)
+      if (clash) return NextResponse.json({ error: clash, field: 'day_date' }, { status: 409 })
+    }
     const { data, error } = await supabase
       .from('itinerary_days')
       .update(body)

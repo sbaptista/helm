@@ -18,9 +18,13 @@ interface TripCardProps {
   onStatusChange: (status: TripStatus) => void;
 }
 
-function formatDateRange(departure: string, returnDate: string): string {
+function formatDateRange(departure: string | null, returnDate: string | null): string {
+  if (!departure || !returnDate) return 'No dates set';
   const dep = new Date(departure + 'T00:00:00');
   const ret = new Date(returnDate + 'T00:00:00');
+  if (departure === returnDate) {
+    return dep.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
   const sameYear = dep.getFullYear() === ret.getFullYear();
 
@@ -42,6 +46,7 @@ const STATUS_LABELS: Record<TripStatus, string> = {
   active: 'Active',
   draft: 'Draft',
   upcoming: 'Upcoming',
+  done: 'Done',
   archived: 'Archived',
 };
 
@@ -139,7 +144,7 @@ export function TripCard({ trip, onEdit, onCopy, onPrint, onDelete, onArchive, o
             marginBottom: '6px',
           }}
         >
-          {formatDateRange(trip.departure_date, trip.return_date)}
+          {formatDateRange(trip.start_date, trip.end_date)}
         </p>
 
         {/* Traveler count */}

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
+import { findDayDateClash } from '@/lib/itinerary-days'
 
 function serviceClient() {
   return createClient(
@@ -79,6 +80,9 @@ export async function POST(
         { status: 400 }
       )
     }
+
+    const clash = await findDayDateClash(supabase, tripId, body.day_date)
+    if (clash) return NextResponse.json({ error: clash, field: 'day_date' }, { status: 409 })
 
     const { data, error } = await supabase
       .from('itinerary_days')

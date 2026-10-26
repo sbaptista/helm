@@ -18,23 +18,17 @@ interface CreateTripModalProps {
 interface FormValues {
   title: string;
   destination: string;
-  departure_date: string;
-  return_date: string;
   description: string;
 }
 
 interface FormErrors {
   title?: string;
   destination?: string;
-  departure_date?: string;
-  return_date?: string;
 }
 
 const EMPTY_FORM: FormValues = {
   title: '',
   destination: '',
-  departure_date: '',
-  return_date: '',
   description: '',
 };
 
@@ -72,14 +66,6 @@ export function CreateTripModal({ open, onClose, onSuccess }: CreateTripModalPro
 
     if (!values.title.trim())        next.title        = 'Trip name is required.';
     if (!values.destination.trim()) next.destination = 'Destination is required.';
-    if (!values.departure_date)     next.departure_date = 'Departure date is required.';
-    if (!values.return_date)        next.return_date    = 'Return date is required.';
-
-    if (values.departure_date && values.return_date) {
-      if (new Date(values.return_date) <= new Date(values.departure_date)) {
-        next.return_date = 'Return date must be after departure date.';
-      }
-    }
 
     setErrors(next);
     const valid = Object.keys(next).length === 0;
@@ -168,30 +154,9 @@ export function CreateTripModal({ open, onClose, onSuccess }: CreateTripModalPro
         />
       </FormField>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <FormField label="Departure Date" required error={errors.departure_date} htmlFor="trip-departure">
-          <input
-            id="trip-departure"
-            type="date"
-            value={values.departure_date}
-            onChange={set('departure_date')}
-            style={focus.isFocused('departure_date') ? inputFocusStyle(!!errors.departure_date) : inputStyle(!!errors.departure_date)}
-            {...focus.bind('departure_date')}
-          />
-        </FormField>
-
-        <FormField label="Return Date" required error={errors.return_date} htmlFor="trip-return">
-          <input
-            id="trip-return"
-            type="date"
-            value={values.return_date}
-            onChange={set('return_date')}
-            min={values.departure_date || undefined}
-            style={focus.isFocused('return_date') ? inputFocusStyle(!!errors.return_date) : inputStyle(!!errors.return_date)}
-            {...focus.bind('return_date')}
-          />
-        </FormField>
-      </div>
+      <p style={{ margin: 0, fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text2)' }}>
+        Trip dates come from the itinerary. Add days to the Itinerary to set them.
+      </p>
 
       <FormField label="Description" hint="Optional notes for yourself or your travelers." htmlFor="trip-description">
         <textarea

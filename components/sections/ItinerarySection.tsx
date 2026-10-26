@@ -7,7 +7,7 @@ export async function ItinerarySection({ tripId }: { tripId: string }) {
     process.env.SUPABASE_SECRET_KEY!
   );
 
-  const [{ data: days }, { data: rows }, { data: trip }] = await Promise.all([
+  const [{ data: days }, { data: rows }] = await Promise.all([
     supabase
       .from('itinerary_days')
       .select('*')
@@ -20,11 +20,6 @@ export async function ItinerarySection({ tripId }: { tripId: string }) {
       .eq('trip_id', tripId)
       .is('deleted_at', null)
       .order('sort_order'),
-    supabase
-      .from('trips')
-      .select('departure_date, return_date')
-      .eq('id', tripId)
-      .single(),
   ]);
 
   return (
@@ -32,8 +27,6 @@ export async function ItinerarySection({ tripId }: { tripId: string }) {
       tripId={tripId}
       initialDays={days ?? []}
       initialRows={rows ?? []}
-      tripStartDate={trip?.departure_date ?? ''}
-      tripEndDate={trip?.return_date ?? ''}
     />
   );
 }

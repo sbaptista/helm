@@ -1,6 +1,7 @@
 import React from 'react';
+import type { TripStatus } from '@/types/trips';
 
-export type TripStatus = 'active' | 'draft' | 'upcoming' | 'archived';
+export type { TripStatus };
 
 interface BadgeProps {
   /** Semantic trip status — applies preset colors */
@@ -26,6 +27,11 @@ const STATUS_COLORS: Record<TripStatus, { bg: string; text: string; border: stri
     bg: 'rgba(184,137,42,0.1)',
     text: 'var(--gold-text)',
     border: 'rgba(184,137,42,0.2)',
+  },
+  done: {
+    bg: 'rgba(13,30,53,0.08)',
+    text: 'var(--navy)',
+    border: 'rgba(13,30,53,0.25)',
   },
   archived: {
     bg: 'rgba(13,30,53,0.06)',

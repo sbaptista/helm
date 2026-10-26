@@ -23,6 +23,7 @@ const FILTERS: { value: FilterValue; label: string }[] = [
   { value: 'draft',    label: 'Draft'    },
   { value: 'upcoming', label: 'Upcoming' },
   { value: 'active',   label: 'Active'   },
+  { value: 'done',     label: 'Done'     },
   { value: 'archived', label: 'Archived' },
 ];
 
@@ -185,8 +186,6 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
   // Edit form state
   const [editTitle, setEditTitle] = useState('');
   const [editDestination, setEditDestination] = useState('');
-  const [editDepartureDate, setEditDepartureDate] = useState('');
-  const [editReturnDate, setEditReturnDate] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -215,8 +214,6 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
     setSelectedTrip(trip);
     setEditTitle(trip.title);
     setEditDestination(trip.destination ?? '');
-    setEditDepartureDate(trip.departure_date ?? '');
-    setEditReturnDate(trip.return_date ?? '');
     setEditError(null);
     setEditOpen(true);
   }
@@ -292,8 +289,6 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
         body: JSON.stringify({
           title: editTitle,
           destination: editDestination,
-          departure_date: editDepartureDate,
-          return_date: editReturnDate,
         }),
       });
       const json = await res.json();
@@ -723,32 +718,6 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
                 disabled={editSaving}
               />
             </label>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                Departure date
-                <input
-                  type="date"
-                  value={editDepartureDate}
-                  onChange={(e) => setEditDepartureDate(e.target.value)}
-                  style={inputStyle()}
-                  onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle())}
-                  onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle())}
-                  disabled={editSaving}
-                />
-              </label>
-              <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                Return date
-                <input
-                  type="date"
-                  value={editReturnDate}
-                  onChange={(e) => setEditReturnDate(e.target.value)}
-                  style={inputStyle()}
-                  onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle())}
-                  onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle())}
-                  disabled={editSaving}
-                />
-              </label>
-            </div>
             {editError && (
               <p style={{ fontSize: '13px', color: 'var(--red)', fontFamily: "'Lato', sans-serif" }}>{editError}</p>
             )}

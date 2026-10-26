@@ -1,3 +1,7 @@
+// Itinerary edits call router.refresh(); trip dates and the Overview are derived
+// from itinerary days, so this page must never be served from cache.
+export const dynamic = 'force-dynamic';
+
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getDataClient } from '@/lib/supabase/data-client';
@@ -13,6 +17,7 @@ import { ChecklistSection }      from '@/components/sections/ChecklistSection';
 import { PackingSection }        from '@/components/sections/PackingSection';
 import { KeyInfoSection }        from '@/components/sections/KeyInfoSection';
 import type { Trip, TripStatus } from '@/types/trips';
+import { tripRangeFromDays } from '@/lib/trip-range';
 
 function SectionSkeleton() {
   return (
@@ -41,7 +46,7 @@ export default async function TripDetailPage({
 
   const { data: row } = await supabase
     .from('trips')
-    .select('id, title, destination, departure_date, return_date, status, created_at')
+    .select('id, title, destination, status, created_at')
     .eq('id', id)
     .single();
 
@@ -66,7 +71,7 @@ export default async function TripDetailPage({
     serviceClient.from('checklist').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('packing').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('key_info').select('id, label, value').eq('trip_id', id).is('deleted_at', null),
-    serviceClient.from('itinerary_days').select('id, day_number, day_date, title').eq('trip_id', id).is('deleted_at', null).order('day_number'),
+    serviceClient.from('itinerary_days').select('id, day_date, title').eq('trip_id', id).is('deleted_at', null).order('day_date', { ascending: true, nullsFirst: false }).order('sort_order'),
   ]);
 
   if (!row) {
@@ -92,8 +97,7 @@ export default async function TripDetailPage({
     id:             row.id as string,
     title:          row.title as string,
     destination:    row.destination as string,
-    departure_date: row.departure_date as string,
-    return_date:    row.return_date as string,
+    ...tripRangeFromDays((sectionChecks[8].data ?? []) as Array<{ day_date: string | null }>),
     status:         row.status as TripStatus,
     created_at:     row.created_at as string,
     traveler_count: 0,
@@ -104,7 +108,7 @@ export default async function TripDetailPage({
       trip={trip}
       hasImport={!!importJob}
       hasSectionData={sectionChecks.some((r) => (r.count ?? 0) > 0)}
-      overviewContent={<OverviewSection tripId={id} trip={{ title: trip.title, departure_date: trip.departure_date, return_date: trip.return_date }} sectionCounts={{
+      overviewContent={<OverviewSection tripId={id} trip={{ title: trip.title, status: trip.status }} sectionCounts={{
         flights: sectionChecks[0].count ?? 0,
         hotels: sectionChecks[1].count ?? 0,
         transportation: sectionChecks[2].count ?? 0,

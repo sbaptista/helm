@@ -108,18 +108,21 @@ export async function POST(request: Request): Promise<Response> {
 
   // ── itinerary_days ───────────────────────────────────────────────────────────
   // Insert days first and capture returned IDs so itinerary_rows can reference
-  // day_id (the real FK) rather than day_number.
+  // day_id (the real FK). The extraction's day_number is only a link key between
+  // its days and rows; it is not stored, since days are identified by date alone.
+  // Each day's sort_order is its index in this import, which maps it back to its id.
   const dayNumberToId:   Record<number, string> = {};
   const dayNumberToDate: Record<number, string> = {};
 
   if (result.itinerary_days?.length) {
+    const dayNumberByIndex: number[] = [];
     const dayRows = result.itinerary_days.map((day, i) => {
       const dayNum  = (day.day_number as number) ?? i + 1;
       const dayDate = (day.date as string) ?? null;
+      dayNumberByIndex[i] = dayNum;
       if (dayDate) dayNumberToDate[dayNum] = dayDate;
       return {
         trip_id:    tripId,
-        day_number: dayNum,
         day_date:   dayDate,
         title:      (day.title as string) ?? null,
         sort_order: i,
@@ -129,14 +132,14 @@ export async function POST(request: Request): Promise<Response> {
     const { data: insertedDays, error: daysErr } = await supabase
       .from('itinerary_days')
       .insert(dayRows)
-      .select('id, day_number');
+      .select('id, sort_order');
 
     if (daysErr) {
       return fail(`itinerary_days: ${daysErr.message}`);
     }
 
     counts.itinerary_days = dayRows.length;
-    insertedDays?.forEach((d) => { dayNumberToId[d.day_number as number] = d.id as string; });
+    insertedDays?.forEach((d) => { dayNumberToId[dayNumberByIndex[d.sort_order as number]] = d.id as string; });
   }
 
   // ── itinerary_rows ───────────────────────────────────────────────────────────

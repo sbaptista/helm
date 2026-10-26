@@ -6,6 +6,42 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0003',
+    date: '2026-10-25',
+    changes: [
+      'Trip dates now come from the itinerary: a trip starts on its first itinerary day and ends on its last. New Trip, Copy Trip and Edit no longer ask for dates, so you can create a placeholder trip before you know when it will happen. Until it has days, it shows "No dates set".',
+      'The dashboard card, trip header, Overview and printed packet always show the itinerary\'s dates, and update as you add, move or remove days.',
+      'The Overview refreshes after you change the Itinerary, so deleting or moving a day no longer leaves it out of date.',
+      'During a trip, the Overview\'s first card names today\'s day or the next one, worded as in the Trip Timeline (for example "Next: Mon, Oct 26 · Fun in the Sun"), and that day is outlined and tagged in the timeline. Tap the card to open it in the Itinerary.',
+      'A copied trip keeps the original itinerary\'s dates. Change them by editing the days.',
+    ],
+  },
+  {
+    version: 'v00.04.0002',
+    date: '2026-10-25',
+    changes: [
+      'The Overview\'s first card follows the itinerary: days to go before the first day, "Underway" with today\'s or the next day during the trip, and "Completed" after the last day or once the trip is marked Done. It says "No dates set" when no day has a date.',
+      'A trip can have one itinerary day per date. Adding or moving a day onto a date that already has one now says so on the Date field.',
+      'One-day trips are supported.',
+      'Fixed: the printed packet\'s trip dates showed one day early in time zones behind UTC, such as Hawaii.',
+    ],
+  },
+  {
+    version: 'v00.04.0001',
+    date: '2026-10-25',
+    changes: [
+      'Itinerary days are identified by their date alone. "Day 1", "Day 2" numbering and the "Pre-Trip" label are gone from the Itinerary, Overview, printed packet and 3×5 daily cards, which now head each day with its date.',
+      'Fixed: days added by hand showed "Day null".',
+    ],
+  },
+  {
+    version: 'v00.04.0000',
+    date: '2026-10-24',
+    changes: [
+      'New trip status, Done, for a trip that is over. Set it from the Status pills in the trip card menu; the dashboard has a Done filter, and the Overview shows a "Trip done" banner. Unlike Archive, Done keeps all of the trip\'s information.',
+    ],
+  },
+  {
     version: 'v00.03.0018',
     date: '2026-10-22',
     changes: [

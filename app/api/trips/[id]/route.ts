@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { TRIP_STATUSES } from '@/types/trips';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -22,7 +23,8 @@ export async function PATCH(
     return Response.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const allowed = ['title', 'destination', 'departure_date', 'return_date', 'status'];
+  // Trip dates are not editable: they are derived from the itinerary.
+  const allowed = ['title', 'destination', 'status'];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
@@ -30,6 +32,10 @@ export async function PATCH(
 
   if (Object.keys(updates).length === 0) {
     return Response.json({ error: 'No valid fields to update.' }, { status: 400 });
+  }
+
+  if ('status' in updates && !(TRIP_STATUSES as readonly unknown[]).includes(updates.status)) {
+    return Response.json({ error: `status must be one of: ${TRIP_STATUSES.join(', ')}.` }, { status: 400 });
   }
 
   let supabase;

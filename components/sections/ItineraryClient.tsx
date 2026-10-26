@@ -21,7 +21,6 @@ type RowErrors = Partial<Record<'title' | 'start_date' | 'start_time_val' | 'sta
 export type ItineraryDay = {
   id: string
   trip_id: string
-  day_number: number
   day_date: string
   title: string
   location: string | null
@@ -55,8 +54,6 @@ type Props = {
   tripId: string
   initialDays: ItineraryDay[]
   initialRows: ItineraryRow[]
-  tripStartDate: string   // YYYY-MM-DD from trips.departure_date
-  tripEndDate: string     // YYYY-MM-DD from trips.return_date
 }
 
 type DisplayItineraryEntry = {
@@ -238,7 +235,7 @@ function categoryColor(cat: string): { bg: string; text: string; border: string 
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ItineraryClient({ tripId, initialDays, initialRows, tripStartDate, tripEndDate }: Props) {
+export default function ItineraryClient({ tripId, initialDays, initialRows }: Props) {
   const [days, setDays] = useState<ItineraryDay[]>(initialDays)
   const [rows, setRows] = useState<ItineraryRow[]>(initialRows)
 
@@ -418,9 +415,17 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           })
+      if (res.status === 409) {
+        const json = await res.json()
+        setDayErrors({ day_date: json.error ?? 'There is already a day on that date.' })
+        toast.show('Please fix the highlighted fields.', 'error')
+        scrollToFirstError()
+        return
+      }
       if (!res.ok) throw new Error()
       toast.show(editingDay ? 'Day updated' : 'Day added', 'success')
       await refetch()
+      router.refresh() // trip dates, header and Overview derive from the days
       setDaySheetOpen(false)
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -437,6 +442,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       if (!res.ok) throw new Error()
       toast.show('Day removed', 'success')
       await refetch()
+      router.refresh()
       setDaySheetOpen(false)
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -532,6 +538,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
       if (!res.ok) throw new Error()
       toast.show('Item removed', 'success')
       await refetch()
+      router.refresh()
       setRowSheetOpen(false)
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -554,7 +561,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
   }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sortedDays = useMemo(
-    () => [...days].sort((a, b) => a.day_date.localeCompare(b.day_date)),
+    () => [...days].sort((a, b) => a.day_date.localeCompare(b.day_date) || a.sort_order - b.sort_order),
     [days]
   )
   const entriesByDay = useMemo(() => {
@@ -639,19 +646,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 textAlign: 'left',
               }}
             >
-              {/* Row 1: day number badge */}
-              <div style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: 'var(--fs-xs)',
-                fontWeight: 'var(--fw-bold)',
-                color: 'var(--text-secondary, var(--text3))',
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-              }}>
-                {day.day_number === 0 ? 'Pre-Trip' : `Day ${day.day_number}`}
-              </div>
-
-              {/* Row 2: date heading — full width, no truncation */}
+              {/* Row 1: date heading — full width, no truncation. Days have no number; the date identifies them. */}
               <div suppressHydrationWarning style={{
                 fontFamily: "'Cormorant Garamond', serif",
                 fontSize: 'var(--fs-xl)',
@@ -666,7 +661,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 {formatDayDate(day.day_date)}
               </div>
 
-              {/* Row 3: type icon + subtitle */}
+              {/* Row 2: type icon + subtitle */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--fs-base)', fontWeight: 400, color: 'var(--text2)', lineHeight: 1.4 }}>
                 <span style={{ fontSize: '16px', flexShrink: 0 }}>{DAY_TYPE_ICONS[day.type] ?? '📅'}</span>
                 {day.title}
@@ -826,8 +821,6 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
               <input
                 type="date"
                 value={dayForm.day_date}
-                min={tripStartDate}
-                max={tripEndDate}
                 onChange={e => { setDayForm(f => ({ ...f, day_date: e.target.value })); clearDayError('day_date') }}
                 style={inputStyle(!!dayErrors.day_date)}
               />
@@ -963,8 +956,6 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 <input
                   type="date"
                   value={rowForm.start_date}
-                  min={tripStartDate}
-                  max={tripEndDate}
                   onChange={e => { setRowForm(f => ({ ...f, start_date: e.target.value })); clearError('start_date') }}
                   disabled={rowForm.is_all_day || rowForm.is_time_tbd}
                   style={inputStyle(!!rowErrors.start_date)}
@@ -1000,8 +991,6 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, trip
                 <input
                   type="date"
                   value={rowForm.end_date}
-                  min={tripStartDate}
-                  max={tripEndDate}
                   onChange={e => { setRowForm(f => ({ ...f, end_date: e.target.value })); clearError('end_date') }}
                   disabled={rowForm.is_all_day || rowForm.is_time_tbd}
                   style={inputStyle(!!rowErrors.end_date)}

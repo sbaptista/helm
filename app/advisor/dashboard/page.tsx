@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
 import { getDataClient } from '@/lib/supabase/data-client';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { tripRangeFromDays } from '@/lib/trip-range';
 import { DashboardView } from '@/components/advisor/DashboardView';
 import type { Trip, TripStatus } from '@/types/trips';
 
@@ -22,7 +24,7 @@ async function fetchTrips(userId: string): Promise<Trip[]> {
   // Fetch trip details
   const { data: tripRows, error: tripsError } = await supabase
     .from('trips')
-    .select('id, title, destination, departure_date, return_date, status, created_at')
+    .select('id, title, destination, status, created_at')
     .in('id', tripIds)
     .order('created_at', { ascending: false });
 
@@ -35,6 +37,23 @@ async function fetchTrips(userId: string): Promise<Trip[]> {
     .in('trip_id', tripIds)
     .eq('role', 'traveler');
 
+  // Trip dates come from itinerary days. Read with the service client: tripIds
+  // are already limited to trips this user advises.
+  const serviceClient = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+  );
+  const { data: dayRows } = await serviceClient
+    .from('itinerary_days')
+    .select('trip_id, day_date')
+    .in('trip_id', tripIds)
+    .is('deleted_at', null)
+    .not('day_date', 'is', null);
+  const daysByTrip: Record<string, Array<{ day_date: string | null }>> = {};
+  dayRows?.forEach((d) => {
+    (daysByTrip[d.trip_id as string] ??= []).push({ day_date: d.day_date as string });
+  });
+
   // Count travelers per trip
   const travelerCounts: Record<string, number> = {};
   travelerRows?.forEach((r) => {
@@ -46,8 +65,7 @@ async function fetchTrips(userId: string): Promise<Trip[]> {
     id:             t.id as string,
     title:          t.title as string,
     destination:    t.destination as string,
-    departure_date: t.departure_date as string,
-    return_date:    t.return_date as string,
+    ...tripRangeFromDays(daysByTrip[t.id as string] ?? []),
     status:         t.status as TripStatus,
     created_at:     t.created_at as string,
     traveler_count: travelerCounts[t.id as string] ?? 0,

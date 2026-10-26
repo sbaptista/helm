@@ -5,8 +5,6 @@ import { logger } from '@/lib/logger'
 interface CreateTripBody {
   title?: unknown
   destination?: unknown
-  departure_date?: unknown
-  return_date?: unknown
   description?: unknown
 }
 
@@ -16,10 +14,6 @@ function requiredString(value: unknown): string | null {
 
 function optionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null
-}
-
-function isISODate(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`))
 }
 
 async function getAuthenticatedUserId(): Promise<string | null> {
@@ -45,21 +39,10 @@ export async function POST(request: Request): Promise<Response> {
 
   const title = requiredString(body.title)
   const destination = requiredString(body.destination)
-  const departureDate = requiredString(body.departure_date)
-  const returnDate = requiredString(body.return_date)
   const description = optionalString(body.description)
 
   if (!title) return Response.json({ error: 'Trip name is required.' }, { status: 400 })
   if (!destination) return Response.json({ error: 'Destination is required.' }, { status: 400 })
-  if (!departureDate || !isISODate(departureDate)) {
-    return Response.json({ error: 'A valid departure date is required.' }, { status: 400 })
-  }
-  if (!returnDate || !isISODate(returnDate)) {
-    return Response.json({ error: 'A valid return date is required.' }, { status: 400 })
-  }
-  if (returnDate <= departureDate) {
-    return Response.json({ error: 'Return date must be after departure date.' }, { status: 400 })
-  }
 
   const userId = await getAuthenticatedUserId()
   if (!userId) return Response.json({ error: 'Unauthorized.' }, { status: 401 })
@@ -76,13 +59,11 @@ export async function POST(request: Request): Promise<Response> {
     .insert({
       title,
       destination,
-      departure_date: departureDate,
-      return_date: returnDate,
       description,
       status: 'draft',
       created_by: userId,
     })
-    .select('id, title, destination, departure_date, return_date, status, created_at')
+    .select('id, title, destination, status, created_at')
     .single()
 
   if (tripError || !trip) {

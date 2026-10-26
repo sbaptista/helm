@@ -2,6 +2,7 @@
 
 import React, { useContext, useState } from 'react';
 import { TabNavigationContext } from '@/components/advisor/TripDetailView';
+import type { TripStatus } from '@/types/trips';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -13,29 +14,62 @@ interface AttentionItem {
 }
 
 interface OverviewClientProps {
-  trip: { title: string; departure_date: string | null; return_date: string | null }
+  trip: { title: string; status: TripStatus }
   counts: { flights: number; hotels: number; transportation: number; restaurants: number; packing: number; checklist_open: number; checklist_total: number }
   attentionRequired: AttentionItem[]
-  timeline: Array<{ id: string; day_date: string | null; day_number: number; title: string | null; location: string | null; type: string | null; row_count: number }>
+  timeline: Array<{ id: string; day_date: string | null; title: string | null; location: string | null; type: string | null; row_count: number }>
   keyInfoFlagged: Array<{ id: string; label: string; value: string | null; url: string | null; url_label: string | null }>
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function daysUntil(dateStr: string | null): number | null {
-  if (!dateStr) return null
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const dep = new Date(dateStr + 'T00:00:00')
-  dep.setHours(0, 0, 0, 0)
-  return Math.ceil((dep.getTime() - today.getTime()) / 86400000)
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function formatDaysUntil(days: number | null): string {
-  if (days === null) return '—'
-  if (days === 0) return 'Today'
-  if (days < 0) return 'Underway'
-  return String(days)
+function daysBetween(from: string, to: string): number {
+  return Math.round((new Date(to + 'T00:00:00').getTime() - new Date(from + 'T00:00:00').getTime()) / 86400000)
+}
+
+type Timing = { value: string | number; label: string; dayId: string | null; kind: 'today' | 'next' | null }
+
+// Trip timing comes from the itinerary's first and last dates, not the trip's
+// own dates, so day trips and placeholder trips read correctly.
+function computeTiming(timeline: OverviewClientProps['timeline'], isDone: boolean): Timing {
+  if (isDone) return { value: 'Completed', label: '', dayId: null, kind: null }
+  const dated = timeline
+    .filter((d): d is typeof d & { day_date: string } => !!d.day_date)
+    .sort((a, b) => a.day_date.localeCompare(b.day_date))
+  if (dated.length === 0) return { value: 'No dates set', label: '', dayId: null, kind: null }
+  const today = localToday()
+  const first = dated[0].day_date
+  const last = dated[dated.length - 1].day_date
+  if (today < first) {
+    const n = daysBetween(today, first)
+    return { value: n, label: n === 1 ? 'Day to Go' : 'Days to Go', dayId: null, kind: null }
+  }
+  if (today > last) return { value: 'Completed', label: '', dayId: null, kind: null }
+  // Label reads exactly as the day appears in the Trip Timeline list.
+  const todayDay = dated.find(d => d.day_date === today)
+  if (todayDay) {
+    return { value: 'Underway', label: `Today: ${formatDayDate(todayDay.day_date)} · ${todayDay.title || 'Untitled day'}`, dayId: todayDay.id, kind: 'today' }
+  }
+  const next = dated.find(d => d.day_date > today)!
+  return { value: 'Underway', label: `Next: ${formatDayDate(next.day_date)} · ${next.title || 'Untitled day'}`, dayId: next.id, kind: 'next' }
+}
+
+function formatTripDates(departure: string | null, returnDate: string | null): string | null {
+  if (!departure || !returnDate) return null
+  const dep = new Date(departure + 'T00:00:00')
+  const ret = new Date(returnDate + 'T00:00:00')
+  if (departure === returnDate) {
+    return dep.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+  }
+  const sameYear = dep.getFullYear() === ret.getFullYear()
+  const depStr = dep.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) })
+  const retStr = ret.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return `${depStr} – ${retStr}`
 }
 
 const DOT_COLORS: Record<string, string> = {
@@ -63,9 +97,8 @@ function typeBadge(type: string | null): { emoji: string; label: string } {
   return TYPE_BADGES[type] ?? { emoji: '📍', label: type.charAt(0).toUpperCase() + type.slice(1) }
 }
 
-function formatDayDate(dayNumber: number, dayDate: string | null): string {
-  if (dayNumber === 0) return 'PRE-TRIP'
-  if (!dayDate) return `Day ${dayNumber}`
+function formatDayDate(dayDate: string | null): string {
+  if (!dayDate) return 'No date'
   const d = new Date(dayDate + 'T00:00:00')
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
@@ -159,6 +192,64 @@ function StatCard({
   )
 }
 
+// ─── TimingCard ───────────────────────────────────────────────────────────────
+
+// First tile: Days to Go → Underway (today's or next day, linked) → Completed.
+// The whole tile is the link target so it stays easy to tap.
+function TimingCard({ timing, navigateTo }: { timing: Timing; navigateTo: (tab: string, itemId?: string) => void }) {
+  const isLink = !!timing.dayId
+  const content = (
+    <>
+      <span suppressHydrationWarning style={{
+        fontFamily: "'Cormorant Garamond', serif",
+        fontSize: 'var(--fs-stat)',
+        fontWeight: 600,
+        color: 'var(--navy)',
+        lineHeight: 1.1,
+        textAlign: 'center',
+      }}>
+        {timing.value}
+      </span>
+      {timing.label && (
+        <span suppressHydrationWarning style={{
+          fontFamily: "'Lato', sans-serif",
+          fontSize: 'var(--fs-xs)',
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          textTransform: isLink ? 'none' : 'uppercase',
+          textDecoration: isLink ? 'underline' : 'none',
+          color: 'var(--navy)',
+          textAlign: 'center',
+        }}>
+          {timing.label}
+        </span>
+      )}
+    </>
+  )
+  const style: React.CSSProperties = {
+    ...cardStyle,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '4px',
+    padding: '16px 12px',
+    minHeight: '44px',
+    background: 'var(--gold)',
+  }
+  if (!isLink) return <div className="overview-stat-card" style={style}>{content}</div>
+  return (
+    <button
+      type="button"
+      className="overview-stat-card"
+      onClick={() => navigateTo('Itinerary', timing.dayId!)}
+      style={{ ...style, cursor: 'pointer', font: 'inherit', width: '100%' }}
+    >
+      {content}
+    </button>
+  )
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function OverviewClient({
@@ -169,11 +260,12 @@ export function OverviewClient({
   keyInfoFlagged,
 }: OverviewClientProps) {
   const { navigateTo } = useContext(TabNavigationContext)
-  const days = daysUntil(trip.departure_date)
-  const daysLabel = formatDaysUntil(days)
+  const isDone = trip.status === 'done'
+  const timing = computeTiming(timeline, isDone)
+  const datedDays = timeline.map(d => d.day_date).filter((d): d is string => !!d).sort()
+  const tripDates = formatTripDates(datedDays[0] ?? null, datedDays[datedDays.length - 1] ?? null)
 
   const stats: Array<{ label: string; value: string | number; tab: string | null; isAlert?: boolean }> = [
-    { label: 'Days to Go',     value: daysLabel,              tab: null },
     { label: 'Checklist',      value: counts.checklist_total, tab: 'Checklist' },
     { label: 'Flights',        value: counts.flights,         tab: 'Flights' },
     { label: 'Hotel Stays',    value: counts.hotels,          tab: 'Hotels' },
@@ -193,11 +285,43 @@ export function OverviewClient({
     }}>
       Overview
     </h2>
+    {isDone && (
+      <div
+        role="status"
+        style={{
+          ...cardStyle,
+          borderLeft: '3px solid var(--navy)',
+          marginBottom: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px',
+        }}
+      >
+        <span style={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: '22px',
+          fontWeight: 600,
+          color: 'var(--navy)',
+        }}>
+          Trip done
+        </span>
+        {tripDates && (
+          <span style={{
+            fontFamily: "'Lato', sans-serif",
+            fontSize: '16px',
+            color: 'var(--text2)',
+          }}>
+            {tripDates}
+          </span>
+        )}
+      </div>
+    )}
     <div className="overview-layout">
       <div className="overview-col">
 
         {/* ── Stats Bar ── */}
         <div className="overview-stats-grid">
+          <TimingCard timing={timing} navigateTo={navigateTo} />
           {stats.map((stat) => (
             <StatCard
               key={stat.label}
@@ -360,15 +484,21 @@ export function OverviewClient({
                 const color = dotColor(day.type)
                 const badge = typeBadge(day.type)
                 const isLast = idx === timeline.length - 1
+                const isCurrent = day.id === timing.dayId
                 return (
                   <div
                     key={day.id}
                     onClick={() => navigateTo('Itinerary', day.id)}
+                    aria-current={isCurrent ? 'date' : undefined}
                     style={{
                       display: 'flex',
                       gap: '12px',
                       cursor: 'pointer',
-                      padding: '8px 0',
+                      padding: isCurrent ? '8px 10px' : '8px 0',
+                      margin: isCurrent ? '4px -12px' : 0,
+                      border: isCurrent ? '2px solid var(--navy)' : 'none',
+                      borderRadius: isCurrent ? 'var(--r)' : 0,
+                      background: isCurrent ? 'var(--bg3)' : 'transparent',
                     }}
                   >
                     {/* Dot column with connector */}
@@ -414,8 +544,23 @@ export function OverviewClient({
                             color: 'var(--navy)',
                           }}
                         >
-                          {formatDayDate(day.day_number, day.day_date)}
+                          {formatDayDate(day.day_date)}
                         </span>
+                        {isCurrent && timing.kind && (
+                          <span style={{
+                            fontFamily: "'Lato', sans-serif",
+                            fontSize: 'var(--fs-xs)',
+                            fontWeight: 700,
+                            letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                            color: 'var(--bg)',
+                            background: 'var(--navy)',
+                            borderRadius: '99px',
+                            padding: '1px 8px',
+                          }}>
+                            {timing.kind === 'today' ? 'Today' : 'Next'}
+                          </span>
+                        )}
                         {day.title && (
                           <span style={{
                             fontFamily: "'Lato', sans-serif",

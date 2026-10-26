@@ -77,9 +77,13 @@ const TAB_TO_SECTION: Record<string, string> = {
 
 type Tab = typeof TABS[number];
 
-function formatDateRange(departure: string, returnDate: string): string {
+function formatDateRange(departure: string | null, returnDate: string | null): string {
+  if (!departure || !returnDate) return 'No dates set';
   const dep = new Date(departure + 'T00:00:00');
   const ret = new Date(returnDate + 'T00:00:00');
+  if (departure === returnDate) {
+    return dep.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }
   const sameYear = dep.getFullYear() === ret.getFullYear();
   const depStr = dep.toLocaleDateString('en-US', {
     month: 'long',
@@ -251,8 +255,8 @@ const handleImportClose = () => {
       const form = new FormData();
       form.append('file', uploadBlob, selectedFile.name);
       form.append('tripId', trip.id);
-      form.append('departureDate', trip.departure_date ?? '');
-      form.append('returnDate', trip.return_date ?? '');
+      form.append('departureDate', trip.start_date ?? '');
+      form.append('returnDate', trip.end_date ?? '');
 
       const res = await fetch('/api/trips/import', { method: 'POST', body: form });
 
@@ -360,7 +364,7 @@ const handleImportClose = () => {
           setSidebarOpen(false);
         }}
         tripName={localTrip.title}
-        tripDates={formatDateRange(localTrip.departure_date, localTrip.return_date)}
+        tripDates={formatDateRange(localTrip.start_date, localTrip.end_date)}
         warnCounts={warnCounts}
         tripId={trip.id}
         onPrint={() => setPrintOpen(true)}
@@ -421,7 +425,7 @@ const handleImportClose = () => {
             </span>
             <span style={{ display: 'inline-block', margin: '0 6px', color: 'var(--text3)' }}>|</span>
             <span className="trip-hero-meta-dates">
-              {formatDateRange(localTrip.departure_date, localTrip.return_date)}
+              {formatDateRange(localTrip.start_date, localTrip.end_date)}
             </span>
           </div>
         </div>
