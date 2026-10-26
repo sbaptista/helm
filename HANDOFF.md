@@ -6,7 +6,7 @@
 
 ## App State
 
-- **Version:** `00.04.0003`, committed locally 2026-10-25 for release (push to review + `helm-release` by Stan). Previous production: `00.03.0018` (2026-10-22, `ac5402c`)
+- **Version:** `00.04.0003`, **released 2026-10-25** (production and `origin/main` at `a45d021`, via review + `helm-release`)
 - **Branch:** main
 - **Dev server start:** `/usr/local/helm-bin/helm-dev` (passphrase prompt). There is no `.env.local`: secrets live only in the encrypted store `Project-secrets/helm-secrets/helm.env.enc` (plaintext removed 2026-10-23), and the TLS leaf is in `helm-secrets/tls/`. Plain `npm run dev` refuses to start.
 - **Dev server:** user-started on port 3000 in the `developer` account; devices use `https://stanleys-macbook-pro.local:3000` (Bonjour only). Leaf (originally `localhost+1.pem`, now `helm-secrets/tls/helm-dev.pem`) re-issued 2026-10-16 from the admin mkcert CA for `localhost`, `127.0.0.1`, `::1`, `Stanleys-MacBook-Pro.local` (verified, expires 2029-01-16)
@@ -61,7 +61,7 @@
 
 ## Knowledge Entries Due at Completion
 
-⏳ **Four drafts for v00.04.0000–0003, not yet saved:** `scratch/knowledge-drafts-2026-10-25.md`. Stan runs the listed Copy Results searches first so older entries can be superseded, then saves and confirms. Agents can't verify Orb in manual mode.
+✅ **Saved 2026-10-25 via `orb-agent-approve` (first use of the new proposal kinds), verified by Claude by reading back:** new entries `787180b7` (Done / Archive), `2247755d` (days by date), `124da363` (trip dates from itinerary), `af1bed21` (Overview card), all HELM, text identical to the drafts; SUPERSEDED IN PART banners on `a27452ca` and `f60d4e3e`, original text kept below an attribution line.
 
 1. **Trip lifecycle adds Done; Archive deletes data.**
 2. **Itinerary days are identified by date, not number.**
@@ -101,8 +101,9 @@ Earlier entries (2026-10-23/24, nine) were all saved by Stan.
 
 ## Next Priorities
 
-1. **Release v00.04.0003**: Stan runs `git -C /Users/developer/Projects/helm push review main` as `developer`, then `/usr/local/helm-bin/helm-release` as admin. Then check iPad and iPhone on production (also pending from the encryption plan).
-2. **Knowledge**: run the four Copy Results searches in `scratch/knowledge-drafts-2026-10-25.md`, save the entries, confirm.
+1. **Done 2026-10-25:** v00.04.0003 released (first release through `helm-release`; it also carried the three docs commits `d8dafef`, `d2dd58c`, `a569dc1`). Still to do: check iPad and iPhone on production (also pending from the encryption plan).
+2. **Done 2026-10-25:** v00.04 Knowledge saved (4 entries, 2 banners).
+2a. **Agent Knowledge access (Stan, 2026-10-25):** Helm agents read Knowledge via `orb-agent` and stage writes as proposals (`knowledge-create`, prepend-only `knowledge-update` banners, `todo-close`), added to `orb-agent` in an Orb session the same day. AGENTS.md updated.
 3. Stan's next batch of trip-driven changes (in progress).
 4. Cleanup later: drop unused `itinerary_days.day_number` and `trips.departure_date`/`return_date` once 00.04.x has run on production.
 5. Optional: Copy Trip date shifting (a copy keeps the source's itinerary dates).

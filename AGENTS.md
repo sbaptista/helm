@@ -15,7 +15,7 @@
 - **Never build/implement changes without explicit permission/confirmation from Stan.**
 - **Never `git push` without Stan's explicit in-chat approval.** Commit locally when asked. Never push. Push triggers a production deploy — that is always Stan's call. See shared AGENTS.md "Git — Commits and Pushes" for the full rule.
 - **Repeat verbatim the release documentation rule at the start of every session:** Before any code push/release, the agent must document all changes in `lib/changelog.ts` by adding a new `Release` entry with the bumped version, release date, and details of changes, and bump the patch version in `lib/version.ts`.
-- **Knowledge Repository Access:** Helm is in **Manual Data-Transfer Mode** (see shared AGENTS.md). Agents never read, query or write `knowledge_repo` directly and never use Supabase credentials. Stan supplies entries via Orb's **Copy** / **Copy Results**; agents return paste-ready blocks for Stan to save. See the **Knowledge Repository Access** section below.
+- **Knowledge Repository Access:** Agents **read** Knowledge themselves with the read-only `orb-agent` broker (authorized by Stan 2026-10-25). **Writes** are staged as `orb-agent propose …` proposals (new entries, SUPERSEDED banners, todo closes) that Stan applies with `orb-agent-approve`; agents never write directly. Agents never use Supabase credentials. See the **Knowledge Repository Access** section below.
 - Your first and only message before any tool use must be a numbered list answering all questions.
 - After answering, read `HANDOFF.md`, then **re-read every file listed in the "Uncommitted Changes" section** (both modified and new) before using any tools or continuing. This prevents stale-context overwrites when multiple AI tools edit the same directory.
 - Do not summarize. Do not say "ready." Do not ask "what do you need?" Answer every question directly.
@@ -38,9 +38,9 @@ The following file contains cross-project rules, conventions, and shared resourc
 
 ### Knowledge Repository (agents)
 
-- **Mode:** Manual Data-Transfer Mode, as defined in shared AGENTS.md. This overrides any older instruction to query with a service-role key.
-- **Research reads:** Ask Stan to search Settings → Knowledge and paste **Copy Results**. Report the query, match mode and copied/total coverage; never imply entries beyond the copied set were reviewed.
-- **When closing a todo:** Return separate paste-ready **Resolution notes** and Knowledge **Title**, **Content**, **Tags**, **Project** blocks, with `YYYY-MM-DD — Tool (Model)` as the first line of Resolution notes and Content. Ask Stan for a Copy Results search on the same topic so related entries can be superseded or linked (shared working rule #12). Never report a write as done until Stan confirms he saved it.
+- **Mode (since 2026-10-25, Stan):** reads through the read-only `orb-agent` broker; writes staged as broker proposals that Stan approves. This overrides shared AGENTS.md's "Orb only" note for Helm's Knowledge reads, and any older instruction to query with a service-role key.
+- **Research reads:** run the searches yourself (`orb-agent knowledge search <term>`, `orb-agent knowledge get <uuid>`). Search short terms: a multi-word query matches as one phrase ("trip status" found nothing). Report what was searched; never imply entries beyond the results were reviewed.
+- **When closing a todo:** return separate **Resolution notes** and Knowledge **Title**, **Content**, **Tags**, **Project** blocks, with `YYYY-MM-DD — Tool (Model)` as the first line of Resolution notes and Content. Search the same topic yourself first so related entries can be superseded or linked (shared working rule #12), and stage the SUPERSEDED banner for each with `orb-agent propose knowledge-update`. Where a todo is being closed, `orb-agent propose todo-close <REF> --notes-file … --knowledge-file … --knowledge-title …`. Never report a write as done until Stan has run `orb-agent-approve` and it reported success (check with `orb-agent proposals list`).
 
 ---
 
@@ -48,10 +48,12 @@ The following file contains cross-project rules, conventions, and shared resourc
 
 The Knowledge Repo stores distilled lessons, decisions, and resolution notes across all projects. It lives in Orb's database.
 
-- **Agent access:** none. Helm follows Manual Data-Transfer Mode (shared AGENTS.md). Agents do not hold or read `SUPABASE_SECRET_KEY`, and must not ask Stan to expose it.
-- **Reading:** Stan pastes entries or search results copied from Orb.
-- **Writing:** Agents prepare paste-ready field blocks; Stan saves them in Orb and confirms.
-- **Future:** If Helm moves to the `orb-agent` read-only broker (as Orb did on 2026-08-19), this section will be replaced with broker commands.
+- **Agent access:** read-only, through `/usr/local/orb-bin/orb-agent` (SELECT-only role `orb_agent_ro`, standing credential installed by Stan; `orb-agent status` checks it). Authorized for Helm by Stan on 2026-10-25. Agents do not hold or read `SUPABASE_SECRET_KEY`, and must not ask Stan to expose it. If `orb-agent status` reports the credential missing or refused, say so; never work around it.
+- **Reading:** `orb-agent knowledge search <term> [--limit N]`, `orb-agent knowledge get <uuid> [--json]`, `orb-agent todos list --project HELM`, `orb-agent todos get HELM-N`.
+- **Writing:** the broker never writes; it records proposals that Stan applies with `orb-agent-approve <id> [<id> ...]` (master passphrase):
+  - `orb-agent propose knowledge-create --project HELM --title … --content-file PATH [--tags a,b]` — new entry; content's first line is `YYYY-MM-DD — Tool (Model)`.
+  - `orb-agent propose knowledge-update <uuid> --banner-file PATH --attribution "YYYY-MM-DD — Tool (Model)" [--related "Related: …"]` — prepend-only rule-12 banner (`**SUPERSEDED (date):**` or `**SUPERSEDED IN PART (date):**`, one paragraph) above the entry's unchanged text. To cite a new entry by id, approve its create first.
+  - `orb-agent propose todo-close <REF> --notes-file … --knowledge-file … --knowledge-title …` — closes a todo with its Knowledge entry.
 
 ---
 
