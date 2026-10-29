@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
+import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
 
 function serverClient() {
   return createClient(
@@ -56,6 +57,7 @@ export async function PATCH(
       logger.error('api/hotels', 'Supabase error on PATCH', { error: error.message, recordId: id })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+    await ensureDaysForLinkedRecord(supabase, 'Hotels', data)
     return NextResponse.json(data)
   } catch (err) {
     logger.critical('api/hotels', 'Unhandled exception in PATCH handler', { error: err instanceof Error ? err.message : String(err) })

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { OverviewClient } from '@/components/trips/overview/OverviewClient';
+import { loadLinkedItineraryEntries } from '@/lib/itinerary/linked-entries';
 import type { TripStatus } from '@/types/trips';
 
 interface OverviewSectionProps {
@@ -79,13 +80,26 @@ export async function OverviewSection({ tripId, trip, sectionCounts }: OverviewS
   for (const row of (rowsResult.data ?? [])) {
     rowCountMap.set(row.day_id, (rowCountMap.get(row.day_id) ?? 0) + 1);
   }
+
+  // Linked travel records count toward the day on their date (the first day,
+  // if a date has more than one).
+  const linkedCountByDate = new Map<string, number>();
+  for (const entry of await loadLinkedItineraryEntries(supabase, tripId)) {
+    linkedCountByDate.set(entry.day_date, (linkedCountByDate.get(entry.day_date) ?? 0) + 1);
+  }
+  const firstDayIdByDate = new Map<string, string>();
+  for (const day of (daysResult.data ?? [])) {
+    const date = day.day_date as string | null;
+    if (date && !firstDayIdByDate.has(date)) firstDayIdByDate.set(date, day.id as string);
+  }
   const timeline = (daysResult.data ?? []).map((day) => ({
     id: day.id as string,
     day_date: day.day_date as string | null,
     title: day.title as string | null,
     location: day.location as string | null,
     type: day.type as string | null,
-    row_count: rowCountMap.get(day.id) ?? 0,
+    row_count: (rowCountMap.get(day.id) ?? 0)
+      + (day.day_date && firstDayIdByDate.get(day.day_date) === day.id ? linkedCountByDate.get(day.day_date) ?? 0 : 0),
   }));
 
   // Build unified attention required array

@@ -34,6 +34,7 @@ export type Transportation = {
   website_url: string | null
   cost: string | null
   gcal_include: boolean
+  show_in_itinerary: boolean
   departure_timezone: string | null
   arrival_timezone: string | null
   pickup_is_all_day: boolean
@@ -43,6 +44,9 @@ export type Transportation = {
 type Props = {
   tripId: string
   initialTransportations: Transportation[]
+  // Form-only mode: render just this record's edit form (used by the Itinerary)
+  formOnlyRecordId?: string
+  onFormOnlyDone?: () => void
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -83,6 +87,7 @@ const EMPTY_FORM = {
   action_required: false,
   action_note: '',
   gcal_include: false,
+  show_in_itinerary: true, // new records are listed in the Itinerary by default
   departure_timezone: '',
   arrival_timezone: '',
   pickup_is_all_day: false,
@@ -140,6 +145,7 @@ function recordToForm(r: Transportation) {
     action_required: r.action_required,
     action_note: r.action_note ?? '',
     gcal_include: r.gcal_include ?? false,
+    show_in_itinerary: r.show_in_itinerary ?? false,
     departure_timezone: r.departure_timezone ?? '',
     arrival_timezone: r.arrival_timezone ?? '',
     pickup_is_all_day: r.pickup_is_all_day ?? false,
@@ -151,8 +157,10 @@ function recordToForm(r: Transportation) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TransportationClient({ tripId, initialTransportations }: Props) {
+export function TransportationClient({ tripId, initialTransportations, formOnlyRecordId, onFormOnlyDone }: Props) {
   const [records, setRecords] = useState<Transportation[]>(initialTransportations)
+  // Take refreshed records from the server (router.refresh after a save elsewhere, e.g. the Itinerary)
+  useEffect(() => { setRecords(initialTransportations) }, [initialTransportations])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<Transportation | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -165,11 +173,18 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
   const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
 
   useEffect(() => {
-    if (!pendingSheetRecordId) return
+    if (formOnlyRecordId || !pendingSheetRecordId) return
     const record = records.find((r) => r.id === pendingSheetRecordId)
     clearPendingSheetRecord()
     if (record) openEdit(record)
   }, [pendingSheetRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!formOnlyRecordId) return
+    const record = records.find((r) => r.id === formOnlyRecordId)
+    if (record) openEdit(record)
+    else onFormOnlyDone?.()
+  }, [formOnlyRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function getTransportationWarns(record: Transportation): string[] {
     const warns: string[] = [];
@@ -181,7 +196,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
 
   const { setWarnCount } = useTabNavigation();
   useEffect(() => {
-    setWarnCount('transportation', warnCount);
+    if (!formOnlyRecordId) setWarnCount('transportation', warnCount);
   }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refetch = useCallback(async () => {
@@ -216,6 +231,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
     setSheetOpen(false)
     setEditingRecord(null)
     setConfirmDelete(false)
+    if (formOnlyRecordId) onFormOnlyDone?.()
   }
 
   async function handleSave() {
@@ -243,6 +259,7 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
         action_required: form.action_required,
         action_note: form.action_note.trim() || null,
         gcal_include: form.gcal_include,
+        show_in_itinerary: form.show_in_itinerary,
         departure_timezone: form.departure_timezone || null,
         arrival_timezone: form.arrival_timezone || null,
         pickup_is_all_day: form.pickup_is_all_day,
@@ -296,133 +313,8 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
     }
   }
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-      {/* Section header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '16px',
-      }}>
-        <h2 style={{
-          fontSize: 'var(--fs-xl)',
-          fontFamily: 'var(--font-display)',
-          color: 'var(--navy)',
-          fontWeight: 'var(--fw-normal)',
-        }}>
-          Transportation
-        </h2>
-        <Button variant="primary" size="sm" onClick={openAdd}>
-          <Plus size={16} />
-          Add Transportation
-        </Button>
-      </div>
-
-      {/* Warn banner */}
-      {warnCount > 0 && (
-        <div style={{
-          backgroundColor: 'var(--action)',
-          color: 'var(--action-text)',
-          fontSize: 'var(--fs-sm)',
-          fontWeight: 'var(--fw-medium)',
-          padding: '8px 16px',
-          borderRadius: '6px',
-          marginBottom: '12px',
-        }}>
-          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
-        </div>
-      )}
-
-      {/* Empty state */}
-      {records.length === 0 && (
-        <p style={{
-          fontFamily: "'Lato', sans-serif",
-          fontSize: 'var(--fs-sm)',
-          color: 'var(--text3)',
-          textAlign: 'center',
-          padding: '32px 0',
-        }}>
-          No transportation added yet.
-        </p>
-      )}
-
-      {/* Record list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {records.map(r => (
-          <button
-            key={r.id}
-            onClick={() => openEdit(r)}
-            className="section-row"
-          >
-            {/* Row 1: provider + badges */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: 'var(--fs-base)',
-                fontWeight: 'var(--fw-bold)',
-                color: 'var(--navy)',
-                flex: 1,
-                minWidth: 0,
-              }}>
-                {r.provider || r.type || 'Transportation'}
-              </span>
-              {r.included
-                ? <Badge color={{ bg: 'rgba(45,90,61,0.1)', text: 'var(--green)', border: 'rgba(45,90,61,0.2)' }}>Included</Badge>
-                : <Badge color={{ bg: 'rgba(90,109,122,0.1)', text: 'var(--slate)', border: 'rgba(90,109,122,0.2)' }}>Self-Arranged</Badge>
-              }
-              {getTransportationWarns(r).map(w => (
-                <WarnBadge key={w} label={w} />
-              ))}
-            </div>
-
-            {/* Row 2: type (if provider was shown above) */}
-            {r.provider && r.type && (
-              <span style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: 'var(--fs-sm)',
-                color: 'var(--text3)',
-              }}>
-                {r.type}
-              </span>
-            )}
-
-            {/* Row 3: origin → destination */}
-            {(r.origin || r.destination) && (
-              <span style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: 'var(--fs-sm)',
-                color: 'var(--text2)',
-              }}>
-                {[r.origin, r.destination].filter(Boolean).join(' → ')}
-              </span>
-            )}
-
-            {/* Row 4: departure time */}
-            <span style={{
-              fontFamily: "'Lato', sans-serif",
-              fontSize: '13px',
-              color: 'var(--text3)',
-            }}>
-              {formatDateTime(r.departure_time)}
-              {r.arrival_time && ` – ${formatDateTime(r.arrival_time)}`}
-            </span>
-
-            {/* Row 5: cost if self-arranged */}
-            {!r.included && r.cost && (
-              <span style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: 'var(--fs-sm)',
-                color: 'var(--text2)',
-              }}>
-                {r.cost}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
+  const sheet = (
+    <>
       {/* Bottom Sheet */}
       <ResponsiveSheet
         open={sheetOpen}
@@ -653,6 +545,22 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
             )}
           </div>
 
+          {/* Show in Itinerary (one-way link: listed there, edited here) */}
+          <div style={{ marginBottom: 'var(--sp-md)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', minHeight: '44px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.show_in_itinerary ?? false}
+                onChange={e => setField('show_in_itinerary', e.target.checked)}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)' }}>Show in Itinerary</span>
+            </label>
+            <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 20px)' }}>
+              Lists this transfer in the Itinerary. Changes are made here.
+            </p>
+          </div>
+
           {/* Google Calendar */}
           <div style={{ marginBottom: 'var(--sp-md)' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: form.departure_date ? 1 : 0.4 }}>
@@ -715,6 +623,140 @@ export function TransportationClient({ tripId, initialTransportations }: Props) 
 
         </div>
       </ResponsiveSheet>
+    </>
+  )
+
+  // Form-only mode (used by the Itinerary): just this record's edit form.
+  if (formOnlyRecordId) return sheet
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+      {/* Section header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '16px',
+      }}>
+        <h2 style={{
+          fontSize: 'var(--fs-xl)',
+          fontFamily: 'var(--font-display)',
+          color: 'var(--navy)',
+          fontWeight: 'var(--fw-normal)',
+        }}>
+          Transportation
+        </h2>
+        <Button variant="primary" size="sm" onClick={openAdd}>
+          <Plus size={16} />
+          Add Transportation
+        </Button>
+      </div>
+
+      {/* Warn banner */}
+      {warnCount > 0 && (
+        <div style={{
+          backgroundColor: 'var(--action)',
+          color: 'var(--action-text)',
+          fontSize: 'var(--fs-sm)',
+          fontWeight: 'var(--fw-medium)',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
+        </div>
+      )}
+
+      {/* Empty state */}
+      {records.length === 0 && (
+        <p style={{
+          fontFamily: "'Lato', sans-serif",
+          fontSize: 'var(--fs-sm)',
+          color: 'var(--text3)',
+          textAlign: 'center',
+          padding: '32px 0',
+        }}>
+          No transportation added yet.
+        </p>
+      )}
+
+      {/* Record list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {records.map(r => (
+          <button
+            key={r.id}
+            onClick={() => openEdit(r)}
+            className="section-row"
+          >
+            {/* Row 1: provider + badges */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: 'var(--fs-base)',
+                fontWeight: 'var(--fw-bold)',
+                color: 'var(--navy)',
+                flex: 1,
+                minWidth: 0,
+              }}>
+                {r.provider || r.type || 'Transportation'}
+              </span>
+              {r.included
+                ? <Badge color={{ bg: 'rgba(45,90,61,0.1)', text: 'var(--green)', border: 'rgba(45,90,61,0.2)' }}>Included</Badge>
+                : <Badge color={{ bg: 'rgba(90,109,122,0.1)', text: 'var(--slate)', border: 'rgba(90,109,122,0.2)' }}>Self-Arranged</Badge>
+              }
+              {getTransportationWarns(r).map(w => (
+                <WarnBadge key={w} label={w} />
+              ))}
+            </div>
+
+            {/* Row 2: type (if provider was shown above) */}
+            {r.provider && r.type && (
+              <span style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: 'var(--fs-sm)',
+                color: 'var(--text3)',
+              }}>
+                {r.type}
+              </span>
+            )}
+
+            {/* Row 3: origin → destination */}
+            {(r.origin || r.destination) && (
+              <span style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: 'var(--fs-sm)',
+                color: 'var(--text2)',
+              }}>
+                {[r.origin, r.destination].filter(Boolean).join(' → ')}
+              </span>
+            )}
+
+            {/* Row 4: departure time */}
+            <span style={{
+              fontFamily: "'Lato', sans-serif",
+              fontSize: '13px',
+              color: 'var(--text3)',
+            }}>
+              {formatDateTime(r.departure_time)}
+              {r.arrival_time && ` – ${formatDateTime(r.arrival_time)}`}
+            </span>
+
+            {/* Row 5: cost if self-arranged */}
+            {!r.included && r.cost && (
+              <span style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: 'var(--fs-sm)',
+                color: 'var(--text2)',
+              }}>
+                {r.cost}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {sheet}
     </div>
   )
 }

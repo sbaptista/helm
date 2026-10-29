@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
+import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
 
 function serviceClient() {
   return createClient(
@@ -77,6 +78,7 @@ export async function POST(
       logger.error('api/transportation', 'Supabase error on POST', { error: error.message, recordId: tripId })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+    await ensureDaysForLinkedRecord(supabase, 'Transportation', data)
     return NextResponse.json(data, { status: 201 })
   } catch (err) {
     logger.critical('api/transportation', 'Unhandled exception in POST handler', { error: err instanceof Error ? err.message : String(err) })

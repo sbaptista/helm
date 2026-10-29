@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
+import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
 
 function serviceClient() {
   return createClient(
@@ -74,7 +75,7 @@ export async function POST(
       display_label, reservation_status, confirmed, booking_source, maps_url,
       action_note, state_province, postal_code, email, booking_url,
       reservation_is_all_day, reservation_is_approx,
-      gcal_include,
+      gcal_include, show_in_itinerary,
     } = body
     const { data, error } = await supabase
       .from('restaurants')
@@ -87,6 +88,7 @@ export async function POST(
         reservation_is_all_day, reservation_is_approx,
         gcal_include: gcal_include === true,
         gcal_dirty: gcal_include === true,
+        show_in_itinerary: show_in_itinerary === true,
       })
       .select()
       .single()
@@ -94,6 +96,7 @@ export async function POST(
       logger.error('api/restaurants', 'Supabase error on POST', { error: error.message, recordId: tripId })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+    await ensureDaysForLinkedRecord(supabase, 'Restaurants', data)
     return NextResponse.json(data, { status: 201 })
   } catch (err) {
     logger.critical('api/restaurants', 'Unhandled exception in POST handler', { error: err instanceof Error ? err.message : String(err) })

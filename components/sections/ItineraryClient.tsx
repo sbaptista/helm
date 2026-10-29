@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect, useContext } from 'react'
+import { useState, useCallback, useMemo, useEffect, useContext, type ComponentProps } from 'react'
 import { useRouter } from 'next/navigation'
 import { CalendarCheck, Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
@@ -12,6 +12,11 @@ import { scrollToFirstError } from '@/lib/form-utils'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
 import { formatZonedTimeRange } from '@/lib/zoned-time'
+import type { LinkedItineraryEntry, LinkedItinerarySources } from '@/lib/itinerary/linked-entries'
+import { FlightsClient } from './FlightsClient'
+import { HotelsClient } from './HotelsClient'
+import { RestaurantsClient } from './RestaurantsClient'
+import { TransportationClient } from './TransportationClient'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +59,10 @@ type Props = {
   tripId: string
   initialDays: ItineraryDay[]
   initialRows: ItineraryRow[]
+  // Travel records shown in the Itinerary (read-only here; edited with the
+  // record's own form, opened over the Itinerary)
+  linkedEntries: LinkedItineraryEntry[]
+  linkedSources: LinkedItinerarySources
 }
 
 type DisplayItineraryEntry = {
@@ -68,7 +77,16 @@ type DisplayItineraryEntry = {
   description: string | null
   location: string | null
   category: string
-  manualRow: ItineraryRow
+  // Exactly one of these: a hand-made itinerary row, or a linked travel record
+  manualRow?: ItineraryRow
+  linked?: LinkedItineraryEntry
+}
+
+const LINKED_SOURCE_LABEL: Record<LinkedItineraryEntry['source_section'], string> = {
+  Flights: 'From Flights',
+  Hotels: 'From Hotels',
+  Restaurants: 'From Restaurants',
+  Transportation: 'From Transportation',
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -235,9 +253,17 @@ function categoryColor(cat: string): { bg: string; text: string; border: string 
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ItineraryClient({ tripId, initialDays, initialRows }: Props) {
+export default function ItineraryClient({ tripId, initialDays, initialRows, linkedEntries, linkedSources }: Props) {
   const [days, setDays] = useState<ItineraryDay[]>(initialDays)
   const [rows, setRows] = useState<ItineraryRow[]>(initialRows)
+
+  // Saving a travel record can insert a day and refreshes the page; take the
+  // server's latest days and rows so they appear without a reload.
+  useEffect(() => { setDays(initialDays) }, [initialDays])
+  useEffect(() => { setRows(initialRows) }, [initialRows])
+
+  // The linked record whose own edit form is open over the Itinerary
+  const [linkedForm, setLinkedForm] = useState<{ section: LinkedItineraryEntry['source_section']; id: string } | null>(null)
 
   const [daySheetOpen, setDaySheetOpen] = useState(false)
   const [rowSheetOpen, setRowSheetOpen] = useState(false)
@@ -577,6 +603,23 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
       })
       map.set(r.day_id, arr)
     })
+    // Linked travel records join the day on their local date (one day per
+    // date; saving the record inserts the day if it was missing).
+    const dayIdByDate = new Map<string, string>()
+    sortedDays.forEach(d => { if (!dayIdByDate.has(d.day_date)) dayIdByDate.set(d.day_date, d.id) })
+    linkedEntries.forEach(e => {
+      const dayId = dayIdByDate.get(e.day_date)
+      if (!dayId) return
+      const arr = map.get(dayId) ?? []
+      arr.push({
+        id: e.id, title: e.title, start_time: e.start_time, end_time: null,
+        timezone: e.timezone, end_timezone: null,
+        is_all_day: e.is_all_day, is_approx: e.is_approx,
+        description: e.description, location: e.location, category: e.category,
+        linked: e,
+      })
+      map.set(dayId, arr)
+    })
     map.forEach(arr => arr.sort((a, b) => {
       if (a.is_all_day && !b.is_all_day) return -1
       if (!a.is_all_day && b.is_all_day) return 1
@@ -586,7 +629,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
       return a.title.localeCompare(b.title)
     }))
     return map
-  }, [rows])
+  }, [rows, linkedEntries, sortedDays])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -721,7 +764,11 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
                   <button
                     key={row.id}
                     id={`item-${row.id}`}
-                    onClick={() => openEditRow(row.manualRow)}
+                    onClick={() => {
+                      if (row.manualRow) openEditRow(row.manualRow)
+                      else if (row.linked) setLinkedForm({ section: row.linked.source_section, id: row.linked.source_id })
+                    }}
+                    aria-label={row.linked ? `${row.title}. ${LINKED_SOURCE_LABEL[row.linked.source_section]}; opens its edit form` : undefined}
                     className={`section-row${highlightedId === row.id ? ' item-highlight' : ''}`}
                     style={{ padding: '18px 16px', borderRadius: 'var(--r)', minHeight: '44px', width: '100%', textAlign: 'left' }}
                   >
@@ -758,7 +805,15 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
                           }}>✓ Included</span>
                         )}
                       </span>
-                      {row.manualRow.gcal_include && (
+                      {row.linked && (
+                        <span style={{
+                          display: 'inline-block', fontSize: 'var(--fs-xs)', fontWeight: 'var(--fw-bold)',
+                          color: 'var(--navy)', background: 'var(--bg3)',
+                          border: '1px solid var(--border2)',
+                          borderRadius: '10px', padding: '2px 8px', whiteSpace: 'nowrap',
+                        }}>{LINKED_SOURCE_LABEL[row.linked.source_section]}</span>
+                      )}
+                      {row.manualRow?.gcal_include && (
                         <span
                           role="img"
                           aria-label="Included in Google Calendar"
@@ -805,6 +860,47 @@ export default function ItineraryClient({ tripId, initialDays, initialRows }: Pr
           </div>
         )
       })}
+
+      {/* A linked record's own edit form, opened over the Itinerary (form-only
+          mode of its section). Saving refreshes the page, which updates the
+          linked items; closing returns to the Itinerary. */}
+      {linkedForm?.section === 'Flights' && (
+        <FlightsClient
+          key={linkedForm.id}
+          tripId={tripId}
+          initialFlights={linkedSources.flights.filter(r => r.id === linkedForm.id) as unknown as ComponentProps<typeof FlightsClient>['initialFlights']}
+          formOnlyRecordId={linkedForm.id}
+          onFormOnlyDone={() => setLinkedForm(null)}
+        />
+      )}
+      {linkedForm?.section === 'Hotels' && (
+        <HotelsClient
+          key={linkedForm.id}
+          tripId={tripId}
+          initialHotels={linkedSources.hotels.filter(r => r.id === linkedForm.id) as unknown as ComponentProps<typeof HotelsClient>['initialHotels']}
+          nearbyDining={[]}
+          formOnlyRecordId={linkedForm.id}
+          onFormOnlyDone={() => setLinkedForm(null)}
+        />
+      )}
+      {linkedForm?.section === 'Restaurants' && (
+        <RestaurantsClient
+          key={linkedForm.id}
+          tripId={tripId}
+          initialRestaurants={linkedSources.restaurants.filter(r => r.id === linkedForm.id) as unknown as ComponentProps<typeof RestaurantsClient>['initialRestaurants']}
+          formOnlyRecordId={linkedForm.id}
+          onFormOnlyDone={() => setLinkedForm(null)}
+        />
+      )}
+      {linkedForm?.section === 'Transportation' && (
+        <TransportationClient
+          key={linkedForm.id}
+          tripId={tripId}
+          initialTransportations={linkedSources.transportation.filter(r => r.id === linkedForm.id) as unknown as ComponentProps<typeof TransportationClient>['initialTransportations']}
+          formOnlyRecordId={linkedForm.id}
+          onFormOnlyDone={() => setLinkedForm(null)}
+        />
+      )}
 
       {/* Day Sheet */}
       <ResponsiveSheet

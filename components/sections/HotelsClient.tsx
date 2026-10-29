@@ -35,6 +35,7 @@ type Hotel = {
   action_note?: string | null
   room_type: string | null
   gcal_include: boolean
+  show_in_itinerary: boolean
   province: string | null
   postal_code: string | null
   maps_url: string | null
@@ -59,6 +60,9 @@ type Props = {
   tripId: string
   initialHotels: Hotel[]
   nearbyDining: NearbyDining[]
+  // Form-only mode: render just this record's edit form (used by the Itinerary)
+  formOnlyRecordId?: string
+  onFormOnlyDone?: () => void
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -79,6 +83,7 @@ const EMPTY_FORM = {
   action_required: false,
   action_note: '',
   gcal_include: false,
+  show_in_itinerary: true, // new records are listed in the Itinerary by default
   province: '',
   postal_code: '',
   maps_url: '',
@@ -170,8 +175,10 @@ function DiningRow({ d }: { d: NearbyDining }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
+export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyRecordId, onFormOnlyDone }: Props) {
   const [hotels, setHotels] = useState<Hotel[]>(initialHotels)
+  // Take refreshed records from the server (router.refresh after a save elsewhere, e.g. the Itinerary)
+  useEffect(() => { setHotels(initialHotels) }, [initialHotels])
   const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingHotel, setEditingHotel] = useState<Hotel | null>(null)
@@ -185,11 +192,18 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
   const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
 
   useEffect(() => {
-    if (!pendingSheetRecordId) return
+    if (formOnlyRecordId || !pendingSheetRecordId) return
     const hotel = hotels.find((h) => h.id === pendingSheetRecordId)
     clearPendingSheetRecord()
     if (hotel) openEdit(hotel)
   }, [pendingSheetRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!formOnlyRecordId) return
+    const record = hotels.find((r) => r.id === formOnlyRecordId)
+    if (record) openEdit(record)
+    else onFormOnlyDone?.()
+  }, [formOnlyRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function getHotelWarns(hotel: Hotel): string[] {
     const warns: string[] = [];
@@ -201,7 +215,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
 
   const { setWarnCount } = useTabNavigation();
   useEffect(() => {
-    setWarnCount('hotels', warnCount);
+    if (!formOnlyRecordId) setWarnCount('hotels', warnCount);
   }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Group nearby dining by hotel_id
@@ -249,6 +263,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
       action_required: hotel.action_required,
       action_note: hotel.action_note ?? '',
       gcal_include: hotel.gcal_include ?? false,
+      show_in_itinerary: hotel.show_in_itinerary ?? false,
       province: hotel.province ?? '',
       postal_code: hotel.postal_code ?? '',
       maps_url: hotel.maps_url ?? '',
@@ -265,6 +280,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
     setSheetOpen(false)
     setEditingHotel(null)
     setConfirmDelete(false)
+    if (formOnlyRecordId) onFormOnlyDone?.()
   }
 
   async function handleSave() {
@@ -292,6 +308,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
         action_required: form.action_required,
         action_note: form.action_note.trim() || null,
         gcal_include: form.gcal_include,
+        show_in_itinerary: form.show_in_itinerary,
         province: form.province.trim() || null,
         postal_code: form.postal_code.trim() || null,
         maps_url: form.maps_url.trim() || null,
@@ -349,192 +366,8 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
-  return (
-    <div>
-      {/* Section header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '16px',
-      }}>
-        <h2 style={{
-          fontSize: 'var(--fs-xl)',
-          fontFamily: 'var(--font-display)',
-          color: 'var(--navy)',
-          fontWeight: 'var(--fw-normal)',
-        }}>
-          Hotels
-        </h2>
-        <Button variant="primary" size="sm" onClick={openAdd}>
-          <Plus size={16} />
-          Add Hotel
-        </Button>
-      </div>
-
-      {/* Warn banner */}
-      {warnCount > 0 && (
-        <div style={{
-          backgroundColor: 'var(--action)',
-          color: 'var(--action-text)',
-          fontSize: 'var(--fs-sm)',
-          fontWeight: 'var(--fw-medium)',
-          padding: '8px 16px',
-          borderRadius: '6px',
-          marginBottom: '12px',
-        }}>
-          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
-        </div>
-      )}
-
-      {/* Empty state */}
-      {hotels.length === 0 && (
-        <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>No hotels added yet.</p>
-      )}
-
-      {/* Hotel list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {hotels.map(hotel => {
-          const dining = diningByHotel[hotel.id] ?? []
-          const isExpanded = expandedHotelId === hotel.id
-
-          return (
-            <div
-              key={hotel.id}
-              style={{
-                overflow: 'hidden',
-              }}
-            >
-              {/* Hotel card — tap to edit */}
-              <div
-                onClick={() => openEdit(hotel)}
-                className="section-row"
-              >
-                {/* Name + badges */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-medium)', color: 'var(--text)' }}>
-                        {hotel.name}
-                      </span>
-                      {hotel.action_required && (
-                        <Badge color={{ bg: 'rgba(139,32,32,0.08)', text: 'var(--red)', border: 'rgba(139,32,32,0.2)' }}>Action Required</Badge>
-                      )}
-                      {hotel.room_type && (
-                        <Badge color={{ bg: 'var(--bg3)', text: 'var(--text2)' }}>{hotel.room_type}</Badge>
-                      )}
-                    </div>
-
-                    {/* Warn badges */}
-                    {getHotelWarns(hotel).length > 0 && (
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                        {getHotelWarns(hotel).map(w => (
-                          <WarnBadge key={w} label={w} />
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Address / city / province / postal code */}
-                    {(hotel.address || hotel.city || hotel.province || hotel.postal_code) && (
-                      <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text3)', marginTop: '3px' }}>
-                        {[hotel.address, hotel.city, hotel.province, hotel.postal_code].filter(Boolean).join(', ')}
-                      </p>
-                    )}
-
-                    {/* Maps link */}
-                    {hotel.maps_url && (
-                      <a
-                        href={hotel.maps_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        style={{ fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', marginTop: '2px', display: 'inline-block' }}
-                      >
-                        View on Maps ↗
-                      </a>
-                    )}
-
-                    {/* Check-in / Check-out */}
-                    <div style={{ display: 'flex', gap: '20px', marginTop: '10px', flexWrap: 'wrap' }}>
-                      <div>
-                        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Check-in
-                        </span>
-                        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>
-                          {formatDate(hotel.check_in_date)}
-                          {hotel.check_in_time && (
-                            <span style={{ color: 'var(--text3)' }}> · {formatTime(hotel.check_in_time)}</span>
-                          )}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Check-out
-                        </span>
-                        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>
-                          {formatDate(hotel.check_out_date)}
-                          {hotel.check_out_time && (
-                            <span style={{ color: 'var(--text3)' }}> · {formatTime(hotel.check_out_time)}</span>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Confirmation number */}
-                    {hotel.confirmation_number && (
-                      <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '8px' }}>
-                        Conf: {hotel.confirmation_number}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Nearby dining toggle */}
-              {dining.length > 0 && (
-                <>
-                  <button
-                    onClick={() => setExpandedHotelId(isExpanded ? null : hotel.id)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 16px',
-                      background: 'var(--bg3)',
-                      borderTop: '1px solid rgba(0,0,0,0.06)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      cursor: 'pointer',
-                      border: 'none',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)' }}>
-                      Nearby Dining ({dining.length})
-                    </span>
-                    {isExpanded
-                      ? <ChevronUp size={16} color="var(--navy)" />
-                      : <ChevronDown size={16} color="var(--navy)" />
-                    }
-                  </button>
-
-                  {isExpanded && (
-                    <div style={{
-                      padding: '12px 16px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '12px',
-                      borderTop: '1px solid rgba(0,0,0,0.04)',
-                    }}>
-                      {dining.map(d => <DiningRow key={d.id} d={d} />)}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
+  const sheet = (
+    <>
       {/* Add / Edit Bottom Sheet */}
       <ResponsiveSheet open={sheetOpen} onClose={closeSheet} title={editingHotel ? 'Edit Hotel' : 'Add Hotel'}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
@@ -738,6 +571,22 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
             )}
           </div>
 
+          {/* Show in Itinerary (one-way link: listed there, edited here) */}
+          <div style={{ marginBottom: 'var(--sp-md)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', minHeight: '44px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.show_in_itinerary ?? false}
+                onChange={e => setField('show_in_itinerary', e.target.checked)}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)' }}>Show in Itinerary</span>
+            </label>
+            <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 20px)' }}>
+              Lists this hotel stay in the Itinerary. Changes are made here.
+            </p>
+          </div>
+
           {/* Google Calendar */}
           <div style={{ marginBottom: 'var(--sp-md)' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: form.check_in_date ? 1 : 0.4 }}>
@@ -811,6 +660,199 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining }: Props) {
 
         </div>
       </ResponsiveSheet>
+    </>
+  )
+
+  // Form-only mode (used by the Itinerary): just this record's edit form.
+  if (formOnlyRecordId) return sheet
+
+  return (
+    <div>
+      {/* Section header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '16px',
+      }}>
+        <h2 style={{
+          fontSize: 'var(--fs-xl)',
+          fontFamily: 'var(--font-display)',
+          color: 'var(--navy)',
+          fontWeight: 'var(--fw-normal)',
+        }}>
+          Hotels
+        </h2>
+        <Button variant="primary" size="sm" onClick={openAdd}>
+          <Plus size={16} />
+          Add Hotel
+        </Button>
+      </div>
+
+      {/* Warn banner */}
+      {warnCount > 0 && (
+        <div style={{
+          backgroundColor: 'var(--action)',
+          color: 'var(--action-text)',
+          fontSize: 'var(--fs-sm)',
+          fontWeight: 'var(--fw-medium)',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
+        </div>
+      )}
+
+      {/* Empty state */}
+      {hotels.length === 0 && (
+        <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>No hotels added yet.</p>
+      )}
+
+      {/* Hotel list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {hotels.map(hotel => {
+          const dining = diningByHotel[hotel.id] ?? []
+          const isExpanded = expandedHotelId === hotel.id
+
+          return (
+            <div
+              key={hotel.id}
+              style={{
+                overflow: 'hidden',
+              }}
+            >
+              {/* Hotel card — tap to edit */}
+              <div
+                onClick={() => openEdit(hotel)}
+                className="section-row"
+              >
+                {/* Name + badges */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-medium)', color: 'var(--text)' }}>
+                        {hotel.name}
+                      </span>
+                      {hotel.action_required && (
+                        <Badge color={{ bg: 'rgba(139,32,32,0.08)', text: 'var(--red)', border: 'rgba(139,32,32,0.2)' }}>Action Required</Badge>
+                      )}
+                      {hotel.room_type && (
+                        <Badge color={{ bg: 'var(--bg3)', text: 'var(--text2)' }}>{hotel.room_type}</Badge>
+                      )}
+                    </div>
+
+                    {/* Warn badges */}
+                    {getHotelWarns(hotel).length > 0 && (
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                        {getHotelWarns(hotel).map(w => (
+                          <WarnBadge key={w} label={w} />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Address / city / province / postal code */}
+                    {(hotel.address || hotel.city || hotel.province || hotel.postal_code) && (
+                      <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text3)', marginTop: '3px' }}>
+                        {[hotel.address, hotel.city, hotel.province, hotel.postal_code].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+
+                    {/* Maps link */}
+                    {hotel.maps_url && (
+                      <a
+                        href={hotel.maps_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        style={{ fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', marginTop: '2px', display: 'inline-block' }}
+                      >
+                        View on Maps ↗
+                      </a>
+                    )}
+
+                    {/* Check-in / Check-out */}
+                    <div style={{ display: 'flex', gap: '20px', marginTop: '10px', flexWrap: 'wrap' }}>
+                      <div>
+                        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Check-in
+                        </span>
+                        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>
+                          {formatDate(hotel.check_in_date)}
+                          {hotel.check_in_time && (
+                            <span style={{ color: 'var(--text3)' }}> · {formatTime(hotel.check_in_time)}</span>
+                          )}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Check-out
+                        </span>
+                        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>
+                          {formatDate(hotel.check_out_date)}
+                          {hotel.check_out_time && (
+                            <span style={{ color: 'var(--text3)' }}> · {formatTime(hotel.check_out_time)}</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Confirmation number */}
+                    {hotel.confirmation_number && (
+                      <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '8px' }}>
+                        Conf: {hotel.confirmation_number}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Nearby dining toggle */}
+              {dining.length > 0 && (
+                <>
+                  <button
+                    onClick={() => setExpandedHotelId(isExpanded ? null : hotel.id)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      background: 'var(--bg3)',
+                      borderTop: '1px solid rgba(0,0,0,0.06)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      border: 'none',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)' }}>
+                      Nearby Dining ({dining.length})
+                    </span>
+                    {isExpanded
+                      ? <ChevronUp size={16} color="var(--navy)" />
+                      : <ChevronDown size={16} color="var(--navy)" />
+                    }
+                  </button>
+
+                  {isExpanded && (
+                    <div style={{
+                      padding: '12px 16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      borderTop: '1px solid rgba(0,0,0,0.04)',
+                    }}>
+                      {dining.map(d => <DiningRow key={d.id} d={d} />)}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {sheet}
     </div>
   )
 }

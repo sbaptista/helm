@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
+import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries';
 import { normalizeZonedDateTime } from '@/lib/zoned-time';
 
 function serviceClient() {
@@ -38,7 +39,7 @@ export async function GET(
 
     const { data: flights, error } = await supabase
       .from('flights')
-      .select('id, flight_number, airline, origin_airport, destination_airport, origin_city, destination_city, departure_time, arrival_time, departure_timezone, arrival_timezone, cabin_class, seat_number, confirmation_number, departure_terminal, departure_gate, arrival_terminal, arrival_gate, notes, gcal_include, action_required, departure_is_all_day, departure_is_approx, arrival_is_all_day, arrival_is_approx')
+      .select('id, flight_number, airline, origin_airport, destination_airport, origin_city, destination_city, departure_time, arrival_time, departure_timezone, arrival_timezone, cabin_class, seat_number, confirmation_number, departure_terminal, departure_gate, arrival_terminal, arrival_gate, notes, gcal_include, action_required, departure_is_all_day, departure_is_approx, arrival_is_all_day, arrival_is_approx, show_in_itinerary')
       .eq('trip_id', id)
       .is('deleted_at', null)
       .order('departure_time');
@@ -95,6 +96,7 @@ export async function POST(
       'departure_is_all_day', 'departure_is_approx',
       'arrival_is_all_day', 'arrival_is_approx',
       'gcal_include',
+      'show_in_itinerary',
     ];
     const record: Record<string, unknown> = { trip_id: id };
     for (const key of allowed) {
@@ -111,6 +113,7 @@ export async function POST(
       return Response.json({ error: error.message }, { status: 500 });
     }
 
+    await ensureDaysForLinkedRecord(supabase, 'Flights', flight);
     return Response.json({ flight }, { status: 201 });
   } catch (err) {
     logger.critical('api/flights', 'Unhandled exception in POST handler', { error: err instanceof Error ? err.message : String(err) });

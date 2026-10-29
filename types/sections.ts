@@ -16,6 +16,7 @@ export interface FlightRow {
   confirmation_number: string | null
   notes: string | null
   gcal_include: boolean
+  show_in_itinerary: boolean
   gcal_dirty: boolean
   gcal_event_id: string | null
   gcal_legacy_arrival_event_id: string | null
@@ -42,6 +43,7 @@ export interface HotelRow {
   confirmation_number: string | null
   notes: string | null
   gcal_include: boolean
+  show_in_itinerary: boolean
   gcal_dirty: boolean
   gcal_checkin_event_id: string | null
   gcal_checkout_event_id: string | null
@@ -68,6 +70,7 @@ export interface TransportationRow {
   cost: string | null
   notes: string | null
   gcal_include: boolean
+  show_in_itinerary: boolean
   gcal_dirty: boolean
   gcal_event_id: string | null
   pickup_is_all_day: boolean
@@ -90,6 +93,7 @@ export interface RestaurantRow {
   type: string | null
   notes: string | null
   gcal_include: boolean
+  show_in_itinerary: boolean
   gcal_dirty: boolean
   gcal_event_id: string | null
   reservation_is_all_day: boolean

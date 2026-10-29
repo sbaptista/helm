@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { AIRPORT_TIMEZONES } from '@/lib/gcal/timezones';
 import { normalizeZonedDateTime } from '@/lib/zoned-time';
+import { ensureDaysForLinkedRecord, type LinkedItinerarySection } from '@/lib/itinerary/linked-entries';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,6 +107,13 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: message }, { status });
   };
 
+  // Imported travel records are shown in the Itinerary (one-way link), so the
+  // import no longer writes them as itinerary rows; insert a day for any of
+  // their dates the document's days don't cover.
+  const ensureLinkedDays = async (section: LinkedItinerarySection, records: Record<string, unknown>[] | null) => {
+    for (const record of records ?? []) await ensureDaysForLinkedRecord(supabase, section, record);
+  };
+
   // ── itinerary_days ───────────────────────────────────────────────────────────
   // Insert days first and capture returned IDs so itinerary_rows can reference
   // day_id (the real FK). The extraction's day_number is only a link key between
@@ -185,10 +193,12 @@ export async function POST(request: Request): Promise<Response> {
         arrival_timezone:    arrivalTimezone,
         confirmation_number: (f.confirmation_code as string) ?? null,
         notes:               (f.notes as string)             ?? null,
+        show_in_itinerary:   true,
       };
     });
-    const { error } = await supabase.from('flights').insert(rows);
+    const { data: inserted, error } = await supabase.from('flights').insert(rows).select();
     if (error) return fail(`flights: ${error.message}`);
+    await ensureLinkedDays('Flights', inserted);
     counts.flights = rows.length;
   }
 
@@ -204,9 +214,11 @@ export async function POST(request: Request): Promise<Response> {
       confirmation_number: (h.confirmation_code as string) ?? null,
       phone:               (h.phone as string)             ?? null,
       notes:               (h.notes as string)             ?? null,
+      show_in_itinerary:   true,
     }));
-    const { error } = await supabase.from('hotels').insert(rows);
+    const { data: inserted, error } = await supabase.from('hotels').insert(rows).select();
     if (error) return fail(`hotels: ${error.message}`);
+    await ensureLinkedDays('Hotels', inserted);
     counts.hotels = rows.length;
   }
 
@@ -221,9 +233,11 @@ export async function POST(request: Request): Promise<Response> {
       arrival_time:        (t.arrival_time as string)       ?? null,
       confirmation_number: (t.confirmation_code as string)  ?? null,
       notes:               (t.description as string)        ?? null,
+      show_in_itinerary:   true,
     }));
-    const { error } = await supabase.from('transportation').insert(rows);
+    const { data: inserted, error } = await supabase.from('transportation').insert(rows).select();
     if (error) return fail(`transportation: ${error.message}`);
+    await ensureLinkedDays('Transportation', inserted);
     counts.transportation = rows.length;
   }
 
@@ -238,9 +252,11 @@ export async function POST(request: Request): Promise<Response> {
       confirmation_number: (r.confirmation_code as string) ?? null,
       type:              (r.type as string)              ?? null,
       notes:             (r.notes as string)             ?? null,
+      show_in_itinerary: true,
     }));
-    const { error } = await supabase.from('restaurants').insert(rows);
+    const { data: inserted, error } = await supabase.from('restaurants').insert(rows).select();
     if (error) return fail(`restaurants: ${error.message}`);
+    await ensureLinkedDays('Restaurants', inserted);
     counts.restaurants = rows.length;
   }
 

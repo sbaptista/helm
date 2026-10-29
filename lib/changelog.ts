@@ -6,6 +6,27 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0005',
+    date: '2026-10-29',
+    changes: [
+      'Tap a flight, hotel, restaurant or transfer in the Itinerary to open its own edit form right there, without leaving the Itinerary. Saving, deleting or unchecking Show in Itinerary updates the Itinerary straight away.',
+      'A day that Helm adds for a record is now titled "[Inserted day]" with no day type, so it no longer looks like a flight day just because a flight created it. Rename it and set its type when you know what the day is.',
+      'The Flights, Hotels, Restaurants and Transportation lists stay current after changes made from the Itinerary.',
+    ],
+  },
+  {
+    version: 'v00.04.0004',
+    date: '2026-10-26',
+    changes: [
+      'Flights, hotels, restaurants and transfers can now appear in the Itinerary, so you no longer enter them twice. Each has a new Show in Itinerary checkbox, on by default for new records and off for existing ones.',
+      'In the Itinerary they sit among your own items for that day, ordered by time and labelled with their section (for example "From Flights"). They are changed only through the record itself, including Action Required and Google Calendar, so they never create a second Calendar event.',
+      'Flights appear at departure and at arrival, each on its local date; hotels at check-in and check-out; restaurants at the reservation; transfers at pickup.',
+      'If a record falls on a date with no itinerary day, Helm adds the day for you. Placeholder days you create yourself are kept as they are.',
+      'The Overview timeline, the printed packet and the 3×5 daily cards include these items. The document import now marks imported travel records for the Itinerary instead of also creating duplicate itinerary items.',
+      'Fixed: the printed packet showed itinerary times in UTC instead of local time.',
+    ],
+  },
+  {
     version: 'v00.04.0003',
     date: '2026-10-25',
     changes: [

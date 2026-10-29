@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries';
 import { normalizeZonedDateTime } from '@/lib/zoned-time';
 
 function serviceClient() {
@@ -27,7 +28,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     let body: Record<string, unknown>;
     try { body = await request.json(); } catch { return Response.json({ error: 'Invalid request body.' }, { status: 400 }); }
-    const allowed = ['flight_number', 'airline', 'origin_airport', 'destination_airport', 'origin_city', 'destination_city', 'departure_time', 'arrival_time', 'departure_timezone', 'arrival_timezone', 'cabin_class', 'seat_number', 'confirmation_number', 'notes', 'departure_terminal', 'departure_gate', 'arrival_terminal', 'arrival_gate', 'action_required', 'gcal_include', 'departure_is_all_day', 'departure_is_approx', 'arrival_is_all_day', 'arrival_is_approx'];
+    const allowed = ['flight_number', 'airline', 'origin_airport', 'destination_airport', 'origin_city', 'destination_city', 'departure_time', 'arrival_time', 'departure_timezone', 'arrival_timezone', 'cabin_class', 'seat_number', 'confirmation_number', 'notes', 'departure_terminal', 'departure_gate', 'arrival_terminal', 'arrival_gate', 'action_required', 'gcal_include', 'departure_is_all_day', 'departure_is_approx', 'arrival_is_all_day', 'arrival_is_approx', 'show_in_itinerary'];
     const updates: Record<string, unknown> = {};
     for (const key of allowed) { if (key in body) updates[key] = body[key]; }
     if (Object.keys(updates).length === 0) return Response.json({ error: 'No valid fields to update.' }, { status: 400 });
@@ -50,6 +51,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       logger.error('api/flights', 'Supabase error on PATCH', { error: error.message, recordId: id });
       return Response.json({ error: error.message }, { status: 500 });
     }
+    await ensureDaysForLinkedRecord(supabase, 'Flights', data);
     return Response.json({ flight: data });
   } catch (err) {
     logger.critical('api/flights', 'Unhandled exception in PATCH handler', { error: err instanceof Error ? err.message : String(err) });

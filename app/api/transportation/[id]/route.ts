@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
+import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
 
 function serviceClient() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!) }
 async function getAuthUserId(): Promise<string | null> {
@@ -57,6 +58,7 @@ export async function PATCH(
       logger.error('api/transportation', 'Supabase error on PATCH', { error: error.message, recordId: id })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+    await ensureDaysForLinkedRecord(supabase, 'Transportation', data)
     return NextResponse.json(data)
   } catch (err) {
     logger.critical('api/transportation', 'Unhandled exception in PATCH handler', { error: err instanceof Error ? err.message : String(err) })

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
+import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
 
 function serviceClient() {
   return createClient(
@@ -58,6 +59,7 @@ export async function PATCH(
       display_label, reservation_status, confirmed, booking_source, maps_url,
       action_note, state_province, postal_code, email, booking_url,
       reservation_is_all_day, reservation_is_approx,
+      show_in_itinerary,
     } = body
     const nextInclude = 'gcal_include' in body ? gcal_include === true : record.gcal_include === true
     const gcalDirty = nextInclude || record.gcal_include === true || !!record.gcal_event_id
@@ -71,6 +73,7 @@ export async function PATCH(
         display_label, reservation_status, confirmed, booking_source, maps_url,
         action_note, state_province, postal_code, email, booking_url,
         reservation_is_all_day, reservation_is_approx,
+        show_in_itinerary,
       })
       .eq('id', id)
       .select()
@@ -79,6 +82,7 @@ export async function PATCH(
       logger.error('api/restaurants', 'Supabase error on PATCH', { error: error.message, recordId: id })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+    await ensureDaysForLinkedRecord(supabase, 'Restaurants', data)
     return NextResponse.json(data)
   } catch (err) {
     logger.critical('api/restaurants', 'Unhandled exception in PATCH handler', { error: err instanceof Error ? err.message : String(err) })

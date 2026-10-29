@@ -36,6 +36,7 @@ export type Restaurant = {
   action_required: boolean
   action_note: string | null
   gcal_include: boolean
+  show_in_itinerary: boolean
   reservation_status: string
   confirmed: boolean
   booking_source: string | null
@@ -48,6 +49,9 @@ export type Restaurant = {
 type Props = {
   tripId: string
   initialRestaurants: Restaurant[]
+  // Form-only mode: render just this record's edit form (used by the Itinerary)
+  formOnlyRecordId?: string
+  onFormOnlyDone?: () => void
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -81,6 +85,7 @@ const EMPTY_FORM = {
   action_required: false,
   action_note: '',
   gcal_include: false,
+  show_in_itinerary: true, // new records are listed in the Itinerary by default
   reservation_status: 'TBD',
   confirmed: false,
   booking_source: '',
@@ -143,6 +148,7 @@ function recordToForm(r: Restaurant) {
     action_required:      r.action_required,
     action_note:          r.action_note          ?? '',
     gcal_include:         r.gcal_include         ?? false,
+    show_in_itinerary: r.show_in_itinerary ?? false,
     reservation_status:   r.reservation_status   ?? 'TBD',
     confirmed:            r.confirmed            ?? false,
     booking_source:       r.booking_source       ?? '',
@@ -175,8 +181,10 @@ function GroupHeader({ label, first }: { label: string; first?: boolean }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
+export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId, onFormOnlyDone }: Props) {
   const [records, setRecords] = useState<Restaurant[]>(initialRestaurants)
+  // Take refreshed records from the server (router.refresh after a save elsewhere, e.g. the Itinerary)
+  useEffect(() => { setRecords(initialRestaurants) }, [initialRestaurants])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<Restaurant | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -189,11 +197,18 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
   const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext)
 
   useEffect(() => {
-    if (!pendingSheetRecordId) return
+    if (formOnlyRecordId || !pendingSheetRecordId) return
     const record = records.find((r) => r.id === pendingSheetRecordId)
     clearPendingSheetRecord()
     if (record) openEdit(record)
   }, [pendingSheetRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!formOnlyRecordId) return
+    const record = records.find((r) => r.id === formOnlyRecordId)
+    if (record) openEdit(record)
+    else onFormOnlyDone?.()
+  }, [formOnlyRecordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function getRestaurantWarns(record: Restaurant): string[] {
     const warns: string[] = [];
@@ -205,7 +220,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
 
   const { setWarnCount } = useTabNavigation();
   useEffect(() => {
-    setWarnCount('restaurants', warnCount);
+    if (!formOnlyRecordId) setWarnCount('restaurants', warnCount);
   }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refetch = useCallback(async () => {
@@ -240,6 +255,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
     setSheetOpen(false)
     setEditingRecord(null)
     setConfirmDelete(false)
+    if (formOnlyRecordId) onFormOnlyDone?.()
   }
 
   async function handleSave() {
@@ -271,6 +287,7 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
         action_required:     form.action_required,
         action_note:         form.action_note.trim() || null,
         gcal_include:        form.gcal_include,
+        show_in_itinerary: form.show_in_itinerary,
         reservation_status:  form.reservation_status,
         confirmed:           form.confirmed,
         booking_source:      form.booking_source.trim() || null,
@@ -325,217 +342,8 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
     }
   }
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-      {/* Section header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
-          Restaurants
-        </h2>
-        <Button variant="primary" size="sm" onClick={openAdd}>
-          <Plus size={16} />
-          Add Restaurant
-        </Button>
-      </div>
-
-      {/* Warn banner */}
-      {warnCount > 0 && (
-        <div style={{
-          backgroundColor: 'var(--action)',
-          color: 'var(--action-text)',
-          fontSize: 'var(--fs-sm)',
-          fontWeight: 'var(--fw-medium)',
-          padding: '8px 16px',
-          borderRadius: '6px',
-          marginBottom: '12px',
-        }}>
-          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
-        </div>
-      )}
-
-      {/* Empty state */}
-      {records.length === 0 && (
-        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
-          No restaurants added yet.
-        </p>
-      )}
-
-      {/* Record list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {records.map(r => (
-          <button key={r.id} onClick={() => openEdit(r)} className="section-row">
-
-            {/* Header: name + status badge */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-bold)', color: 'var(--navy)', flex: 1, minWidth: 0 }}>
-                {r.name || 'Restaurant'}
-              </span>
-              {r.confirmed
-                ? '✅ CONFIRMED'
-                : `Reservation: ${r.reservation_status}`
-              }
-            </div>
-
-            {/* Subtitle: display_label */}
-            {r.display_label && (
-              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                {r.display_label}
-              </span>
-            )}
-
-            {/* Style (2-line clamp) */}
-            {r.style && (
-              <p style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: 'var(--fs-sm)',
-                color: 'var(--text3)',
-                lineHeight: 1.5,
-                overflow: 'hidden',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                margin: 0,
-              }}>
-                {r.style}
-              </p>
-            )}
-
-            {/* City + State/Province */}
-            {(r.city || r.state_province) && (
-              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                {[r.city, r.state_province].filter(Boolean).join(', ')}
-              </span>
-            )}
-
-            {/* Address + Postal Code */}
-            {(r.address || r.postal_code) && (
-              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                {[r.address, r.postal_code].filter(Boolean).join(' ')}
-              </span>
-            )}
-
-            {/* Phone */}
-            {r.phone && (
-              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                📞 {r.phone}
-              </span>
-            )}
-
-            {/* Email */}
-            {r.email && (
-              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                ✉️ {r.email}
-              </span>
-            )}
-
-            {/* Reservation details — only when confirmed */}
-            {r.confirmed && (
-              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                {[
-                  r.reservation_time ? formatDateTime(r.reservation_time) : null,
-                  r.party_size != null ? `Party of ${r.party_size}` : null,
-                  r.confirmation_number ? `Conf #${r.confirmation_number}` : null,
-                  r.booking_source ?? null,
-                ].filter(Boolean).join(' · ')}
-              </span>
-            )}
-
-            {/* Website link */}
-            {r.website_url && (
-              <a
-                href={r.website_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}
-              >
-                🔗 Website ↗
-              </a>
-            )}
-
-            {/* Maps link */}
-            {r.maps_url && (
-              <a
-                href={r.maps_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block' }}
-              >
-                📍 Map ↗
-              </a>
-            )}
-
-            {/* Booking link */}
-            {r.booking_url && (
-              <a
-                href={r.booking_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block' }}
-              >
-                📋 View Booking ↗
-              </a>
-            )}
-
-            {/* Notes (3-line clamp) */}
-            {r.notes && (
-              <p className="line-clamp-3" style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: 'var(--fs-sm)',
-                color: 'var(--text3)',
-                lineHeight: 1.5,
-                overflow: 'hidden',
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
-                margin: 0,
-              }}>
-                {r.notes}
-              </p>
-            )}
-
-            {/* Warn badges */}
-            {getRestaurantWarns(r).length > 0 && (
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                {getRestaurantWarns(r).map(w => (
-                  <WarnBadge key={w} label={w} />
-                ))}
-              </div>
-            )}
-
-            {/* Action note (shown separately when present) */}
-            {r.action_required && r.action_note && (
-              <div style={{
-                padding: '8px 10px',
-                background: 'rgba(184,137,42,0.08)',
-                border: '1px solid rgba(184,137,42,0.2)',
-                borderRadius: '6px',
-                marginTop: '4px',
-              }}>
-                {r.action_note && (
-                  <p style={{
-                    fontFamily: "'Lato', sans-serif",
-                    fontSize: 'var(--fs-xs)',
-                    color: 'var(--text3)',
-                    margin: '4px 0 0',
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                  }}>
-                    {r.action_note}
-                  </p>
-                )}
-              </div>
-            )}
-
-          </button>
-        ))}
-      </div>
-
+  const sheet = (
+    <>
       {/* Bottom Sheet */}
       <ResponsiveSheet
         open={sheetOpen}
@@ -818,6 +626,22 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
             </FormField>
           )}
 
+          {/* Show in Itinerary (one-way link: listed there, edited here) */}
+          <div style={{ marginBottom: 'var(--sp-md)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', minHeight: '44px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.show_in_itinerary ?? false}
+                onChange={e => setField('show_in_itinerary', e.target.checked)}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)' }}>Show in Itinerary</span>
+            </label>
+            <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 20px)' }}>
+              Lists this reservation in the Itinerary. Changes are made here.
+            </p>
+          </div>
+
           <div style={{ marginBottom: 'var(--sp-md)' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: form.reservation_date ? 1 : 0.4 }}>
               <input
@@ -871,6 +695,224 @@ export function RestaurantsClient({ tripId, initialRestaurants }: Props) {
 
         </div>
       </ResponsiveSheet>
+    </>
+  )
+
+  // Form-only mode (used by the Itinerary): just this record's edit form.
+  if (formOnlyRecordId) return sheet
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+      {/* Section header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
+          Restaurants
+        </h2>
+        <Button variant="primary" size="sm" onClick={openAdd}>
+          <Plus size={16} />
+          Add Restaurant
+        </Button>
+      </div>
+
+      {/* Warn banner */}
+      {warnCount > 0 && (
+        <div style={{
+          backgroundColor: 'var(--action)',
+          color: 'var(--action-text)',
+          fontSize: 'var(--fs-sm)',
+          fontWeight: 'var(--fw-medium)',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
+        </div>
+      )}
+
+      {/* Empty state */}
+      {records.length === 0 && (
+        <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', textAlign: 'center', padding: '32px 0' }}>
+          No restaurants added yet.
+        </p>
+      )}
+
+      {/* Record list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {records.map(r => (
+          <button key={r.id} onClick={() => openEdit(r)} className="section-row">
+
+            {/* Header: name + status badge */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-bold)', color: 'var(--navy)', flex: 1, minWidth: 0 }}>
+                {r.name || 'Restaurant'}
+              </span>
+              {r.confirmed
+                ? '✅ CONFIRMED'
+                : `Reservation: ${r.reservation_status}`
+              }
+            </div>
+
+            {/* Subtitle: display_label */}
+            {r.display_label && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                {r.display_label}
+              </span>
+            )}
+
+            {/* Style (2-line clamp) */}
+            {r.style && (
+              <p style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: 'var(--fs-sm)',
+                color: 'var(--text3)',
+                lineHeight: 1.5,
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                margin: 0,
+              }}>
+                {r.style}
+              </p>
+            )}
+
+            {/* City + State/Province */}
+            {(r.city || r.state_province) && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                {[r.city, r.state_province].filter(Boolean).join(', ')}
+              </span>
+            )}
+
+            {/* Address + Postal Code */}
+            {(r.address || r.postal_code) && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                {[r.address, r.postal_code].filter(Boolean).join(' ')}
+              </span>
+            )}
+
+            {/* Phone */}
+            {r.phone && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                📞 {r.phone}
+              </span>
+            )}
+
+            {/* Email */}
+            {r.email && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                ✉️ {r.email}
+              </span>
+            )}
+
+            {/* Reservation details — only when confirmed */}
+            {r.confirmed && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                {[
+                  r.reservation_time ? formatDateTime(r.reservation_time) : null,
+                  r.party_size != null ? `Party of ${r.party_size}` : null,
+                  r.confirmation_number ? `Conf #${r.confirmation_number}` : null,
+                  r.booking_source ?? null,
+                ].filter(Boolean).join(' · ')}
+              </span>
+            )}
+
+            {/* Website link */}
+            {r.website_url && (
+              <a
+                href={r.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}
+              >
+                🔗 Website ↗
+              </a>
+            )}
+
+            {/* Maps link */}
+            {r.maps_url && (
+              <a
+                href={r.maps_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block' }}
+              >
+                📍 Map ↗
+              </a>
+            )}
+
+            {/* Booking link */}
+            {r.booking_url && (
+              <a
+                href={r.booking_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block' }}
+              >
+                📋 View Booking ↗
+              </a>
+            )}
+
+            {/* Notes (3-line clamp) */}
+            {r.notes && (
+              <p className="line-clamp-3" style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: 'var(--fs-sm)',
+                color: 'var(--text3)',
+                lineHeight: 1.5,
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                margin: 0,
+              }}>
+                {r.notes}
+              </p>
+            )}
+
+            {/* Warn badges */}
+            {getRestaurantWarns(r).length > 0 && (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                {getRestaurantWarns(r).map(w => (
+                  <WarnBadge key={w} label={w} />
+                ))}
+              </div>
+            )}
+
+            {/* Action note (shown separately when present) */}
+            {r.action_required && r.action_note && (
+              <div style={{
+                padding: '8px 10px',
+                background: 'rgba(184,137,42,0.08)',
+                border: '1px solid rgba(184,137,42,0.2)',
+                borderRadius: '6px',
+                marginTop: '4px',
+              }}>
+                {r.action_note && (
+                  <p style={{
+                    fontFamily: "'Lato', sans-serif",
+                    fontSize: 'var(--fs-xs)',
+                    color: 'var(--text3)',
+                    margin: '4px 0 0',
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                  }}>
+                    {r.action_note}
+                  </p>
+                )}
+              </div>
+            )}
+
+          </button>
+        ))}
+      </div>
+
+      {sheet}
     </div>
   )
 }

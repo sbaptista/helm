@@ -11,6 +11,7 @@ The JSON object must have these top-level keys, each containing an array:
 
 - itinerary_days: { day_number, date, title, location, description }
 - itinerary_rows: { day_number, time, end_time, title, description, location, type } — type is one of: activity, meal, transport, accommodation, other
+  Do NOT put flights, hotel check-ins or check-outs, restaurant reservations or transfers in itinerary_rows. Put them only in flights, hotels, restaurants and transportation; Helm lists those in the itinerary itself.
 - flights: { flight_number, airline, departure_airport, arrival_airport, departure_time, arrival_time, confirmation_code, notes }
 - hotels: { name, location, address, city, check_in_date, check_out_date, confirmation_code, phone, notes }
 - transportation: { type, description, departure_location, arrival_location, departure_time, arrival_time, confirmation_code, notes }

@@ -6,6 +6,8 @@ import { CardPrintView, type ReferenceCardType } from '@/components/advisor/prin
 import { CardPdfGenerator } from '@/components/advisor/print/CardPdfGenerator';
 import { stripEmojiForPrint, formatPrintDateRange } from '@/lib/printing/printing-service';
 import { tripRangeFromDays } from '@/lib/trip-range';
+import { loadLinkedItineraryEntries } from '@/lib/itinerary/linked-entries';
+import { formatZonedTimeRange } from '@/lib/zoned-time';
 import type { FlightRow, HotelRow, TransportationRow, RestaurantRow, ItineraryDayRow, ItineraryRowRow, ChecklistRow, PackingRow, KeyInfoRow } from '@/types/sections';
 
 export default async function TripPrintPage({
@@ -64,6 +66,32 @@ export default async function TripPrintPage({
   if (!trip) return <div>Trip not found</div>;
   const tripRange = tripRangeFromDays((days ?? []) as Array<{ day_date: string | null }>);
 
+  // Linked travel records print with the day on their date, alongside the
+  // hand-made rows (docs/linked-itinerary-items-plan.md).
+  const firstDayIdByDate = new Map<string, string>();
+  for (const day of (days ?? []) as ItineraryDayRow[]) {
+    if (day.day_date && !firstDayIdByDate.has(day.day_date)) firstDayIdByDate.set(day.day_date, day.id);
+  }
+  const linkedRows: ItineraryRowRow[] = (await loadLinkedItineraryEntries(serviceClient, id))
+    .filter(entry => firstDayIdByDate.has(entry.day_date))
+    .map(entry => ({
+      id: entry.id, trip_id: id, day_id: firstDayIdByDate.get(entry.day_date) ?? null,
+      title: entry.title, start_time: entry.start_time, end_time: null,
+      start_timezone: entry.timezone, end_timezone: null,
+      is_all_day: entry.is_all_day, is_approx: entry.is_approx,
+      description: [entry.description, entry.location].filter(Boolean).join(' · ') || null,
+      location: entry.location, category: entry.category, sort_order: 0,
+      gcal_include: false, gcal_dirty: false, gcal_event_id: null, deleted_at: null,
+    }));
+  const allItineraryRows: ItineraryRowRow[] = [...((rows ?? []) as ItineraryRowRow[]), ...linkedRows];
+  const byDayTime = (a: ItineraryRowRow, b: ItineraryRowRow) => {
+    if (a.is_all_day !== b.is_all_day) return a.is_all_day ? -1 : 1;
+    if (a.start_time && b.start_time) return a.start_time.localeCompare(b.start_time);
+    if (a.start_time) return -1;
+    if (b.start_time) return 1;
+    return (a.title ?? '').localeCompare(b.title ?? '');
+  };
+
   if (mode === 'cards') {
     const selectedError = card === 'flights' ? flightsError
       : card === 'hotels' ? hotelsError
@@ -93,7 +121,7 @@ export default async function TripPrintPage({
           restaurants={(restaurants ?? []) as RestaurantRow[]}
           keyInfo={((keyInfo ?? []) as KeyInfoRow[]).filter(item => item.show_in_overview)}
           days={(days ?? []) as ItineraryDayRow[]}
-          itineraryRows={(rows ?? []) as ItineraryRowRow[]}
+          itineraryRows={allItineraryRows}
         />
       </CardPdfGenerator>
     );
@@ -144,7 +172,7 @@ export default async function TripPrintPage({
         <section className="print-section">
           <h2>Daily Itinerary</h2>
           {days.map((day: ItineraryDayRow) => {
-            const dayRows = rows?.filter((r: ItineraryRowRow) => r.day_id === day.id) || [];
+            const dayRows = allItineraryRows.filter(r => r.day_id === day.id).sort(byDayTime);
             return (
               <div key={day.id} style={{ marginBottom: '20pt', pageBreakInside: 'avoid' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1pt solid #EEE', paddingBottom: '4pt', marginBottom: '8pt' }}>
@@ -153,7 +181,11 @@ export default async function TripPrintPage({
                 {itinFull && dayRows.map((row: ItineraryRowRow) => (
                   <div key={row.id} className="itin-row">
                     <div className="itin-time">
-                      {row.is_all_day ? 'All Day' : row.start_time ? row.start_time.split('T')[1].substring(0, 5) : 'Time TBD'}
+                      {row.is_all_day ? 'All Day' : row.start_time ? formatZonedTimeRange({
+                        startTime: row.start_time, endTime: row.end_time,
+                        startTimezone: row.start_timezone, endTimezone: row.end_timezone,
+                        isApprox: row.is_approx,
+                      }) : 'Time TBD'}
                     </div>
                     <div>
                       <div className="itin-title">{stripEmojiForPrint(row.title ?? '')}</div>

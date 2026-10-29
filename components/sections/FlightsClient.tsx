@@ -36,6 +36,7 @@ export interface Flight {
   arrival_gate: string | null;
   notes: string | null;
   gcal_include: boolean;
+  show_in_itinerary: boolean;
   action_required: boolean;
   departure_is_all_day: boolean;
   departure_is_approx: boolean;
@@ -65,6 +66,7 @@ interface FlightForm {
   arrival_gate: string;
   notes: string;
   gcal_include: boolean;
+  show_in_itinerary: boolean;
   action_required: boolean;
   departure_is_all_day: boolean;
   departure_is_approx: boolean;
@@ -132,6 +134,7 @@ const EMPTY_FORM: FlightForm = {
   arrival_gate: '',
   notes: '',
   gcal_include: false,
+  show_in_itinerary: true, // new records are listed in the Itinerary by default
   action_required: false,
   departure_is_all_day: false,
   departure_is_approx: false,
@@ -169,6 +172,7 @@ function flightToForm(f: Flight): FlightForm {
     arrival_gate:        f.arrival_gate        ?? '',
     notes:               f.notes               ?? '',
     gcal_include:        f.gcal_include        ?? false,
+    show_in_itinerary: f.show_in_itinerary ?? false,
     action_required:     f.action_required     ?? false,
     departure_is_all_day: f.departure_is_all_day ?? false,
     departure_is_approx:  f.departure_is_approx  ?? false,
@@ -196,11 +200,18 @@ function applyAirportLookup(
 export function FlightsClient({
   tripId,
   initialFlights,
+  formOnlyRecordId,
+  onFormOnlyDone,
 }: {
   tripId: string;
   initialFlights: Flight[];
+  // Form-only mode: render just this record's edit form (used by the Itinerary)
+  formOnlyRecordId?: string;
+  onFormOnlyDone?: () => void;
 }) {
   const [flights, setFlights] = useState<Flight[]>(initialFlights);
+  // Take refreshed records from the server (router.refresh after a save elsewhere, e.g. the Itinerary)
+  useEffect(() => { setFlights(initialFlights); }, [initialFlights]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editFlight, setEditFlight] = useState<Flight | null>(null);
   const [form, setForm] = useState<FlightForm>(EMPTY_FORM);
@@ -214,11 +225,18 @@ export function FlightsClient({
   const { pendingSheetRecordId, clearPendingSheetRecord } = useContext(TabNavigationContext);
 
   useEffect(() => {
-    if (!pendingSheetRecordId) return;
+    if (formOnlyRecordId || !pendingSheetRecordId) return;
     const flight = flights.find((f) => f.id === pendingSheetRecordId);
     clearPendingSheetRecord();
     if (flight) openEdit(flight);
   }, [pendingSheetRecordId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!formOnlyRecordId) return;
+    const record = flights.find((r) => r.id === formOnlyRecordId);
+    if (record) openEdit(record);
+    else onFormOnlyDone?.();
+  }, [formOnlyRecordId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isAdd = editFlight === null;
 
@@ -234,7 +252,7 @@ export function FlightsClient({
 
   const { setWarnCount } = useTabNavigation();
   useEffect(() => {
-    setWarnCount('flights', warnCount);
+    if (!formOnlyRecordId) setWarnCount('flights', warnCount);
   }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function touchField(name: string) {
@@ -279,6 +297,7 @@ export function FlightsClient({
   const closeSheet = () => {
     setSheetOpen(false);
     setDeleteConfirm(false);
+    if (formOnlyRecordId) onFormOnlyDone?.();
   };
 
   const refetch = async () => {
@@ -324,6 +343,7 @@ export function FlightsClient({
         arrival_gate:        form.arrival_gate        || null,
         notes:               form.notes               || null,
         gcal_include:        form.gcal_include,
+        show_in_itinerary: form.show_in_itinerary,
         action_required:     form.action_required,
         departure_is_all_day: form.departure_is_all_day,
         departure_is_approx:  form.departure_is_all_day ? false : form.departure_is_approx,
@@ -389,209 +409,8 @@ export function FlightsClient({
     }
   };
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-      {/* Section header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-        <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
-          Flights
-        </h2>
-        <Button variant="secondary" size="sm" onClick={openAdd}>
-          Add Flight
-        </Button>
-      </div>
-
-      {/* Warn banner */}
-      {warnCount > 0 && (
-        <div style={{
-          backgroundColor: 'var(--action)',
-          color: 'var(--action-text)',
-          fontSize: 'var(--fs-sm)',
-          fontWeight: 'var(--fw-medium)',
-          padding: '8px 16px',
-          borderRadius: '6px',
-          marginBottom: '12px',
-        }}>
-          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
-        </div>
-      )}
-
-      {/* Flight list */}
-      {flights.length === 0 ? (
-        <p style={{
-          fontFamily: "'Lato', sans-serif",
-          fontSize: 'var(--fs-sm)',
-          color: 'var(--text3)',
-          padding: '48px 0',
-          textAlign: 'center',
-        }}>
-          No flights yet.
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {flights.map((f) => (
-            <div
-              key={f.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => openEdit(f)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(f); } }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg2)'; }}
-              style={{
-                background: 'var(--bg2)',
-                border: '1px solid var(--border2)',
-                borderRadius: 'var(--r-lg)',
-                padding: '20px 24px',
-                boxShadow: 'var(--shadow)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                cursor: 'pointer',
-                transition: 'background var(--transition)',
-                minHeight: '44px',
-              }}
-            >
-              {/* Airline + flight number + cabin + flag */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                {f.airline && (
-                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--text)' }}>
-                    {f.airline}
-                  </span>
-                )}
-                {f.flight_number && (
-                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                    {f.flight_number}
-                  </span>
-                )}
-                {f.cabin_class && (
-                  <span style={{
-                    fontFamily: "'Lato', sans-serif",
-                    fontSize: 'var(--fs-xs)',
-                    fontWeight: 'var(--fw-bold)',
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
-                    color: 'var(--gold-text)',
-                    background: 'var(--bg3)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '20px',
-                    padding: '3px 10px',
-                  }}>
-                    {f.cabin_class}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={(e) => toggleActionRequired(f, e)}
-                  aria-label={f.action_required ? 'Clear action required' : 'Mark action required'}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '15px',
-                    opacity: f.action_required ? 1 : 0.22,
-                    marginLeft: 'auto',
-                    padding: '4px',
-                    lineHeight: 1,
-                    minHeight: '44px',
-                  }}
-                >
-                  🚩
-                </button>
-              </div>
-
-              {/* Warn badges */}
-              {getFlightWarns(f).length > 0 && (
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {getFlightWarns(f).map(w => (
-                    <WarnBadge key={w} label={w} />
-                  ))}
-                </div>
-              )}
-
-              {/* Route */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-2xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', letterSpacing: '0.02em', lineHeight: 1 }}>
-                    {f.origin_airport ?? '—'}
-                  </span>
-                  {f.origin_city && (
-                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '2px' }}>
-                      {f.origin_city}
-                    </span>
-                  )}
-                </div>
-                <svg width="24" height="12" viewBox="0 0 24 12" fill="none" aria-hidden="true" style={{ color: 'var(--text3)', flexShrink: 0, marginTop: '6px' }}>
-                  <path d="M2 6h20M16 2l6 4-6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-2xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', letterSpacing: '0.02em', lineHeight: 1 }}>
-                    {f.destination_airport ?? '—'}
-                  </span>
-                  {f.destination_city && (
-                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '2px' }}>
-                      {f.destination_city}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Departs */}
-              <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ color: 'var(--text2)', fontWeight: 'var(--fw-bold)', minWidth: '56px' }}>Departs</span>
-                <span>{formatZonedDateTime(f.departure_time, f.departure_timezone)}</span>
-              </div>
-
-              {/* Arrives */}
-              <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ color: 'var(--text2)', fontWeight: 'var(--fw-bold)', minWidth: '56px' }}>Arrives</span>
-                <span>{formatZonedDateTime(f.arrival_time, f.arrival_timezone)}</span>
-              </div>
-
-              {/* Seat */}
-              {f.seat_number && (
-                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Seat: </span>
-                  {f.seat_number}
-                </div>
-              )}
-
-              {/* Confirmation */}
-              {f.confirmation_number && (
-                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Conf: </span>
-                  {f.confirmation_number}
-                </div>
-              )}
-
-              {/* Departure terminal / gate */}
-              {(f.departure_terminal || f.departure_gate) && (
-                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Dep: </span>
-                  {[f.departure_terminal, f.departure_gate].filter(Boolean).join(' · ')}
-                </div>
-              )}
-
-              {/* Arrival terminal / gate */}
-              {(f.arrival_terminal || f.arrival_gate) && (
-                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Arr: </span>
-                  {[f.arrival_terminal, f.arrival_gate].filter(Boolean).join(' · ')}
-                </div>
-              )}
-
-              {/* Notes */}
-              {f.notes && (
-                <p className="line-clamp-3" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', lineHeight: 1.5, marginTop: '2px' }}>
-                  {f.notes}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
+  const sheet = (
+    <>
       {/* Bottom sheet */}
       <ResponsiveSheet
         open={sheetOpen}
@@ -942,6 +761,22 @@ export function FlightsClient({
             </label>
           </div>
 
+          {/* Show in Itinerary (one-way link: listed there, edited here) */}
+          <div style={{ marginBottom: 'var(--sp-md)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', minHeight: '44px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.show_in_itinerary ?? false}
+                onChange={e => setField('show_in_itinerary', e.target.checked)}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--gold)', cursor: 'pointer', flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 'var(--fs-sm)' }}>Show in Itinerary</span>
+            </label>
+            <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: 'var(--sp-xs)', marginLeft: 'calc(var(--sp-sm) + 20px)' }}>
+              Lists this flight in the Itinerary. Changes are made here.
+            </p>
+          </div>
+
           {/* Google Calendar */}
           <div style={{ marginBottom: 'var(--sp-md)' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', opacity: form.departure_date && form.arrival_date ? 1 : 0.4 }}>
@@ -1062,6 +897,216 @@ export function FlightsClient({
           <div style={{ height: '8px' }} />
         </div>
       </ResponsiveSheet>
+    </>
+  );
+
+  // Form-only mode (used by the Itinerary): just this record's edit form.
+  if (formOnlyRecordId) return sheet;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+      {/* Section header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+        <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
+          Flights
+        </h2>
+        <Button variant="secondary" size="sm" onClick={openAdd}>
+          Add Flight
+        </Button>
+      </div>
+
+      {/* Warn banner */}
+      {warnCount > 0 && (
+        <div style={{
+          backgroundColor: 'var(--action)',
+          color: 'var(--action-text)',
+          fontSize: 'var(--fs-sm)',
+          fontWeight: 'var(--fw-medium)',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          ⚠ {warnCount} {warnCount === 1 ? 'item needs' : 'items need'} attention
+        </div>
+      )}
+
+      {/* Flight list */}
+      {flights.length === 0 ? (
+        <p style={{
+          fontFamily: "'Lato', sans-serif",
+          fontSize: 'var(--fs-sm)',
+          color: 'var(--text3)',
+          padding: '48px 0',
+          textAlign: 'center',
+        }}>
+          No flights yet.
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {flights.map((f) => (
+            <div
+              key={f.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => openEdit(f)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(f); } }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg2)'; }}
+              style={{
+                background: 'var(--bg2)',
+                border: '1px solid var(--border2)',
+                borderRadius: 'var(--r-lg)',
+                padding: '20px 24px',
+                boxShadow: 'var(--shadow)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                cursor: 'pointer',
+                transition: 'background var(--transition)',
+                minHeight: '44px',
+              }}
+            >
+              {/* Airline + flight number + cabin + flag */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                {f.airline && (
+                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--text)' }}>
+                    {f.airline}
+                  </span>
+                )}
+                {f.flight_number && (
+                  <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                    {f.flight_number}
+                  </span>
+                )}
+                {f.cabin_class && (
+                  <span style={{
+                    fontFamily: "'Lato', sans-serif",
+                    fontSize: 'var(--fs-xs)',
+                    fontWeight: 'var(--fw-bold)',
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    color: 'var(--gold-text)',
+                    background: 'var(--bg3)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '20px',
+                    padding: '3px 10px',
+                  }}>
+                    {f.cabin_class}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => toggleActionRequired(f, e)}
+                  aria-label={f.action_required ? 'Clear action required' : 'Mark action required'}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '15px',
+                    opacity: f.action_required ? 1 : 0.22,
+                    marginLeft: 'auto',
+                    padding: '4px',
+                    lineHeight: 1,
+                    minHeight: '44px',
+                  }}
+                >
+                  🚩
+                </button>
+              </div>
+
+              {/* Warn badges */}
+              {getFlightWarns(f).length > 0 && (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {getFlightWarns(f).map(w => (
+                    <WarnBadge key={w} label={w} />
+                  ))}
+                </div>
+              )}
+
+              {/* Route */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-2xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', letterSpacing: '0.02em', lineHeight: 1 }}>
+                    {f.origin_airport ?? '—'}
+                  </span>
+                  {f.origin_city && (
+                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '2px' }}>
+                      {f.origin_city}
+                    </span>
+                  )}
+                </div>
+                <svg width="24" height="12" viewBox="0 0 24 12" fill="none" aria-hidden="true" style={{ color: 'var(--text3)', flexShrink: 0, marginTop: '6px' }}>
+                  <path d="M2 6h20M16 2l6 4-6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 'var(--fs-2xl)', fontWeight: 'var(--fw-medium)', color: 'var(--navy)', letterSpacing: '0.02em', lineHeight: 1 }}>
+                    {f.destination_airport ?? '—'}
+                  </span>
+                  {f.destination_city && (
+                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--text3)', marginTop: '2px' }}>
+                      {f.destination_city}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Departs */}
+              <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: 'var(--text2)', fontWeight: 'var(--fw-bold)', minWidth: '56px' }}>Departs</span>
+                <span>{formatZonedDateTime(f.departure_time, f.departure_timezone)}</span>
+              </div>
+
+              {/* Arrives */}
+              <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: 'var(--text2)', fontWeight: 'var(--fw-bold)', minWidth: '56px' }}>Arrives</span>
+                <span>{formatZonedDateTime(f.arrival_time, f.arrival_timezone)}</span>
+              </div>
+
+              {/* Seat */}
+              {f.seat_number && (
+                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Seat: </span>
+                  {f.seat_number}
+                </div>
+              )}
+
+              {/* Confirmation */}
+              {f.confirmation_number && (
+                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Conf: </span>
+                  {f.confirmation_number}
+                </div>
+              )}
+
+              {/* Departure terminal / gate */}
+              {(f.departure_terminal || f.departure_gate) && (
+                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Dep: </span>
+                  {[f.departure_terminal, f.departure_gate].filter(Boolean).join(' · ')}
+                </div>
+              )}
+
+              {/* Arrival terminal / gate */}
+              {(f.arrival_terminal || f.arrival_gate) && (
+                <div style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                  <span style={{ fontWeight: 'var(--fw-bold)', color: 'var(--text2)' }}>Arr: </span>
+                  {[f.arrival_terminal, f.arrival_gate].filter(Boolean).join(' · ')}
+                </div>
+              )}
+
+              {/* Notes */}
+              {f.notes && (
+                <p className="line-clamp-3" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', lineHeight: 1.5, marginTop: '2px' }}>
+                  {f.notes}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {sheet}
     </div>
   );
 }

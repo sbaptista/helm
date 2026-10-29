@@ -6,7 +6,7 @@
 
 ## App State
 
-- **Version:** `00.04.0003`, **released 2026-10-25** (production and `origin/main` at `a45d021`, via review + `helm-release`)
+- **Version:** `00.04.0005`, committed locally 2026-10-29 for release (push to review + `helm-release` by Stan). Production: `00.04.0003` (2026-10-25, `a45d021`)
 - **Branch:** main
 - **Dev server start:** `/usr/local/helm-bin/helm-dev` (passphrase prompt). There is no `.env.local`: secrets live only in the encrypted store `Project-secrets/helm-secrets/helm.env.enc` (plaintext removed 2026-10-23), and the TLS leaf is in `helm-secrets/tls/`. Plain `npm run dev` refuses to start.
 - **Dev server:** user-started on port 3000 in the `developer` account; devices use `https://stanleys-macbook-pro.local:3000` (Bonjour only). Leaf (originally `localhost+1.pem`, now `helm-secrets/tls/helm-dev.pem`) re-issued 2026-10-16 from the admin mkcert CA for `localhost`, `127.0.0.1`, `::1`, `Stanleys-MacBook-Pro.local` (verified, expires 2029-01-16)
@@ -23,12 +23,12 @@
 | Checklist | Functional + WARN system + required validation + scroll-to-error | 00.02.0026 |
 | Packing | Functional — checkboxes rebuilt as native inputs | 00.01.0157 |
 | Key Info | Functional + required validation | 00.02.0014 |
-| Transportation | Functional + WARN system + source-owned itinerary timing metadata | 00.02.0048 |
-| Hotels | Functional + WARN system + source-owned check-in/check-out itinerary timing | 00.02.0048 |
-| Flights | Functional + local endpoint timing + source-owned departure/arrival itinerary timing | 00.02.0048 |
-| Restaurants | Functional + WARN system + source-owned reservation itinerary timing | 00.02.0048 |
-| Itinerary | Days identified by date only (no day numbers); one day per date; no trip-range limits on dates; defines the trip's dates | 00.04.0003 |
-| Printing | Packet + server-data 3×5 PDF modes; day headings by date; packet trip range from itinerary (local-date fix) | 00.04.0002 |
+| Transportation | Functional + WARN system; Show in Itinerary (pickup); form-only mode for editing from the Itinerary | 00.04.0005 |
+| Hotels | Functional + WARN system; Show in Itinerary (check-in/check-out); form-only mode | 00.04.0005 |
+| Flights | Functional + local endpoint timing; Show in Itinerary (departure/arrival); form-only mode | 00.04.0005 |
+| Restaurants | Functional + WARN system; Show in Itinerary (reservation); form-only mode | 00.04.0005 |
+| Itinerary | Days by date only; one day per date; defines the trip's dates; lists linked travel records (read-only, edited with their own form opened in place); "[Inserted day]" for records on new dates | 00.04.0005 |
+| Printing | Packet + server-data 3×5 PDF modes; day headings by date; linked travel records included; packet times in local time | 00.04.0004 |
 | Calendar | Secondary-calendar clearing, rebuild queue, deleted-event cleanup; Itinerary all-day events dated from their day | 00.03.0011 |
 | Logs | Complete — Phase 1–4 done + clear-all option | 00.02.0014 |
 | Search | Rebuilt — whole-word toggle, match highlighting | 00.02.0000 |
@@ -42,33 +42,27 @@
 
 ## Last Session Completed
 
-**2026-10-24 → 2026-10-25 — Claude Code (Opus 5.5) — v00.04.0000–0003**, changes from Stan's first real trip. Each change has a plan doc in `docs/`; Stan tested them all on localhost before release.
+**2026-10-26 → 2026-10-29 — Claude Code (Opus 5.5) — v00.04.0004–0005**, linked itinerary items (`docs/linked-itinerary-items-plan.md`, incl. "Revision 1"). Stan tested on localhost 2026-10-29.
 
-1. **00.04.0000 — Done status** (`docs/trip-completed-status-plan.md`). New `done` status (first named Completed; renamed to fit the pill size). `TRIP_STATUSES` in `types/trips.ts` is the single list; `Badge.tsx` imports the type. Dashboard badge, menu pill, filter; Overview "Trip done" banner. `PATCH /api/trips/[id]` rejects unknown statuses, the only guard: `trips.status` is unconstrained `text` (schema checked by Stan). Finding: **Archive hard-deletes all section data with no confirmation and leaves Google Calendar events behind**; Stan chose to keep it that way.
-2. **00.04.0001 — date-only itinerary** (`docs/itinerary-date-only-plan.md`). Fixed "Day null" on hand-added days (only the import set `day_number`). Stan decided to drop day numbering: day headings, Overview timeline, packet and 3×5 cards use dates; ordering is `day_date`, then `sort_order`; Pre-Trip label gone; `card=day-N` removed. The import keeps `day_number` only as an extraction link key and maps days by `sort_order`. Column `itinerary_days.day_number` kept, unused.
-3. **00.04.0002 — Overview timing tile, one day per date** (`docs/overview-trip-timing-plan.md`). `lib/itinerary-days.ts` `findDayDateClash` (409 on add, or on a date change). Migration `202610250001_copy_trip_optional_dates.sql` (copy_trip accepts no dates and one-day trips) **applied and verified by Stan 2026-10-25**. Fixed: packet trip dates parsed as UTC (a day early in Hawaii).
-4. **00.04.0003 — trip dates come from the itinerary** (`docs/itinerary-driven-trip-dates-plan.md`; supersedes 0002's optional Start/End fields). `lib/trip-range.ts` derives start/end from active `itinerary_days`; `Trip.start_date`/`end_date`. No date fields in New/Copy/Edit; APIs no longer accept dates; `trips.departure_date`/`return_date` unused. Dashboard reads days with the service client (limited to the user's advised trips; signed-in RLS on `itinerary_days` unverified). Itinerary day/item saves and deletes call `router.refresh()`; trip page is `force-dynamic`. Tile label matches the Trip Timeline row ("Next: Mon, Oct 26 · Fun in the Sun"), and that row is outlined and tagged.
-5. Change log for Knowledge: `scratch/v00.04.0000-changes.md`; drafts: `scratch/knowledge-drafts-2026-10-25.md` (both untracked).
+1. **00.04.0004 — travel records shown in the Itinerary (one-way link).** Re-introduces the v00.02.0048 read-time projection (removed in v00.02.0055 with no recorded reason; Stan didn't remember why), now **opt-in per record**: `show_in_itinerary` on flights, hotels, transportation, restaurants (migration `202610260001_show_in_itinerary.sql`, also updates `copy_trip`; **applied and verified by Stan 2026-10-27**). New records default checked; existing unchecked. `lib/itinerary/linked-entries.ts` (restored from `563666a`) computes entries at read time; never stored in `itinerary_rows`. `ensureDaysForLinkedRecord` runs after every create/update in the 8 section save routes and the import, inserting a day for any record date without one. Itinerary, Overview timeline counts, packet and 3×5 cards include linked items; Calendar and actions stay with the record. Import marks travel records linked and its prompt no longer emits itinerary rows for them. Fixed: packet printed itinerary times in UTC.
+2. **00.04.0005 — Revision 1 (Stan's testing).** Inserted days are neutral: `[Inserted day]`, no day type (they had taken the record's title and the flight type). Tapping a linked item opens the record's own edit form over the Itinerary: each section client gained a **form-only mode** (`formOnlyRecordId`, `onFormOnlyDone`) instead of the planned separate `*EditSheet` components; sheet markup moved within each file unchanged (verified). Section clients sync their lists from refreshed props.
+3. Earlier this session: `docs/ai-safeguards-assessment-2026-10-26.md` (Stan's four questions on AI safeguards; nine ranked improvements, top three: separate dev database, key rotation, bypass gating).
+4. Change log: `scratch/v00.04-batch2-changes.md` (untracked).
 
 ---
 
 ## Uncommitted Changes
 
-- None in Helm except untracked `scratch/` (change log and Knowledge drafts).
+- None in Helm except untracked `scratch/` (change logs and Knowledge drafts).
 - Orb repo: `docs/agent-security-review-2026-09-30.md` (modified 2026-10-23, uncommitted in Orb). **Deferred by Stan (2026-10-24):** leave it uncommitted for now; commit it from an Orb session later.
 
 ---
 
 ## Knowledge Entries Due at Completion
 
-✅ **Saved 2026-10-25 via `orb-agent-approve` (first use of the new proposal kinds), verified by Claude by reading back:** new entries `787180b7` (Done / Archive), `2247755d` (days by date), `124da363` (trip dates from itinerary), `af1bed21` (Overview card), all HELM, text identical to the drafts; SUPERSEDED IN PART banners on `a27452ca` and `f60d4e3e`, original text kept below an attribution line.
+⏳ **v00.04.0004–0005: one new entry and two banners, to be staged as `orb-agent` proposals** after the release commit. Searched by Claude via `orb-agent` 2026-10-29 (projection, projected, linked, Itinerary, show_in_itinerary, read-only, source section): banners due on `4bba13d8` (August projection, "removed") and `a27452ca` (v00.03.0000, "explicitly authored only"); the new entry links `124da363`, `2247755d`, `ee3c63de`, `f9e785de`.
 
-1. **Trip lifecycle adds Done; Archive deletes data.**
-2. **Itinerary days are identified by date, not number.**
-3. **Trip dates come from the itinerary; trips can be undated placeholders.**
-4. **Overview timing tile and one itinerary day per date.**
-
-Earlier entries (2026-10-23/24, nine) were all saved by Stan.
+Earlier: v00.04.0000–0003 Knowledge saved 2026-10-25 (`787180b7`, `2247755d`, `124da363`, `af1bed21`; banners on `a27452ca`, `f60d4e3e`).
 
 ---
 
@@ -78,6 +72,7 @@ Earlier entries (2026-10-23/24, nine) were all saved by Stan.
 - **Trip status lifecycle**: Draft → Upcoming → Active → Done → Archived. Upcoming = confirmed but not yet traveling. Done = over, all data kept. Archive deletes section data (no confirmation, by choice).
 - **Itinerary is the source of trip dates**: a trip's start/end are its first/last active itinerary day (`lib/trip-range.ts`), never stored. A trip with no days shows "No dates set". `trips.departure_date`/`return_date` are legacy and unused.
 - **A day is its date**: no day numbers; one itinerary day per date per trip; order by `day_date`, then `sort_order`.
+- **Travel records → Itinerary is one-way**: flights, hotels, restaurants, transfers with `show_in_itinerary` are listed in the Itinerary, computed at read time (`lib/itinerary/linked-entries.ts`), never copied into `itinerary_rows`. All edits, actions and Calendar happen on the record (its form opens over the Itinerary). A record on a date with no day inserts a neutral `[Inserted day]`; Helm never deletes days.
 - **force-dynamic on mutation pages**: Any page where client actions mutate data and calls `router.refresh()` must export `const dynamic = 'force-dynamic'`.
 - **Version bump = production push**: Every version change ships. No version exists only in dev.
 - **Auth shell variant system**: Variant A (navy + stars + wheel) is default. Variant B preserved via DEV toggle.
@@ -101,17 +96,19 @@ Earlier entries (2026-10-23/24, nine) were all saved by Stan.
 
 ## Next Priorities
 
-1. **Done 2026-10-25:** v00.04.0003 released (first release through `helm-release`; it also carried the three docs commits `d8dafef`, `d2dd58c`, `a569dc1`). Still to do: check iPad and iPhone on production (also pending from the encryption plan).
+1. **Release v00.04.0005**: Stan runs `git -C /Users/developer/Projects/helm push review main` as `developer`, then `/usr/local/helm-bin/helm-release` as admin. It also carries `6b74242` (AGENTS.md Knowledge access). Then check iPad and iPhone on production.
+1a. **Knowledge**: approve the staged proposals for v00.04.0004–0005.
 2. **Done 2026-10-25:** v00.04 Knowledge saved (4 entries, 2 banners).
 2a. **Agent Knowledge access (Stan, 2026-10-25):** Helm agents read Knowledge via `orb-agent` and stage writes as proposals (`knowledge-create`, prepend-only `knowledge-update` banners, `todo-close`), added to `orb-agent` in an Orb session the same day. AGENTS.md updated.
-3. Stan's next batch of trip-driven changes (in progress).
+3. Stan's next batch of trip-driven changes (in progress). Existing trips: check Show in Itinerary on their travel records and delete the hand-made duplicates.
 4. Cleanup later: drop unused `itinerary_days.day_number` and `trips.departure_date`/`return_date` once 00.04.x has run on production.
 5. Optional: Copy Trip date shifting (a copy keeps the source's itinerary dates).
 6. Run Calendar Update All and verify the deleted `Arrive SEA` event is removed and the currently checked Itinerary record is recreated.
 7. Activate the remaining intended Add to Google Calendar checkboxes, then verify complete event creation/deletion behavior.
 8. Stan verifies all six 3×5 PDF categories and physical Epson output.
 9. Work down the remaining 11 lint warnings.
-10. **Security review parked for later** — `/Users/developer/Projects/orb/docs/agent-security-review-2026-09-30.md` (agent exposure, Vercel Config vs Secret, Track A/B). §9 Stan-only quick wins; §11 pending decisions.
+10. **AI safeguards** (`docs/ai-safeguards-assessment-2026-10-26.md`): Stan deferred the top item (separate dev database) on 2026-10-26.
+11. **Security review parked for later** — `/Users/developer/Projects/orb/docs/agent-security-review-2026-09-30.md` (agent exposure, Vercel Config vs Secret, Track A/B). §9 Stan-only quick wins; §11 pending decisions.
 
 ---
 
@@ -125,4 +122,4 @@ Earlier entries (2026-10-23/24, nine) were all saved by Stan.
 
 ## AI Tool Used Last Session
 
-2026-10-25 — Claude Code (Opus 5.5)
+2026-10-29 — Claude Code (Opus 5.5)

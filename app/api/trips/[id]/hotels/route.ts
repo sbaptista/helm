@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
+import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
 
 function serverClient() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!) }
 
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       logger.error('api/hotels', 'Supabase error on POST', { error: error.message, recordId: tripId })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+    await ensureDaysForLinkedRecord(supabase, 'Hotels', data)
     return NextResponse.json(data, { status: 201 })
   } catch (err) {
     logger.critical('api/hotels', 'Unhandled exception in POST handler', { error: err instanceof Error ? err.message : String(err) })
