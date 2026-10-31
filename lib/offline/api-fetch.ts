@@ -182,3 +182,74 @@ function queue(args: {
   if (method === 'DELETE') return json({ success: true });
   return json(wrapItem(collection, record!), method === 'POST' ? 201 : 200);
 }
+
+// ─── Bulk changes ────────────────────────────────────────────────────────────
+
+// Applies one change to many records of a trip (docs/packing-multi-select-plan.md,
+// Revision 1). Online with nothing waiting, it sends the whole selection to
+// bulkUrl in one request and updates the device copy once. Offline, behind
+// earlier changes, or if that request fails, it falls back to one apiFetch
+// per record (4 at a time), so offline editing and ordering still work.
+// Resolves with the ids that could not be saved.
+export async function apiBulk(args: {
+  collection: Collection;
+  tripId: string;
+  bulkUrl: string;
+  itemUrl: (id: string) => string;
+  ids: string[];
+  action: 'update' | 'delete';
+  fields?: Record<string, unknown>;
+  onProgress?: (done: number, total: number) => void;
+}): Promise<string[]> {
+  const { collection, tripId, bulkUrl, itemUrl, ids, action, fields, onProgress } = args;
+  if (ids.length === 0) return [];
+
+  if (isOnline() && getOutbox().every((o) => o.status !== 'pending')) {
+    try {
+      const res = await fetch(bulkUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ids, fields }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        const done = new Set<string>();
+        if (action === 'delete') {
+          for (const id of (result.ids ?? []) as string[]) {
+            snapshotRemove(collection, tripId, id);
+            done.add(id);
+          }
+        } else {
+          for (const record of (result.records ?? []) as OfflineRecord[]) {
+            snapshotUpsert(collection, tripId, record);
+            done.add(record.id);
+          }
+        }
+        onProgress?.(ids.length, ids.length);
+        return ids.filter((id) => !done.has(id));
+      }
+    } catch {
+      // Fall through to one change per record.
+    }
+  }
+
+  const failed: string[] = [];
+  let done = 0;
+  for (let i = 0; i < ids.length; i += 4) {
+    const batch = ids.slice(i, i + 4);
+    const results = await Promise.all(batch.map(async (id) => {
+      try {
+        const res = await apiFetch(itemUrl(id), action === 'delete'
+          ? { method: 'DELETE' }
+          : { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields) });
+        return res.ok;
+      } catch {
+        return false;
+      }
+    }));
+    results.forEach((ok, j) => { if (!ok) failed.push(batch[j]); });
+    done += batch.length;
+    onProgress?.(done, ids.length);
+  }
+  return failed;
+}

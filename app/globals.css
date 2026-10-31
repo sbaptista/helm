@@ -535,3 +535,67 @@ button {
   background: var(--cream) !important;
   box-shadow: var(--shadow-md) !important;
 }
+/* BusyOverlay spinner (components/ui/BusyOverlay.tsx) */
+.busy-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid var(--border2);
+  border-top-color: var(--gold);
+  animation: busy-spin 0.9s linear infinite;
+}
+@keyframes busy-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .busy-spinner { animation-duration: 2.4s; }
+}
+
+/* Packing pinned controls (PackingClient.tsx; docs/packing-multi-select-plan.md, Revisions 2–3).
+   Sticky just below TripTopBar, which publishes where it ends as --trip-bar-bottom
+   (taller than 64px when the trip name wraps on iPhone); not a fixed footer (iOS). */
+.pack-controls {
+  position: sticky;
+  top: var(--trip-bar-bottom, 104px);
+  z-index: 20;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border2);
+  padding: 8px 0 10px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pack-controls .pack-tabs { margin-bottom: 0; }
+.pack-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pack-toolbar-narrow { display: none; flex-wrap: nowrap; }
+@media (max-width: 767px) {
+  .pack-toolbar-wide { display: none; }
+  .pack-toolbar-narrow { display: flex; }
+}
+.pack-more-backdrop { position: fixed; inset: 0; z-index: 1; }
+.pack-more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 2;
+  min-width: 240px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+.pack-more-item {
+  min-height: 44px;
+  padding: 0 16px;
+  text-align: left;
+  background: none;
+  border: none;
+  font-family: 'Lato', sans-serif;
+  font-size: var(--fs-base);
+  color: var(--text);
+  cursor: pointer;
+}
+.pack-more-item:disabled { color: var(--text3); cursor: default; }
+.pack-more-item:not(:disabled):active { background: var(--bg3); }

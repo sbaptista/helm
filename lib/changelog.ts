@@ -6,6 +6,50 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0015',
+    date: '2026-10-31',
+    changes: [
+      'Packing categories and sub-groups can now be renamed: tap ✎ next to the name in Manage Categories or Manage Sub-groups, type the new name and tap Save.',
+      'A category can\'t share a name with another of the same person\'s categories, and a sub-group can\'t share a name with another in the same category.',
+      'Fixed: on iPhone the pinned Packing controls slipped under the trip\'s top bar when the trip name ran onto two lines. They now sit just below the bar however tall it is.',
+    ],
+  },
+  {
+    version: 'v00.04.0014',
+    date: '2026-10-31',
+    changes: [
+      'The Packing buttons, the Stan / Cathy tabs and the selection bar now stay at the top of the screen while the list scrolls beneath them, so Add Item, Select and the selection actions are always in reach.',
+      'On iPhone the buttons fit on one row: Select, More and Add Item. Reset Packed, Manage Categories and Copy to Trip are under More.',
+    ],
+  },
+  {
+    version: 'v00.04.0013',
+    date: '2026-10-31',
+    changes: [
+      'Changing many packing items at once is now much faster: the whole selection is saved in one step instead of one item at a time.',
+      'While a change to selected items, Reset Packed or Copy to Trip is being saved, an "in progress" box covers the screen so nothing else can be tapped until it finishes.',
+      'Offline, selected items are still saved on the device and sent when Helm is back online; the box then counts them as they are saved.',
+    ],
+  },
+  {
+    version: 'v00.04.0012',
+    date: '2026-10-31',
+    changes: [
+      'Packing has a new Select button for working on many items at once. Tap items to select them, or use the checkboxes on category and sub-group headings to select everything in them; Select All / Deselect All covers the whole list.',
+      'With items selected, mark them Owned or not owned, Packed or unpacked, or delete them (Helm asks first). Tap Done to go back to the normal list.',
+      'Selection works offline like any other change: the changes are saved on the device and sent when Helm is back online.',
+    ],
+  },
+  {
+    version: 'v00.04.0011',
+    date: '2026-10-31',
+    changes: [
+      'Packing has a new Copy to Trip… button. Choose Stan\'s list, Cathy\'s list or both, pick one of your other trips, and the categories, sub-groups and items are added to that trip\'s packing list.',
+      'Copying never overwrites: categories and sub-groups with the same name are combined, items already on the other trip are skipped, and nothing there is changed or removed. Copied items arrive unpacked; Owned is kept.',
+      'Copying needs a connection, so the button is unavailable offline. Archived trips aren\'t offered as destinations.',
+    ],
+  },
+  {
     version: 'v00.04.0010',
     date: '2026-10-30',
     changes: [

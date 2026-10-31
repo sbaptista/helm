@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { Menu, CalendarDays } from 'lucide-react'
 import type { GCalState } from '@/components/advisor/CalendarModal'
 
@@ -11,8 +12,31 @@ interface TripTopBarProps {
 }
 
 export function TripTopBar({ onOpenSidebar, tripName, onShowCalendar, calendarStatus }: TripTopBarProps) {
+  const barRef = useRef<HTMLDivElement>(null)
+
+  // Publishes where this sticky bar ends as --trip-bar-bottom, so content
+  // pinned below it (Packing controls) clears it even when the trip name
+  // wraps on iPhone and the bar grows past 64px.
+  useEffect(() => {
+    const bar = barRef.current
+    if (!bar) return
+    const root = document.documentElement
+    const update = () => {
+      const top = parseFloat(getComputedStyle(bar).top) || 0
+      root.style.setProperty('--trip-bar-bottom', `${top + bar.offsetHeight}px`)
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(bar)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--trip-bar-bottom')
+    }
+  }, [])
+
   return (
     <div
+      ref={barRef}
       style={{
         position: 'sticky',
         top: '40px',
