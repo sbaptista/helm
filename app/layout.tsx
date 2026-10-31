@@ -8,6 +8,7 @@ import { OfflineGuard } from '@/components/ui/OfflineGuard';
 export const metadata: Metadata = {
   title: "Helm",
   description: "Your travel companion",
+  appleWebApp: { capable: true, title: "Helm", statusBarStyle: "default" },
 };
 
 export default function RootLayout({

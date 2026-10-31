@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, useContext } from 'react'
-import { useRouter } from 'next/navigation'
+import { apiFetch } from '@/lib/offline/api-fetch'
+import { useOfflineList } from '@/hooks/useOfflineList'
+import { useRouter } from '@/lib/offline/router'
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
@@ -40,6 +42,9 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
   const [items, setItems] = useState<KeyInfoItem[]>(initialItems)
   const [groups, setGroups] = useState<KeyInfoGroup[]>(initialGroups)
 
+  // Device copy for offline editing (docs/offline-editing-plan.md).
+  useOfflineList(`/api/trips/${tripId}/key-info`, initialItems, setItems)
+  useOfflineList(`/api/trips/${tripId}/key-info-groups`, initialGroups, setGroups)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -105,8 +110,8 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
 
   const refetchAll = useCallback(async () => {
     const [iRes, gRes] = await Promise.all([
-      fetch(`/api/trips/${tripId}/key-info`),
-      fetch(`/api/trips/${tripId}/key-info-groups`)
+      apiFetch(`/api/trips/${tripId}/key-info`),
+      apiFetch(`/api/trips/${tripId}/key-info-groups`)
     ])
     if (iRes.ok) setItems(await iRes.json())
     if (gRes.ok) setGroups(await gRes.json())
@@ -165,7 +170,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
       }
       
       if (editingItem) {
-        const res = await fetch(`/api/key-info/${editingItem.id}`, {
+        const res = await apiFetch(`/api/key-info/${editingItem.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -176,7 +181,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
         // Calculate next sort_order for the group
         const groupItems = groupedItems.get(itemGroupId || null) ?? []
         const nextSort = groupItems.length ? Math.max(...groupItems.map(i => i.sort_order)) + 1 : 1
-        const res = await fetch(`/api/trips/${tripId}/key-info`, {
+        const res = await apiFetch(`/api/trips/${tripId}/key-info`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...payload, sort_order: nextSort }),
@@ -198,7 +203,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
     if (!editingItem) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/key-info/${editingItem.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/key-info/${editingItem.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.show('Item removed', 'success')
       await refetchAll()
@@ -216,7 +221,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
     setCreatingGroup(true)
     try {
       const nextSort = groups.length ? Math.max(...groups.map(g => g.sort_order)) + 1 : 1
-      const res = await fetch(`/api/trips/${tripId}/key-info-groups`, {
+      const res = await apiFetch(`/api/trips/${tripId}/key-info-groups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newGroupName.trim(), sort_order: nextSort }),
@@ -240,11 +245,11 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
     
     try {
       await Promise.all([
-        fetch(`/api/key-info-groups/${group.id}`, {
+        apiFetch(`/api/key-info-groups/${group.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sort_order: other.sort_order }),
         }),
-        fetch(`/api/key-info-groups/${other.id}`, {
+        apiFetch(`/api/key-info-groups/${other.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sort_order: group.sort_order }),
         }),
@@ -256,7 +261,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
   }
 
   async function handleDeleteGroup(group: KeyInfoGroup) {
-    const res = await fetch(`/api/key-info-groups/${group.id}`, { method: 'DELETE' })
+    const res = await apiFetch(`/api/key-info-groups/${group.id}`, { method: 'DELETE' })
     if (res.status === 409) {
       toast.show('Cannot delete a group that has items.', 'error')
       return

@@ -80,6 +80,8 @@ export async function POST(
     const { data, error } = await supabase
       .from('restaurants')
       .insert({
+        // A record created offline brings its own id (lib/offline/outbox.ts).
+        ...(typeof body.id === 'string' ? { id: body.id } : {}),
         trip_id: tripId,
         name, cuisine, city, address, reservation_time, party_size, style, type: type ?? 'independent',
         confirmation_number, phone, website_url, notes, included, action_required,

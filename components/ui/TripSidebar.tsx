@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import type { GCalState } from '@/components/advisor/CalendarModal'
 import HelmVersionLabel from '@/components/ui/HelmVersionLabel'
+import { useIsOnline } from '@/hooks/useOnlineStatus'
 
 interface TripSidebarProps {
   isOpen: boolean
@@ -111,17 +112,25 @@ function ActionItem({
   onClick,
   danger,
   badge,
+  needsConnection,
 }: {
   icon: React.ElementType
   label: string
   onClick: () => void
   danger?: boolean
   badge?: React.ReactNode
+  needsConnection?: boolean
 }) {
+  // Offline, the item stays tappable (the trip view explains why it can't
+  // open) but is dimmed and says so.
+  const isOnline = useIsOnline()
+  const unavailable = needsConnection && !isOnline
   return (
     <button
       onClick={onClick}
+      aria-disabled={unavailable || undefined}
       style={{
+        opacity: unavailable ? 0.5 : 1,
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
@@ -141,7 +150,9 @@ function ActionItem({
     >
       <Icon size={16} style={{ flexShrink: 0, color: danger ? 'var(--red)' : 'var(--text2)' }} />
       <span>{label}</span>
-      {badge}
+      {unavailable ? (
+        <span style={{ marginLeft: 'auto', fontSize: 'var(--fs-xs)', color: 'var(--text3)' }}>Needs a connection</span>
+      ) : badge}
     </button>
   )
 }
@@ -308,10 +319,11 @@ export function TripSidebar({
 
           {/* APP group */}
           <div style={{ borderTop: '1px solid var(--border2)', marginTop: '8px' }} />
-          <ActionItem icon={ScrollText} label="Logs"             onClick={() => { onShowLogs(); onClose() }} />
+          <ActionItem icon={ScrollText} label="Logs"            needsConnection onClick={() => { onShowLogs(); onClose() }} />
           <ActionItem
             icon={Calendar}
             label="Calendar"
+            needsConnection
             onClick={() => { onShowCalendar(); onClose() }}
             badge={
               calendarStatus === 'update_required' || calendarStatus === 'calendar_missing' ? (
@@ -321,8 +333,8 @@ export function TripSidebar({
               ) : undefined
             }
           />
-          <ActionItem icon={Printer}    label="Print Trip"       onClick={() => { onPrint(); onClose() }} />
-          <ActionItem icon={FileUp}     label="Import Document"  onClick={() => { onImport(); onClose() }} />
+          <ActionItem icon={Printer}    label="Print Trip"      needsConnection onClick={() => { onPrint(); onClose() }} />
+          <ActionItem icon={FileUp}     label="Import Document" needsConnection onClick={() => { onImport(); onClose() }} />
         </div>
       </aside>
     </>

@@ -2,6 +2,8 @@
 'use client'
 
 import { useState, useCallback, useContext, useEffect } from 'react'
+import { apiFetch } from '@/lib/offline/api-fetch'
+import { useOfflineList } from '@/hooks/useOfflineList'
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
 import { ChevronDown, ChevronUp, ExternalLink, Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
@@ -12,7 +14,7 @@ import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
 import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/lib/offline/router'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -177,6 +179,8 @@ function DiningRow({ d }: { d: NearbyDining }) {
 
 export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyRecordId, onFormOnlyDone }: Props) {
   const [hotels, setHotels] = useState<Hotel[]>(initialHotels)
+  // Device copy for offline editing (docs/offline-editing-plan.md).
+  useOfflineList(`/api/trips/${tripId}/hotels`, initialHotels, setHotels, !formOnlyRecordId)
   // Take refreshed records from the server (router.refresh after a save elsewhere, e.g. the Itinerary)
   useEffect(() => { setHotels(initialHotels) }, [initialHotels])
   const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null)
@@ -226,7 +230,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
   }, {})
 
   const refetch = useCallback(async () => {
-    const res = await fetch(`/api/trips/${tripId}/hotels`)
+    const res = await apiFetch(`/api/trips/${tripId}/hotels`)
     if (res.ok) setHotels(await res.json())
   }, [tripId])
 
@@ -319,7 +323,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
       }
 
       if (editingHotel) {
-        const res = await fetch(`/api/hotels/${editingHotel.id}`, {
+        const res = await apiFetch(`/api/hotels/${editingHotel.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -327,7 +331,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
         if (!res.ok) throw new Error()
         toast.show('Hotel updated', 'success')
       } else {
-        const res = await fetch(`/api/trips/${tripId}/hotels`, {
+        const res = await apiFetch(`/api/trips/${tripId}/hotels`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -351,7 +355,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
     if (!editingHotel) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/hotels/${editingHotel.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/hotels/${editingHotel.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.show('Hotel removed', 'neutral')
       await refetch()

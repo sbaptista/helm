@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useCallback, useMemo, useEffect, useContext, type ComponentProps } from 'react'
-import { useRouter } from 'next/navigation'
+import { apiFetch } from '@/lib/offline/api-fetch'
+import { useOfflineList } from '@/hooks/useOfflineList'
+import { useRouter } from '@/lib/offline/router'
 import { CalendarCheck, Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
@@ -257,6 +259,9 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
   const [days, setDays] = useState<ItineraryDay[]>(initialDays)
   const [rows, setRows] = useState<ItineraryRow[]>(initialRows)
 
+  // Device copy for offline editing (docs/offline-editing-plan.md).
+  useOfflineList(`/api/trips/${tripId}/itinerary/days`, initialDays, setDays)
+  useOfflineList(`/api/trips/${tripId}/itinerary/rows`, initialRows, setRows)
   // Saving a travel record can insert a day and refreshes the page; take the
   // server's latest days and rows so they appear without a reload.
   useEffect(() => { setDays(initialDays) }, [initialDays])
@@ -377,8 +382,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
 
   const refetch = useCallback(async () => {
     const [daysRes, rowsRes] = await Promise.all([
-      fetch(`/api/trips/${tripId}/itinerary/days`),
-      fetch(`/api/trips/${tripId}/itinerary/rows`),
+      apiFetch(`/api/trips/${tripId}/itinerary/days`),
+      apiFetch(`/api/trips/${tripId}/itinerary/rows`),
     ])
     if (daysRes.ok) setDays(await daysRes.json())
     if (rowsRes.ok) setRows(await rowsRes.json())
@@ -431,12 +436,12 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
         type: dayForm.type,
       }
       const res = editingDay
-        ? await fetch(`/api/itinerary/days/${editingDay.id}`, {
+        ? await apiFetch(`/api/itinerary/days/${editingDay.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           })
-        : await fetch(`/api/trips/${tripId}/itinerary/days`, {
+        : await apiFetch(`/api/trips/${tripId}/itinerary/days`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -464,7 +469,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
     if (!editingDay) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/itinerary/days/${editingDay.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/itinerary/days/${editingDay.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.show('Day removed', 'success')
       await refetch()
@@ -533,12 +538,12 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
         gcal_include: rowForm.gcal_include,
       }
       const res = editingRow
-        ? await fetch(`/api/itinerary/rows/${editingRow.id}`, {
+        ? await apiFetch(`/api/itinerary/rows/${editingRow.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           })
-        : await fetch(`/api/trips/${tripId}/itinerary/rows`, {
+        : await apiFetch(`/api/trips/${tripId}/itinerary/rows`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -560,7 +565,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
     if (!editingRow) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/itinerary/rows/${editingRow.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/itinerary/rows/${editingRow.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.show('Item removed', 'success')
       await refetch()

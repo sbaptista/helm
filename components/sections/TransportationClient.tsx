@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback, useContext, useEffect } from 'react'
+import { apiFetch } from '@/lib/offline/api-fetch'
+import { useOfflineList } from '@/hooks/useOfflineList'
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
@@ -11,7 +13,7 @@ import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
 import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/lib/offline/router'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,6 +161,8 @@ function recordToForm(r: Transportation) {
 
 export function TransportationClient({ tripId, initialTransportations, formOnlyRecordId, onFormOnlyDone }: Props) {
   const [records, setRecords] = useState<Transportation[]>(initialTransportations)
+  // Device copy for offline editing (docs/offline-editing-plan.md).
+  useOfflineList(`/api/trips/${tripId}/transportation`, initialTransportations, setRecords, !formOnlyRecordId)
   // Take refreshed records from the server (router.refresh after a save elsewhere, e.g. the Itinerary)
   useEffect(() => { setRecords(initialTransportations) }, [initialTransportations])
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -200,7 +204,7 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
   }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refetch = useCallback(async () => {
-    const res = await fetch(`/api/trips/${tripId}/transportation`)
+    const res = await apiFetch(`/api/trips/${tripId}/transportation`)
     if (res.ok) setRecords(await res.json())
   }, [tripId])
 
@@ -267,7 +271,7 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
       }
 
       if (editingRecord) {
-        const res = await fetch(`/api/transportation/${editingRecord.id}`, {
+        const res = await apiFetch(`/api/transportation/${editingRecord.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -275,7 +279,7 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
         if (!res.ok) throw new Error()
         toast.show('Transportation updated', 'success')
       } else {
-        const res = await fetch(`/api/trips/${tripId}/transportation`, {
+        const res = await apiFetch(`/api/trips/${tripId}/transportation`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -298,7 +302,7 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
     if (!editingRecord) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/transportation/${editingRecord.id}`, {
+      const res = await apiFetch(`/api/transportation/${editingRecord.id}`, {
         method: 'DELETE',
       })
       if (!res.ok) throw new Error()

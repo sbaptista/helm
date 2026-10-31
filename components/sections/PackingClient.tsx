@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useMemo, useEffect, useContext } from 'react'
+import { apiFetch } from '@/lib/offline/api-fetch'
+import { useOfflineList } from '@/hooks/useOfflineList'
 import { TabNavigationContext } from '@/components/advisor/TripDetailView'
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
@@ -50,6 +52,10 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
   const [items, setItems] = useState<PackingItem[]>(initialItems)
   const [groups, setGroups] = useState<PackingGroup[]>(initialGroups)
   const [subgroups, setSubgroups] = useState<PackingSubgroup[]>(initialSubgroups)
+  // Device copy for offline editing (docs/offline-editing-plan.md).
+  useOfflineList(`/api/trips/${tripId}/packing`, initialItems, setItems)
+  useOfflineList(`/api/trips/${tripId}/packing-groups`, initialGroups, setGroups)
+  useOfflineList(`/api/trips/${tripId}/packing-subgroups`, initialSubgroups, setSubgroups)
   const [activePerson, setActivePerson] = useState<Person>('stan')
 
   const [saving, setSaving] = useState(false)
@@ -166,7 +172,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
       }
       
       if (editingItem) {
-        const res = await fetch(`/api/packing/${editingItem.id}`, {
+        const res = await apiFetch(`/api/packing/${editingItem.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -182,7 +188,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                (i.subgroup_id ?? '') === (itemSubgroupId || '')
         )
         const nextSort = bucket.length ? Math.max(...bucket.map(i => i.sort_order)) + 1 : 1
-        const res = await fetch(`/api/trips/${tripId}/packing`, {
+        const res = await apiFetch(`/api/trips/${tripId}/packing`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...payload, sort_order: nextSort }),
@@ -204,7 +210,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
     if (!editingItem) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/packing/${editingItem.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/packing/${editingItem.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       setItems(prev => prev.filter(i => i.id !== editingItem.id))
       toast.show('Item removed', 'success')
@@ -221,7 +227,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
     const newVal = !item.owned
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, owned: newVal } : i))
     try {
-      const res = await fetch(`/api/packing/${item.id}`, {
+      const res = await apiFetch(`/api/packing/${item.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ owned: newVal }),
@@ -237,7 +243,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
     const newVal = !item.packed
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, packed: newVal } : i))
     try {
-      const res = await fetch(`/api/packing/${item.id}`, {
+      const res = await apiFetch(`/api/packing/${item.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ packed: newVal }),
@@ -251,7 +257,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
 
   async function handleResetPacked() {
     try {
-      const res = await fetch(`/api/trips/${tripId}/packing-reset`, {
+      const res = await apiFetch(`/api/trips/${tripId}/packing-reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ person: activePerson }),
@@ -271,7 +277,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
     setCreatingGroup(true)
     try {
       const nextSort = personGroups.length ? Math.max(...personGroups.map(g => g.sort_order)) + 1 : 1
-      const res = await fetch(`/api/trips/${tripId}/packing-groups`, {
+      const res = await apiFetch(`/api/trips/${tripId}/packing-groups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ person: activePerson, name: newCatName.trim(), sort_order: nextSort }),
@@ -303,11 +309,11 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
     
     try {
       await Promise.all([
-        fetch(`/api/packing-groups/${group.id}`, {
+        apiFetch(`/api/packing-groups/${group.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sort_order: other.sort_order }),
         }),
-        fetch(`/api/packing-groups/${other.id}`, {
+        apiFetch(`/api/packing-groups/${other.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sort_order: group.sort_order }),
         }),
@@ -318,7 +324,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
   }
 
   async function handleDeleteCategory(group: PackingGroup) {
-    const res = await fetch(`/api/packing-groups/${group.id}`, { method: 'DELETE' })
+    const res = await apiFetch(`/api/packing-groups/${group.id}`, { method: 'DELETE' })
     if (res.status === 409) {
       toast.show('Cannot delete a category that has items.', 'error')
       return
@@ -340,7 +346,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
         .filter(s => s.group_id === managingGroup.id)
         .sort((a, b) => a.sort_order - b.sort_order)
       const nextSort = groupSubs.length ? Math.max(...groupSubs.map(s => s.sort_order)) + 1 : 1
-      const res = await fetch(`/api/trips/${tripId}/packing-subgroups`, {
+      const res = await apiFetch(`/api/trips/${tripId}/packing-subgroups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -380,11 +386,11 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
 
     try {
       await Promise.all([
-        fetch(`/api/packing-subgroups/${sub.id}`, {
+        apiFetch(`/api/packing-subgroups/${sub.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sort_order: other.sort_order }),
         }),
-        fetch(`/api/packing-subgroups/${other.id}`, {
+        apiFetch(`/api/packing-subgroups/${other.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sort_order: sub.sort_order }),
         }),
@@ -395,7 +401,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
   }
 
   async function handleDeleteSubgroup(sub: PackingSubgroup) {
-    const res = await fetch(`/api/packing-subgroups/${sub.id}`, { method: 'DELETE' })
+    const res = await apiFetch(`/api/packing-subgroups/${sub.id}`, { method: 'DELETE' })
     if (res.status === 409) {
       toast.show('Cannot delete a sub-group that has items.', 'error')
       return

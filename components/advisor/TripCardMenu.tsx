@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import type { TripStatus } from '@/types/trips';
+import { useIsOnline } from '@/hooks/useOnlineStatus';
 
 interface TripCardMenuProps {
   tripId: string;
@@ -40,6 +41,7 @@ export function TripCardMenu({
   onStatusChange,
 }: TripCardMenuProps) {
   const [open, setOpen] = useState(false);
+  const isOnline = useIsOnline();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,6 +104,11 @@ export function TripCardMenu({
           }}
           onClick={(e) => e.stopPropagation()}
         >
+          {!isOnline ? (
+            <p style={{ margin: 0, padding: '10px 14px', fontSize: '15px', lineHeight: 1.4, color: 'var(--text2)' }}>
+              Trip actions need a connection.
+            </p>
+          ) : (<>
           <MenuItem label="Edit" onClick={() => { setOpen(false); onEdit(); }} />
           <MenuItem label="Copy Trip" onClick={() => { setOpen(false); onCopy(); }} />
           <MenuItem label="Print" onClick={() => { setOpen(false); onPrint(); }} />
@@ -146,6 +153,7 @@ export function TripCardMenu({
           <MenuItem label="Archive" onClick={() => { setOpen(false); onArchive(); }} />
           <MenuItem label="Clear Data" onClick={() => { setOpen(false); onClear(); }} />
           <MenuItem label="Delete" onClick={() => { setOpen(false); onDelete(); }} danger />
+          </>)}
         </div>
       )}
     </div>

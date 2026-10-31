@@ -71,6 +71,8 @@ export async function POST(
 
     const body = await req.json()
     const insert: Record<string, unknown> = { trip_id: tripId }
+    // A row created offline brings its own id (lib/offline/outbox.ts).
+    if (typeof body.id === 'string') insert.id = body.id
     const allowed = [
       'day_id', 'title', 'description', 'location', 'category',
       'start_timezone', 'end_timezone', 'is_all_day', 'start_time', 'end_time', 'sort_order',

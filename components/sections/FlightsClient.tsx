@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useContext, useEffect } from 'react';
+import { apiFetch } from '@/lib/offline/api-fetch';
+import { useOfflineList } from '@/hooks/useOfflineList';
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView';
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
@@ -11,7 +13,7 @@ import WarnBadge from '@/components/ui/WarnBadge';
 import { scrollToFirstError } from '@/lib/form-utils';
 import { formatZonedDateTime, instantToZonedInput, zonedLocalDateTimeToUtc } from '@/lib/zoned-time';
 import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/offline/router';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -210,6 +212,8 @@ export function FlightsClient({
   onFormOnlyDone?: () => void;
 }) {
   const [flights, setFlights] = useState<Flight[]>(initialFlights);
+  // Device copy for offline editing (docs/offline-editing-plan.md).
+  useOfflineList(`/api/trips/${tripId}/flights`, initialFlights, setFlights, !formOnlyRecordId);
   // Take refreshed records from the server (router.refresh after a save elsewhere, e.g. the Itinerary)
   useEffect(() => { setFlights(initialFlights); }, [initialFlights]);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -302,7 +306,7 @@ export function FlightsClient({
 
   const refetch = async () => {
     try {
-      const res = await fetch(`/api/trips/${tripId}/flights`);
+      const res = await apiFetch(`/api/trips/${tripId}/flights`);
       if (res.ok) {
         const json = await res.json();
         setFlights(json.flights ?? []);
@@ -352,12 +356,12 @@ export function FlightsClient({
       };
 
       const res = isAdd
-        ? await fetch(`/api/trips/${tripId}/flights`, {
+        ? await apiFetch(`/api/trips/${tripId}/flights`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
           })
-        : await fetch(`/api/flights/${editFlight!.id}`, {
+        : await apiFetch(`/api/flights/${editFlight!.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -380,7 +384,7 @@ export function FlightsClient({
     if (!editFlight) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/flights/${editFlight.id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/flights/${editFlight.id}`, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Something went wrong.');
       await refetch();
@@ -398,7 +402,7 @@ export function FlightsClient({
     const newVal = !f.action_required;
     setFlights(prev => prev.map(fl => fl.id === f.id ? { ...fl, action_required: newVal } : fl));
     try {
-      await fetch(`/api/flights/${f.id}`, {
+      await apiFetch(`/api/flights/${f.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action_required: newVal }),

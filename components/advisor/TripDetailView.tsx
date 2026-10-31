@@ -14,6 +14,8 @@ import { DashboardBar } from '@/components/ui/DashboardBar';
 import { TripTopBar } from '@/components/ui/TripTopBar';
 import { TripSidebar } from '@/components/ui/TripSidebar';
 import type { Trip } from '@/types/trips';
+import { useOfflineWarmup } from '@/hooks/useOfflineWarmup';
+import { useIsOnline } from '@/hooks/useOnlineStatus';
 
 export const TabNavigationContext = React.createContext<{
   navigateTo: (tab: string, itemId?: string) => void
@@ -133,6 +135,19 @@ function TripDetailViewInner({
   useEffect(() => {
     router.prefetch('/advisor/dashboard');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Keep this trip's offline copy current (public/sw.js).
+  useOfflineWarmup([`/advisor/trips/${trip.id}`, '/advisor/dashboard']);
+
+  // Calendar, Print, Import and Logs all need the server; offline they say so
+  // instead of opening (docs/offline-editing-plan.md §4).
+  const isOnline = useIsOnline();
+  const needsConnection = (action: () => void) => () => {
+    if (!isOnline) {
+      toast.show('This needs a connection. You\'re offline.', 'neutral');
+      return;
+    }
+    action();
+  };
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const [visitedTabs, setVisitedTabs] = useState<Set<Tab>>(() => new Set(['Overview']));
 
@@ -347,7 +362,7 @@ const handleImportClose = () => {
       <TripTopBar
         onOpenSidebar={() => setSidebarOpen(true)}
         tripName={localTrip.title}
-        onShowCalendar={() => { setShowCalendar(true) }}
+        onShowCalendar={needsConnection(() => { setShowCalendar(true) })}
         calendarStatus={calendarStatus}
       />
 
@@ -367,16 +382,16 @@ const handleImportClose = () => {
         tripDates={formatDateRange(localTrip.start_date, localTrip.end_date)}
         warnCounts={warnCounts}
         tripId={trip.id}
-        onPrint={() => setPrintOpen(true)}
-        onImport={() => {
+        onPrint={needsConnection(() => setPrintOpen(true))}
+        onImport={needsConnection(() => {
           if (importDone && hasSectionData) {
             setReimportConfirmOpen(true);
           } else {
             setImportOpen(true);
           }
-        }}
-        onShowLogs={() => { setShowLogs(true); setSidebarOpen(false); }}
-        onShowCalendar={() => { setShowCalendar(true); setSidebarOpen(false); }}
+        })}
+        onShowLogs={needsConnection(() => { setShowLogs(true); setSidebarOpen(false); })}
+        onShowCalendar={needsConnection(() => { setShowCalendar(true); setSidebarOpen(false); })}
         calendarStatus={calendarStatus}
       />
 

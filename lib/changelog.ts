@@ -6,6 +6,49 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0010',
+    date: '2026-10-30',
+    changes: [
+      'Edit offline, like Apple Notes. Inside a trip you can now add, change, tick off and delete items in every section (Itinerary, Checklist, Packing, Key Info, Flights, Hotels, Restaurants, Transportation) with no connection. Changes are saved on the device at once and sent, in order, when Helm is back online.',
+      'The pill at the bottom shows where things stand: "Offline · 3 changes waiting", then "Syncing…", then nothing once everything is saved.',
+      'If two devices change the same detail, the later edit is kept and the other value is listed under Sync conflicts at the top of Logs, where it can be put back. Changes to different details of the same record are both kept.',
+      'A change the server refuses is never dropped: the pill says it couldn\'t be saved, and tapping it lists those changes to try again or discard.',
+      'Waiting until you\'re online: Google Calendar updates, days added for travel records shown in the Itinerary, and the Overview counts. Print, Import, Calendar, Logs, new trips and trip actions still need a connection.',
+    ],
+  },
+  {
+    version: 'v00.04.0009',
+    date: '2026-10-29',
+    changes: [
+      'Development only: when Helm runs on the Mac, it now counts as offline whenever the Mac can\'t reach the database, so the offline pill can be tested there by turning Wi-Fi off.',
+    ],
+  },
+  {
+    version: 'v00.04.0008',
+    date: '2026-10-29',
+    changes: [
+      'The browser tab icon is now the Helm ship\'s wheel everywhere, replacing a leftover default icon that some browsers showed.',
+    ],
+  },
+  {
+    version: 'v00.04.0007',
+    date: '2026-10-29',
+    changes: [
+      'The Home Screen icon is now the Helm ship\'s wheel, served as a fixed image so iPhone and iPad always find it.',
+      'Fixed: turning Wi-Fi off on the Mac running Helm locally could reload the page and land on the sign-in screen. When the device reports it is offline, Helm now stays offline until the connection is back.',
+    ],
+  },
+  {
+    version: 'v00.04.0006',
+    date: '2026-10-29',
+    changes: [
+      'Trips can now be read offline. Helm keeps a copy of each trip you open, and of every Upcoming and Active trip, on the device and refreshes it in the background while you are online, including shortly after each change you save.',
+      'Losing the connection no longer replaces the whole app with the offline screen. On the dashboard and inside a trip, a small "Offline · read only" pill appears instead, and the latest data loads as soon as you are back online. Sign-in, search, import and printing still show the offline screen.',
+      'While offline, Calendar, Print, Import and Logs say they need a connection instead of opening, and New Trip and trip actions are unavailable.',
+      'Helm can be added to the Home Screen as an app on iPhone and iPad (Share → Add to Home Screen). Opening it from there keeps the offline copies, which Safari otherwise clears after 7 days without a visit.',
+    ],
+  },
+  {
     version: 'v00.04.0005',
     date: '2026-10-29',
     changes: [

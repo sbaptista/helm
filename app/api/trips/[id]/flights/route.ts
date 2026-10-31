@@ -39,7 +39,7 @@ export async function GET(
 
     const { data: flights, error } = await supabase
       .from('flights')
-      .select('id, flight_number, airline, origin_airport, destination_airport, origin_city, destination_city, departure_time, arrival_time, departure_timezone, arrival_timezone, cabin_class, seat_number, confirmation_number, departure_terminal, departure_gate, arrival_terminal, arrival_gate, notes, gcal_include, action_required, departure_is_all_day, departure_is_approx, arrival_is_all_day, arrival_is_approx, show_in_itinerary')
+      .select('id, trip_id, updated_at, flight_number, airline, origin_airport, destination_airport, origin_city, destination_city, departure_time, arrival_time, departure_timezone, arrival_timezone, cabin_class, seat_number, confirmation_number, departure_terminal, departure_gate, arrival_terminal, arrival_gate, notes, gcal_include, action_required, departure_is_all_day, departure_is_approx, arrival_is_all_day, arrival_is_approx, show_in_itinerary')
       .eq('trip_id', id)
       .is('deleted_at', null)
       .order('departure_time');
@@ -99,6 +99,8 @@ export async function POST(
       'show_in_itinerary',
     ];
     const record: Record<string, unknown> = { trip_id: id };
+    // A record created offline brings its own id (lib/offline/outbox.ts).
+    if (typeof body.id === 'string') record.id = body.id;
     for (const key of allowed) {
       if (key in body) record[key] = body[key];
     }

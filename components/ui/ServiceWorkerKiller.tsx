@@ -14,6 +14,10 @@ export default function ServiceWorkerRegistrar() {
     }
 
     navigator.serviceWorker.register('/sw.js').catch(() => {});
+
+    // Ask the browser not to clear offline copies under storage pressure
+    // (docs/offline-editing-plan.md §6).
+    navigator.storage?.persist?.().catch(() => {});
   }, []);
 
   return null;

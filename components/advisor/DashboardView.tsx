@@ -15,6 +15,8 @@ import UpdateBanner, { BANNER_HEIGHT } from '@/components/ui/UpdateBanner';
 import WhatsNewSheet from '@/components/ui/WhatsNewSheet';
 import { createClient } from '@/lib/supabase/client';
 import type { Trip, TripStatus } from '@/types/trips';
+import { useOfflineWarmup } from '@/hooks/useOfflineWarmup';
+import { useIsOnline } from '@/hooks/useOnlineStatus';
 
 type FilterValue = 'all' | TripStatus;
 
@@ -199,6 +201,14 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
   const [clearError, setClearError] = useState<string | null>(null);
 
   const filtered = filter === 'all' ? trips : trips.filter((t) => t.status === filter);
+
+  // Upcoming and Active trips are kept on the device for offline reading
+  // (docs/offline-editing-plan.md, decision 2); other trips once opened.
+  useOfflineWarmup([
+    '/advisor/dashboard',
+    ...trips.filter((t) => t.status === 'upcoming' || t.status === 'active').map((t) => `/advisor/trips/${t.id}`),
+  ]);
+  const isOnline = useIsOnline();
 
   const handleSuccess = () => {
     router.refresh();
@@ -417,6 +427,7 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
               <Button
                 variant="primary"
                 onClick={() => setModalOpen(true)}
+                disabled={!isOnline}
               >
                 ＋ New Trip
               </Button>
@@ -640,6 +651,7 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
       <button
         aria-label="Create new trip"
         onClick={() => setModalOpen(true)}
+        disabled={!isOnline}
         className="helm-fab"
         style={{
           position: 'fixed',
@@ -653,7 +665,8 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
           color: 'var(--cream)',
           fontSize: '24px',
           lineHeight: 1,
-          cursor: 'pointer',
+          cursor: isOnline ? 'pointer' : 'not-allowed',
+          opacity: isOnline ? 1 : 0.4,
           display: 'none',
           alignItems: 'center',
           justifyContent: 'center',

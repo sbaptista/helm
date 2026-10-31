@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback, useContext, useEffect } from 'react'
+import { apiFetch } from '@/lib/offline/api-fetch'
+import { useOfflineList } from '@/hooks/useOfflineList'
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
@@ -10,7 +12,7 @@ import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
 import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/lib/offline/router'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -183,6 +185,8 @@ function GroupHeader({ label, first }: { label: string; first?: boolean }) {
 
 export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId, onFormOnlyDone }: Props) {
   const [records, setRecords] = useState<Restaurant[]>(initialRestaurants)
+  // Device copy for offline editing (docs/offline-editing-plan.md).
+  useOfflineList(`/api/trips/${tripId}/restaurants`, initialRestaurants, setRecords, !formOnlyRecordId)
   // Take refreshed records from the server (router.refresh after a save elsewhere, e.g. the Itinerary)
   useEffect(() => { setRecords(initialRestaurants) }, [initialRestaurants])
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -224,7 +228,7 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
   }, [warnCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refetch = useCallback(async () => {
-    const res = await fetch(`/api/trips/${tripId}/restaurants`)
+    const res = await apiFetch(`/api/trips/${tripId}/restaurants`)
     if (res.ok) setRecords(await res.json())
   }, [tripId])
 
@@ -298,7 +302,7 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
       }
 
       if (editingRecord) {
-        const res = await fetch(`/api/restaurants/${editingRecord.id}`, {
+        const res = await apiFetch(`/api/restaurants/${editingRecord.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -306,7 +310,7 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
         if (!res.ok) throw new Error()
         toast.show('Restaurant updated', 'success')
       } else {
-        const res = await fetch(`/api/trips/${tripId}/restaurants`, {
+        const res = await apiFetch(`/api/trips/${tripId}/restaurants`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -329,7 +333,7 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
     if (!editingRecord) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/restaurants/${editingRecord.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/restaurants/${editingRecord.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.show('Restaurant removed', 'success')
       await refetch()

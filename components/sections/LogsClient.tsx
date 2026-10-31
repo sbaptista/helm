@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { SyncConflicts } from '@/components/sections/SyncConflicts';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import LevelBadge from '@/components/ui/LevelBadge';
 import { useToast } from '@/components/ui/Toast';
@@ -110,6 +111,8 @@ export function LogsClient({ tripId }: { tripId: string }) {
       }}>
         Logs
       </h2>
+
+      <SyncConflicts tripId={tripId} />
 
       {/* Controls row */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>

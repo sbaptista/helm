@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useCallback, useMemo, useEffect, useContext } from 'react'
-import { useRouter } from 'next/navigation'
+import { apiFetch } from '@/lib/offline/api-fetch'
+import { useOfflineList } from '@/hooks/useOfflineList'
+import { useRouter } from '@/lib/offline/router'
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
@@ -95,6 +97,9 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
   const [records, setRecords] = useState<ChecklistItem[]>(initialItems)
   const [groups, setGroups] = useState<ChecklistGroup[]>(initialGroups)
 
+  // Device copy for offline editing (docs/offline-editing-plan.md).
+  useOfflineList(`/api/trips/${tripId}/checklist`, initialItems, setRecords)
+  useOfflineList(`/api/trips/${tripId}/checklist-groups`, initialGroups, setGroups)
   // Item sheet
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<ChecklistItem | null>(null)
@@ -144,7 +149,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
   // ─── Fetch ────────────────────────────────────────────────────────────────
 
   const refetchItems = useCallback(async () => {
-    const res = await fetch(`/api/trips/${tripId}/checklist`)
+    const res = await apiFetch(`/api/trips/${tripId}/checklist`)
     if (res.ok) setRecords(await res.json())
   }, [tripId])
 
@@ -203,7 +208,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
     if (!name) return
     setCreatingGroup(true)
     try {
-      const res = await fetch(`/api/trips/${tripId}/checklist-groups`, {
+      const res = await apiFetch(`/api/trips/${tripId}/checklist-groups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
@@ -236,12 +241,12 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
     setGroups(updated)
     try {
       await Promise.all([
-        fetch(`/api/checklist-groups/${g.id}`, {
+        apiFetch(`/api/checklist-groups/${g.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sort_order: other.sort_order }),
         }),
-        fetch(`/api/checklist-groups/${other.id}`, {
+        apiFetch(`/api/checklist-groups/${other.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sort_order: g.sort_order }),
@@ -260,7 +265,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
       return
     }
     try {
-      const res = await fetch(`/api/checklist-groups/${g.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/checklist-groups/${g.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       setGroups(prev => prev.filter(x => x.id !== g.id))
       toast.show('Group deleted', 'success')
@@ -280,7 +285,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
       item.id === r.id ? { ...item, status: newStatus } : item
     ))
     try {
-      const res = await fetch(`/api/checklist/${r.id}`, {
+      const res = await apiFetch(`/api/checklist/${r.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -318,7 +323,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
         gcal_include: form.gcal_include,
       }
       if (editingRecord) {
-        const res = await fetch(`/api/checklist/${editingRecord.id}`, {
+        const res = await apiFetch(`/api/checklist/${editingRecord.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -326,7 +331,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
         if (!res.ok) throw new Error()
         toast.show('Item updated', 'success')
       } else {
-        const res = await fetch(`/api/trips/${tripId}/checklist`, {
+        const res = await apiFetch(`/api/trips/${tripId}/checklist`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -349,7 +354,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
     if (!editingRecord) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/checklist/${editingRecord.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/checklist/${editingRecord.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       toast.show('Item removed', 'success')
       await refetchItems()
