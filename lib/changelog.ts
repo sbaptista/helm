@@ -6,6 +6,26 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0021',
+    date: '2026-11-01',
+    changes: [
+      'Fixed: a Checklist group disappeared when its last item was moved out or deleted. Empty groups now stay in the list with "0 items" (with a filter on, only groups with matching items are listed).',
+    ],
+  },
+  {
+    version: 'v00.04.0020',
+    date: '2026-11-01',
+    changes: [
+      'Checklist items can now be selected together: tap Select, then tick items or a whole group, and use Complete, Reopen, Attention ✓ / ✗, Move… (to another group) or Delete…. An "in progress" box shows while changes are saved, and they also work offline.',
+      'With a filter on, Select All selects only the items shown, and the bar says when some selected items are not shown.',
+      'The Checklist buttons, filters and selection bar now stay pinned at the top while the list scrolls. On iPhone, Show All / Hide All, Manage Groups and Copy to Trip are under More.',
+      'Checklist groups can be renamed (✎ in Manage Groups; needs a connection). Their items move to the new name with them.',
+      'Checklist groups that have items can now be deleted. Tapping × asks first, saying how many items will go, and their Calendar events are removed at the next sync. An empty group can still be deleted offline.',
+      'Checklist groups can be hidden and shown with ▾ / ▸ or by tapping the name; Show All / Hide All switches them all. Each device remembers what is hidden.',
+      'Copy to Trip… copies this checklist into another trip as Open items, without due dates, references, resolutions or Calendar settings. Groups with the same name are combined and items already there are skipped.',
+    ],
+  },
+  {
     version: 'v00.04.0019',
     date: '2026-11-01',
     changes: [
