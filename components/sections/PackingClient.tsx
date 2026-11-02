@@ -2,6 +2,9 @@
 
 import { useState, useMemo, useEffect, useContext } from 'react'
 import { apiBulk, apiFetch } from '@/lib/offline/api-fetch'
+import { snapshotRemove, snapshotUpsert } from '@/lib/offline/store'
+import { flushOutbox } from '@/lib/offline/sync'
+import type { OfflineRecord } from '@/lib/offline/collections'
 import { BusyOverlay } from '@/components/ui/BusyOverlay'
 import { useOfflineList } from '@/hooks/useOfflineList'
 import { TabNavigationContext } from '@/components/advisor/TripDetailView'
@@ -23,6 +26,41 @@ interface CopyTarget {
 }
 
 type SelectionState = 'none' | 'some' | 'all'
+type MoveMode = 'move' | 'copy'
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+// Replaces changed rows, appends new ones and drops removed ones.
+function merge<T extends { id: string }>(prev: T[], changed: T[], removed: Set<string>): T[] {
+  const byId = new Map(changed.map(r => [r.id, r]))
+  const known = new Set(prev.map(r => r.id))
+  return [
+    ...prev.filter(r => !removed.has(r.id)).map(r => byId.get(r.id) ?? r),
+    ...changed.filter(r => !known.has(r.id)),
+  ]
+}
+
+function textKey(s: string): string {
+  return s.trim().toLowerCase()
+}
+
+// A 44pt toggle button for the person / Move-Copy choices in sheets.
+function choiceStyle(active: boolean): React.CSSProperties {
+  return {
+    flex: 1,
+    minHeight: '44px',
+    borderRadius: 'var(--r)',
+    border: `1px solid ${active ? 'var(--gold)' : 'var(--border2)'}`,
+    background: active ? 'var(--bg2)' : 'transparent',
+    color: 'var(--text)',
+    fontFamily: "'Lato', sans-serif",
+    fontSize: 'var(--fs-sm)',
+    fontWeight: active ? 600 : 400,
+    cursor: 'pointer',
+  }
+}
 
 // Multi-select checkbox (docs/packing-multi-select-plan.md): 44pt hit target,
 // dash when only some of its items are selected.
@@ -148,6 +186,13 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
 
   // Rename a category or sub-group (docs/packing-rename-groups-plan.md)
   const [renaming, setRenaming] = useState<{ kind: 'group' | 'subgroup'; id: string; value: string; touched: boolean } | null>(null)
+
+  // Move / Copy selected items or a sub-group (docs/packing-move-copy-plan.md)
+  const [moveSheet, setMoveSheet] = useState<{ kind: 'items' } | { kind: 'subgroup'; subgroup: PackingSubgroup } | null>(null)
+  const [moveMode, setMoveMode] = useState<MoveMode>('move')
+  const [movePerson, setMovePerson] = useState<Person>('stan')
+  const [moveGroupId, setMoveGroupId] = useState('')
+  const [moveSubgroupId, setMoveSubgroupId] = useState('') // empty = none
 
   // Derived
   const personGroups = useMemo(() => {
@@ -429,6 +474,119 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
       toast.show(`${failed.length} of ${plural(targets.length, 'item')} couldn't be deleted`, 'error')
     } else {
       toast.show(`${plural(targets.length, 'item')} deleted`, 'success')
+    }
+  }
+
+  // Move / Copy
+  function openMoveItems(mode: MoveMode) {
+    setMoveMode(mode)
+    setMovePerson(activePerson)
+    setMoveGroupId('')
+    setMoveSubgroupId('')
+    setConfirmBulkDelete(false)
+    setMoveSheet({ kind: 'items' })
+  }
+
+  function openMoveSubgroup(sub: PackingSubgroup) {
+    setSubSheetOpen(false)
+    setRenaming(null)
+    setMoveMode('move')
+    setMovePerson(activePerson)
+    setMoveGroupId('')
+    setMoveSubgroupId('')
+    setMoveSheet({ kind: 'subgroup', subgroup: sub })
+  }
+
+  function chooseMovePerson(person: Person) {
+    setMovePerson(person)
+    setMoveGroupId('')
+    setMoveSubgroupId('')
+  }
+
+  // Categories offered as the destination; a sub-group can't go to its own category.
+  const moveGroups = useMemo(() => {
+    return groups
+      .filter(g => g.person === movePerson)
+      .filter(g => moveSheet?.kind !== 'subgroup' || g.id !== moveSheet.subgroup.group_id)
+      .sort((a, b) => a.sort_order - b.sort_order)
+  }, [groups, movePerson, moveSheet])
+
+  const moveSubgroups = useMemo(() => {
+    return subgroups
+      .filter(s => s.group_id === moveGroupId)
+      .sort((a, b) => a.sort_order - b.sort_order)
+  }, [subgroups, moveGroupId])
+
+  // How many selected items would actually change, so a no-op can be blocked.
+  function moveItemCount(): number {
+    const inDest = (i: PackingItem) =>
+      i.person === movePerson && i.group_id === moveGroupId && (i.subgroup_id ?? '') === moveSubgroupId
+    if (moveMode === 'move') return selectedItems.filter(i => !inDest(i)).length
+    const there = new Set(items.filter(inDest).map(i => textKey(i.text)))
+    return selectedItems.filter(i => !there.has(textKey(i.text))).length
+  }
+
+  function applyMoveResult(result: {
+    items?: OfflineRecord[]
+    subgroups?: OfflineRecord[]
+    removedItemIds?: string[]
+    removedSubgroupIds?: string[]
+  }) {
+    const changedItems = result.items ?? []
+    const changedSubs = result.subgroups ?? []
+    const removedItems = new Set(result.removedItemIds ?? [])
+    const removedSubs = new Set(result.removedSubgroupIds ?? [])
+    changedItems.forEach(r => snapshotUpsert('packing', tripId, r))
+    changedSubs.forEach(r => snapshotUpsert('packing-subgroups', tripId, r))
+    removedItems.forEach(id => snapshotRemove('packing', tripId, id))
+    removedSubs.forEach(id => snapshotRemove('packing-subgroups', tripId, id))
+    setItems(prev => merge(prev, changedItems as unknown as PackingItem[], removedItems))
+    setSubgroups(prev => merge(prev, changedSubs as unknown as PackingSubgroup[], removedSubs))
+  }
+
+  async function handleMoveCopy() {
+    if (!moveSheet || !moveGroupId) return
+    const destGroup = groups.find(g => g.id === moveGroupId)
+    const destSub = moveSheet.kind === 'items' ? subgroups.find(s => s.id === moveSubgroupId) : undefined
+    const where = [cap(movePerson), destGroup?.name, destSub?.name].filter(Boolean).join(' › ')
+    const what = moveSheet.kind === 'items'
+      ? plural(selectedItems.length, 'item')
+      : moveSheet.subgroup.name
+    setBusy({ message: `${moveMode === 'move' ? 'Moving' : 'Copying'} ${what}…` })
+    try {
+      // Changes still in the outbox must reach the server first, or the move would act on stale rows.
+      if (!(await flushOutbox())) {
+        toast.show('Some changes are still waiting to sync. Try again in a moment.', 'error')
+        return
+      }
+      const res = await fetch(`/api/trips/${tripId}/packing-move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: moveMode,
+          person: movePerson,
+          groupId: moveGroupId,
+          ...(moveSheet.kind === 'items'
+            ? { itemIds: selectedItems.map(i => i.id), destSubgroupId: moveSubgroupId || null }
+            : { subgroupId: moveSheet.subgroup.id }),
+        }),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.show(result.error ?? 'Could not save changes.', 'error')
+        return
+      }
+      applyMoveResult(result)
+      const verb = moveMode === 'move' ? 'moved' : 'copied'
+      const subject = moveSheet.kind === 'items' ? plural(result.done ?? 0, 'item') : moveSheet.subgroup.name
+      const skipped = result.skipped ? ` (${result.skipped} already there)` : ''
+      toast.show(`${subject} ${verb} to ${where}${skipped}`, 'success')
+      if (moveSheet.kind === 'items' && moveMode === 'move') clearSelection()
+      setMoveSheet(null)
+    } catch {
+      toast.show('Could not save changes.', 'error')
+    } finally {
+      setBusy(null)
     }
   }
 
@@ -926,8 +1084,15 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                 <Button variant="secondary" size="sm" onClick={() => bulkSet('owned', false)} disabled={bulkBusy || selectedItems.length === 0}>Owned ✗</Button>
                 <Button variant="secondary" size="sm" onClick={() => bulkSet('packed', true)} disabled={bulkBusy || selectedItems.length === 0}>Packed ✓</Button>
                 <Button variant="secondary" size="sm" onClick={() => bulkSet('packed', false)} disabled={bulkBusy || selectedItems.length === 0}>Packed ✗</Button>
+                <Button variant="secondary" size="sm" onClick={() => openMoveItems('move')} disabled={bulkBusy || selectedItems.length === 0 || !isOnline}>Move…</Button>
+                <Button variant="secondary" size="sm" onClick={() => openMoveItems('copy')} disabled={bulkBusy || selectedItems.length === 0 || !isOnline}>Copy…</Button>
                 <Button variant="danger" size="sm" onClick={() => setConfirmBulkDelete(true)} disabled={bulkBusy || selectedItems.length === 0}>Delete…</Button>
               </div>
+            )}
+            {!isOnline && (
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                Move and Copy need a connection.
+              </span>
             )}
           </div>
         )}
@@ -1165,6 +1330,13 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                         <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>{s.name}</span>
                       </div>
                       <button onClick={() => startRename('subgroup', s)} aria-label={`Rename ${s.name}`} title="Rename" style={renameBtnStyle}>✎</button>
+                      <button
+                        onClick={() => openMoveSubgroup(s)}
+                        disabled={!isOnline}
+                        aria-label={`Move or copy ${s.name}`}
+                        title={isOnline ? 'Move or copy' : 'Move and Copy need a connection'}
+                        style={{ ...renameBtnStyle, opacity: isOnline ? 1 : 0.3 }}
+                      >⇄</button>
                       <button onClick={() => moveSubgroup(s, 'up')} disabled={i === 0} style={{ ...iconBtnStyle, opacity: i === 0 ? 0.3 : 1 }}>↑</button>
                       <button onClick={() => moveSubgroup(s, 'down')} disabled={i === groupSubs.length - 1} style={{ ...iconBtnStyle, opacity: i === groupSubs.length - 1 ? 0.3 : 1 }}>↓</button>
                       <button onClick={() => hasItems ? toast.show('Cannot delete sub-group with items', 'error') : handleDeleteSubgroup(s)} style={{ ...iconBtnStyle, color: 'var(--red)', borderColor: 'rgba(139,32,32,0.2)', opacity: hasItems ? 0.3 : 1 }}>×</button>
@@ -1255,6 +1427,105 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
           </p>
         </div>
       </ResponsiveSheet>
+
+      {/* Move / Copy Sheet. Kept mounted (open toggles) like the other sheets: unmounting
+          it in the same render that closes BusyOverlay runs the two scroll-lock cleanups
+          out of order and leaves the page stuck at overflow: hidden. */}
+      {(() => {
+        if (!moveSheet) return <ResponsiveSheet open={false} onClose={() => setMoveSheet(null)} title="">{null}</ResponsiveSheet>
+        const isItems = moveSheet.kind === 'items'
+        const changeCount = isItems && moveGroupId ? moveItemCount() : null
+        const nothingToDo = changeCount === 0
+        const subject = isItems ? plural(selectedItems.length, 'item') : moveSheet.subgroup.name
+        const subItemCount = isItems ? 0 : items.filter(i => i.subgroup_id === moveSheet.subgroup.id).length
+        const destGroupName = groups.find(g => g.id === moveGroupId)?.name
+        return (
+          <ResponsiveSheet
+            open
+            onClose={() => setMoveSheet(null)}
+            title={`${moveMode === 'move' ? 'Move' : 'Copy'} ${subject}`}
+            primaryAction={{
+              label: moveMode === 'move' ? 'Move' : 'Copy',
+              onClick: handleMoveCopy,
+              loading: bulkBusy,
+              disabled: !moveGroupId || nothingToDo || bulkBusy || !isOnline,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
+              <FormField label="Action">
+                <div role="group" aria-label="Action" style={{ display: 'flex', gap: '8px' }}>
+                  {(['move', 'copy'] as MoveMode[]).map(m => (
+                    <button key={m} type="button" aria-pressed={moveMode === m} onClick={() => setMoveMode(m)} style={choiceStyle(moveMode === m)}>
+                      {cap(m)}
+                    </button>
+                  ))}
+                </div>
+              </FormField>
+
+              <FormField label="To whose list">
+                <div role="group" aria-label="To whose list" style={{ display: 'flex', gap: '8px' }}>
+                  {(['stan', 'cathy'] as Person[]).map(p => (
+                    <button key={p} type="button" aria-pressed={movePerson === p} onClick={() => chooseMovePerson(p)} style={choiceStyle(movePerson === p)}>
+                      {cap(p)}
+                    </button>
+                  ))}
+                </div>
+              </FormField>
+
+              <FormField label="Category" htmlFor="packing-move-group">
+                {moveGroups.length === 0 ? (
+                  <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                    {cap(movePerson)} has no {isItems ? '' : 'other '}categories yet.
+                  </p>
+                ) : (
+                  <select
+                    id="packing-move-group"
+                    value={moveGroupId}
+                    onChange={e => { setMoveGroupId(e.target.value); setMoveSubgroupId('') }}
+                    style={inputStyle()}
+                  >
+                    <option value="" disabled>Choose a category…</option>
+                    {moveGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                )}
+              </FormField>
+
+              {isItems && moveGroupId && (
+                <FormField label="Sub-group" htmlFor="packing-move-subgroup">
+                  <select
+                    id="packing-move-subgroup"
+                    value={moveSubgroupId}
+                    onChange={e => setMoveSubgroupId(e.target.value)}
+                    style={inputStyle()}
+                  >
+                    <option value="">None (directly in the category)</option>
+                    {moveSubgroups.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </FormField>
+              )}
+
+              {nothingToDo && (
+                <p role="status" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--red)' }}>
+                  {selectedItems.length === 1 ? 'That item is' : 'All selected items are'} already there.
+                </p>
+              )}
+
+              <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text2)', lineHeight: 1.5 }}>
+                {isItems
+                  ? moveMode === 'move'
+                    ? 'Items go to the end of the chosen place, in their current order.'
+                    : 'Copies keep Owned and start unpacked. Items already there are skipped.'
+                  : `Its ${plural(subItemCount, 'item')} go${subItemCount === 1 ? 'es' : ''} with it. If ${destGroupName ?? 'the category'} already has a sub-group named ${moveSheet.subgroup.name}, the two are combined and items already there are skipped${moveMode === 'copy' ? '. Copies keep Owned and start unpacked.' : '.'}`}
+              </p>
+              {!isOnline && (
+                <p style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                  Move and Copy need a connection.
+                </p>
+              )}
+            </div>
+          </ResponsiveSheet>
+        )
+      })()}
     </div>
   )
 }

@@ -6,6 +6,22 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0017',
+    date: '2026-11-01',
+    changes: [
+      'Fixed: after a Move or Copy in Packing the page could no longer be scrolled or used until it was reloaded.',
+    ],
+  },
+  {
+    version: 'v00.04.0016',
+    date: '2026-11-01',
+    changes: [
+      'Selected packing items can now be moved or copied: tap Move… or Copy… in the selection bar, then choose Stan or Cathy, a category and (optionally) a sub-group. Moved items go to the end of the chosen place in their current order.',
+      'A whole sub-group can be moved or copied to another category, Stan\'s or Cathy\'s: tap ⇄ next to it in Manage Sub-groups. Its items go with it, and if that category already has a sub-group with the same name the two are combined.',
+      'Copies keep Owned and start unpacked, and items already at the destination are skipped. Move and Copy need a connection.',
+    ],
+  },
+  {
     version: 'v00.04.0015',
     date: '2026-10-31',
     changes: [
