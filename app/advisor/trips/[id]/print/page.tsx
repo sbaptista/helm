@@ -76,7 +76,9 @@ export default async function TripPrintPage({
     .filter(entry => firstDayIdByDate.has(entry.day_date))
     .map(entry => ({
       id: entry.id, trip_id: id, day_id: firstDayIdByDate.get(entry.day_date) ?? null,
-      title: entry.title, start_time: entry.start_time, end_time: null,
+      // A time without a timezone can't be printed correctly (docs/timezone-lookup-plan.md).
+      title: entry.timezone_missing ? `${entry.title} (time zone unknown)` : entry.title,
+      start_time: entry.timezone_missing ? null : entry.start_time, end_time: null,
       start_timezone: entry.timezone, end_timezone: null,
       is_all_day: entry.is_all_day, is_approx: entry.is_approx,
       description: [entry.description, entry.location].filter(Boolean).join(' · ') || null,

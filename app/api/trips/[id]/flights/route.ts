@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries';
 import { normalizeZonedDateTime } from '@/lib/zoned-time';
+import { fillMissingTimezones, airportQuery } from '@/lib/geo/timezone-lookup';
 
 function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -104,6 +105,10 @@ export async function POST(
     for (const key of allowed) {
       if (key in body) record[key] = body[key];
     }
+    await fillMissingTimezones(record, [
+      { timezone: 'departure_timezone', query: airportQuery(record.origin_airport as string | null) },
+      { timezone: 'arrival_timezone', query: airportQuery(record.destination_airport as string | null) },
+    ]);
     record.departure_time = normalizeZonedDateTime(record.departure_time, record.departure_timezone);
     record.arrival_time = normalizeZonedDateTime(record.arrival_time, record.arrival_timezone);
     record.gcal_dirty = record.gcal_include === true;

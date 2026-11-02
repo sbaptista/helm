@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
 import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
+import { fillMissingTimezones } from '@/lib/geo/timezone-lookup'
 
 function serviceClient() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!) }
 async function getAuthUserId(): Promise<string | null> {
@@ -46,6 +47,13 @@ export async function PATCH(
     if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await req.json()
+    // A form save sends both timezones; empty ones are looked up from the places.
+    if ('departure_timezone' in body) {
+      await fillMissingTimezones(body, [
+        { timezone: 'departure_timezone', query: typeof body.origin === 'string' ? body.origin : '' },
+        { timezone: 'arrival_timezone', query: typeof body.destination === 'string' ? body.destination : '' },
+      ])
+    }
     const nextInclude = 'gcal_include' in body ? body.gcal_include === true : record.gcal_include === true
     const gcalDirty = nextInclude || record.gcal_include === true || !!record.gcal_event_id
     const { data, error } = await supabase

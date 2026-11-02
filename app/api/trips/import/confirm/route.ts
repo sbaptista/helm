@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { AIRPORT_TIMEZONES } from '@/lib/gcal/timezones';
+import { airportQuery, fillMissingTimezones, placeQuery } from '@/lib/geo/timezone-lookup';
 import { normalizeZonedDateTime } from '@/lib/zoned-time';
 import { ensureDaysForLinkedRecord, type LinkedItinerarySection } from '@/lib/itinerary/linked-entries';
 
@@ -176,11 +176,15 @@ export async function POST(request: Request): Promise<Response> {
 
   // ── flights ──────────────────────────────────────────────────────────────────
   if (result.flights?.length) {
-    const rows = result.flights.map((f) => {
+    const rows = await Promise.all(result.flights.map(async (f) => {
       const originAirport = (f.departure_airport as string)?.toUpperCase() ?? null;
       const destinationAirport = (f.arrival_airport as string)?.toUpperCase() ?? null;
-      const departureTimezone = originAirport ? AIRPORT_TIMEZONES[originAirport] ?? null : null;
-      const arrivalTimezone = destinationAirport ? AIRPORT_TIMEZONES[destinationAirport] ?? null : null;
+      const zones = await fillMissingTimezones({}, [
+        { timezone: 'departure', query: airportQuery(originAirport) },
+        { timezone: 'arrival', query: airportQuery(destinationAirport) },
+      ]);
+      const departureTimezone = (zones.departure as string | undefined) ?? null;
+      const arrivalTimezone = (zones.arrival as string | undefined) ?? null;
       return {
         trip_id:             tripId,
         flight_number:       (f.flight_number as string)     ?? null,
@@ -195,7 +199,7 @@ export async function POST(request: Request): Promise<Response> {
         notes:               (f.notes as string)             ?? null,
         show_in_itinerary:   true,
       };
-    });
+    }));
     const { data: inserted, error } = await supabase.from('flights').insert(rows).select();
     if (error) return fail(`flights: ${error.message}`);
     await ensureLinkedDays('Flights', inserted);
@@ -204,7 +208,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // ── hotels ───────────────────────────────────────────────────────────────────
   if (result.hotels?.length) {
-    const rows = result.hotels.map((h) => ({
+    const rows = await Promise.all(result.hotels.map((h) => fillMissingTimezones({
       trip_id:           tripId,
       name:                (h.name as string)              ?? null,
       address:             (h.address as string) ?? (h.location as string) ?? null,
@@ -215,7 +219,10 @@ export async function POST(request: Request): Promise<Response> {
       phone:               (h.phone as string)             ?? null,
       notes:               (h.notes as string)             ?? null,
       show_in_itinerary:   true,
-    }));
+    }, [{
+      timezone: 'timezone',
+      query: placeQuery({ address: (h.address as string) ?? (h.location as string) ?? null, city: (h.city as string) ?? null }),
+    }])));
     const { data: inserted, error } = await supabase.from('hotels').insert(rows).select();
     if (error) return fail(`hotels: ${error.message}`);
     await ensureLinkedDays('Hotels', inserted);
@@ -224,7 +231,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // ── transportation ───────────────────────────────────────────────────────────
   if (result.transportation?.length) {
-    const rows = result.transportation.map((t) => ({
+    const rows = await Promise.all(result.transportation.map((t) => fillMissingTimezones({
       trip_id:            tripId,
       type:               (t.type as string)               ?? null,
       origin:              (t.departure_location as string) ?? null,
@@ -234,7 +241,10 @@ export async function POST(request: Request): Promise<Response> {
       confirmation_number: (t.confirmation_code as string)  ?? null,
       notes:               (t.description as string)        ?? null,
       show_in_itinerary:   true,
-    }));
+    }, [
+      { timezone: 'departure_timezone', query: (t.departure_location as string) ?? '' },
+      { timezone: 'arrival_timezone', query: (t.arrival_location as string) ?? '' },
+    ])));
     const { data: inserted, error } = await supabase.from('transportation').insert(rows).select();
     if (error) return fail(`transportation: ${error.message}`);
     await ensureLinkedDays('Transportation', inserted);
@@ -243,7 +253,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // ── restaurants ──────────────────────────────────────────────────────────────
   if (result.restaurants?.length) {
-    const rows = result.restaurants.map((r) => ({
+    const rows = await Promise.all(result.restaurants.map((r) => fillMissingTimezones({
       trip_id:           tripId,
       name:              (r.name as string)              ?? null,
       address:           (r.address as string) ?? (r.location as string) ?? null,
@@ -253,7 +263,10 @@ export async function POST(request: Request): Promise<Response> {
       type:              (r.type as string)              ?? null,
       notes:             (r.notes as string)             ?? null,
       show_in_itinerary: true,
-    }));
+    }, [{
+      timezone: 'timezone',
+      query: placeQuery({ address: (r.address as string) ?? (r.location as string) ?? null, city: (r.city as string) ?? null }),
+    }])));
     const { data: inserted, error } = await supabase.from('restaurants').insert(rows).select();
     if (error) return fail(`restaurants: ${error.message}`);
     await ensureLinkedDays('Restaurants', inserted);

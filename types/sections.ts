@@ -35,6 +35,8 @@ export interface HotelRow {
   city: string | null
   province: string | null
   postal_code: string | null
+  country: string | null
+  timezone: string | null
   phone: string | null
   check_in_date: string | null
   check_in_time: string | null
@@ -84,6 +86,8 @@ export interface RestaurantRow {
   name: string | null
   address: string | null
   city: string | null
+  country: string | null
+  timezone: string | null
   display_label: string | null
   cuisine: string | null
   reservation_time: string | null

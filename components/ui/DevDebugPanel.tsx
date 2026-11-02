@@ -15,6 +15,7 @@ function DevDebugPanelInner() {
   const [showFatal, setShowFatal] = useState(false);
   const [authVariant, setAuthVariant] = useState<'a' | 'b'>('a');
   const [simulateUpdate, setSimulateUpdate] = useState(false);
+  const [tzResults, setTzResults] = useState<string[] | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(VARIANT_KEY);
@@ -29,6 +30,26 @@ function DevDebugPanelInner() {
     } catch {
       toast.show('Something went wrong', 'error');
     }
+  }
+
+  // Checks the Google key without showing it (docs/timezone-lookup-plan.md).
+  async function testTimezoneLookup() {
+    setTzResults(['Looking up…']);
+    const lines: string[] = [];
+    for (const query of ['Ann Arbor, MI', 'Kyoto, Japan', 'NRT airport']) {
+      try {
+        const res = await fetch('/api/timezone/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query }),
+        });
+        const json = await res.json();
+        lines.push(json.ok ? `✓ ${query} → ${json.timezone}` : `✗ ${query}: ${json.message ?? json.error ?? res.status}`);
+      } catch (err) {
+        lines.push(`✗ ${query}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    setTzResults(lines);
   }
 
   const btnStyle: React.CSSProperties = {
@@ -160,6 +181,25 @@ function DevDebugPanelInner() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Google timezone lookup */}
+            <div style={{
+              borderTop: '1px solid var(--border2)',
+              paddingTop: '8px',
+              marginTop: '2px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+            }}>
+              <button type="button" style={btnStyle} onClick={testTimezoneLookup}>
+                Test timezone lookup
+              </button>
+              {tzResults && tzResults.map(line => (
+                <span key={line} style={{ fontFamily: "'Lato', sans-serif", fontSize: '11px', color: 'var(--text2)', maxWidth: '260px', overflowWrap: 'anywhere' }}>
+                  {line}
+                </span>
+              ))}
             </div>
 
             {/* Update simulation */}

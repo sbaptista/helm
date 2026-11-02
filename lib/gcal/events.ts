@@ -1,4 +1,4 @@
-import { getCityTimezone, getAirportTimezone, toLocalISOString } from './timezones'
+import { toLocalISOString } from './timezones'
 import type { FlightRow, HotelRow, TransportationRow, RestaurantRow, ItineraryRowRow, ChecklistRow } from '@/types/sections'
 
 // ── Shared types ──────────────────────────────────────────────────
@@ -22,6 +22,14 @@ function buildDescription(parts: Record<string, string | null | undefined>): str
     .filter(([, v]) => v)
     .map(([k, v]) => `${k}: ${v}`)
     .join('\n')
+}
+
+// A timed event needs its place's timezone. Records that predate the lookup
+// (docs/timezone-lookup-plan.md) can lack one; the sync reports the item
+// instead of guessing, and the next save looks it up.
+function requireTimezone(timezone: string | null | undefined, label: string): string {
+  if (timezone) return timezone
+  throw new Error(`${label}: timezone needed. Open it and use Look up, then sync again.`)
 }
 
 // ── Flights ───────────────────────────────────────────────────────
@@ -74,8 +82,9 @@ function flightCarrierDetails(value: string | null): { carrier: string; checkin:
 }
 
 export function buildFlightEvent(row: FlightRow): GCalEvent {
-  const timezone = row.departure_timezone ?? getAirportTimezone(row.origin_airport ?? '')
-  const arrivalTimezone = row.arrival_timezone ?? getAirportTimezone(row.destination_airport ?? '')
+  const label = row.flight_number?.trim() || 'Flight'
+  const timezone = requireTimezone(row.departure_timezone, label)
+  const arrivalTimezone = requireTimezone(row.arrival_timezone, label)
   const instant = row.departure_time ?? ''
   const flight = row.flight_number?.trim() || 'Flight'
   const { carrier, checkin } = flightCarrierDetails(row.airline)
@@ -110,12 +119,12 @@ function buildHotelAddress(row: HotelRow): string | null {
 }
 
 export function buildHotelCheckinEvent(row: HotelRow): GCalEvent {
-  const tz = getCityTimezone(row.city ?? '')
   const summary = `${row.check_in_is_approx ? '≈ ' : ''}${row.name} · Check-in`
   if (row.check_in_is_all_day) {
     const date = row.check_in_date ?? ''
     return { summary, description: buildDescription({ Address: buildHotelAddress(row), Confirmation: row.confirmation_number, Phone: row.phone, Notes: row.notes }), start: { date }, end: { date: nextDay(date) } }
   }
+  const tz = requireTimezone(row.timezone, row.name || 'Hotel')
   const time = row.check_in_time ?? '15:00:00'
   const dateTime = `${row.check_in_date ?? ''}T${time}`
 
@@ -133,12 +142,12 @@ export function buildHotelCheckinEvent(row: HotelRow): GCalEvent {
 }
 
 export function buildHotelCheckoutEvent(row: HotelRow): GCalEvent {
-  const tz = getCityTimezone(row.city ?? '')
   const summary = `${row.check_out_is_approx ? '≈ ' : ''}${row.name} · Check-out`
   if (row.check_out_is_all_day) {
     const date = row.check_out_date ?? ''
     return { summary, description: buildDescription({ Address: buildHotelAddress(row), Confirmation: row.confirmation_number, Notes: row.notes }), start: { date }, end: { date: nextDay(date) } }
   }
+  const tz = requireTimezone(row.timezone, row.name || 'Hotel')
   const time = row.check_out_time ?? '11:00:00'
   const dateTime = `${row.check_out_date ?? ''}T${time}`
 
@@ -157,8 +166,6 @@ export function buildHotelCheckoutEvent(row: HotelRow): GCalEvent {
 // ── Transportation ────────────────────────────────────────────────
 
 export function buildTransportationEvent(row: TransportationRow): GCalEvent {
-  const tz = row.departure_timezone ?? getCityTimezone(row.origin ?? '')
-  const arrTz = row.arrival_timezone ?? getCityTimezone(row.destination ?? '')
   const summary = `${row.pickup_is_approx ? '≈ ' : ''}${row.origin} → ${row.destination} · ${row.provider ?? row.type ?? ''}`.trim()
   const description = buildDescription({
     Type: row.type,
@@ -170,6 +177,8 @@ export function buildTransportationEvent(row: TransportationRow): GCalEvent {
     const date = (row.departure_time ?? '').slice(0, 10)
     return { summary, description, start: { date }, end: { date: nextDay(date) } }
   }
+  const tz = requireTimezone(row.departure_timezone, row.provider || row.type || 'Transportation')
+  const arrTz = row.arrival_timezone || tz
   const localStart = storedWallClock(row.departure_time ?? '')
   const localEnd = row.arrival_time ? storedWallClock(row.arrival_time) : addMinutesToWallClock(localStart, 60)
   return {
@@ -183,7 +192,6 @@ export function buildTransportationEvent(row: TransportationRow): GCalEvent {
 // ── Restaurants ───────────────────────────────────────────────────
 
 export function buildRestaurantEvent(row: RestaurantRow): GCalEvent {
-  const tz = getCityTimezone(row.city ?? '')
   const localStart = storedWallClock(row.reservation_time ?? '')
   const localEnd = addMinutesToWallClock(localStart, 30)
 
@@ -199,6 +207,7 @@ export function buildRestaurantEvent(row: RestaurantRow): GCalEvent {
     const date = (row.reservation_time ?? '').slice(0, 10)
     return { summary, description, start: { date }, end: { date: nextDay(date) } }
   }
+  const tz = requireTimezone(row.timezone, row.display_label || row.name || 'Restaurant')
   return {
     summary,
     description,
@@ -211,8 +220,6 @@ export function buildRestaurantEvent(row: RestaurantRow): GCalEvent {
 
 // day_date is the attached itinerary day; All Day and Time TBD rows have no start_time
 export function buildItineraryEvent(row: ItineraryRowRow & { day_date?: string | null }): GCalEvent {
-  const tz = row.start_timezone ?? 'America/Vancouver'
-
   if (row.is_all_day || !row.start_time) {
     const date = row.day_date ?? ''
     return {
@@ -223,6 +230,7 @@ export function buildItineraryEvent(row: ItineraryRowRow & { day_date?: string |
     }
   }
 
+  const tz = requireTimezone(row.start_timezone, row.title || 'Itinerary item')
   const start = new Date(row.start_time ?? '')
   const end = row.end_time
     ? new Date(row.end_time)

@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
 import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
+import { TimezoneField } from '@/components/ui/TimezoneField'
 import { useRouter } from '@/lib/offline/router'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -52,13 +53,6 @@ type Props = {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const TIMEZONE_OPTIONS = [
-  { value: 'Pacific/Honolulu',    label: 'Honolulu (HST)' },
-  { value: 'America/Los_Angeles', label: 'Seattle / Pacific (PDT/PST)' },
-  { value: 'America/Vancouver',   label: 'Vancouver / Kamloops (PDT/PST)' },
-  { value: 'America/Edmonton',    label: 'Jasper / Banff (MDT/MST)' },
-]
 
 const TRANSPORT_TYPES = [
   'Motorcoach',
@@ -167,6 +161,8 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
   useEffect(() => { setRecords(initialTransportations) }, [initialTransportations])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<Transportation | null>(null)
+  // Remounts the timezone fields for each form opened, so their lookup state is per record.
+  const [formSession, setFormSession] = useState(0)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -218,6 +214,7 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
   function openAdd() {
     setEditingRecord(null)
     setForm(EMPTY_FORM)
+    setFormSession(n => n + 1)
     setConfirmDelete(false)
     setTouched(new Set())
     setSheetOpen(true)
@@ -225,6 +222,7 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
 
   function openEdit(r: Transportation) {
     setEditingRecord(r)
+    setFormSession(n => n + 1)
     setForm(recordToForm(r))
     setConfirmDelete(false)
     setTouched(new Set())
@@ -403,19 +401,16 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
             </div>
           </FormField>
 
-          {/* Departure Timezone */}
-          <FormField label="Departure Timezone">
-            <select
-              value={form.departure_timezone}
-              onChange={e => setField('departure_timezone', e.target.value)}
-              style={{ ...inputStyle(), cursor: 'pointer' }}
-            >
-              <option value="">Select…</option>
-              {TIMEZONE_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </FormField>
+          {/* Departure timezone, looked up from the origin (docs/timezone-lookup-plan.md) */}
+          <TimezoneField
+            key={`departure-${formSession}`}
+            label="Departure timezone"
+            value={form.departure_timezone}
+            onChange={tz => setField('departure_timezone', tz)}
+            query={form.origin.trim()}
+            date={form.departure_date || undefined}
+            suggested={records.flatMap(r => [r.departure_timezone ?? '', r.arrival_timezone ?? ''])}
+          />
 
           <ItineraryTimingFlags
             label="Pickup"
@@ -443,19 +438,16 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
             </div>
           </FormField>
 
-          {/* Arrival Timezone */}
-          <FormField label="Arrival Timezone">
-            <select
-              value={form.arrival_timezone}
-              onChange={e => setField('arrival_timezone', e.target.value)}
-              style={{ ...inputStyle(), cursor: 'pointer' }}
-            >
-              <option value="">Select…</option>
-              {TIMEZONE_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </FormField>
+          {/* Arrival timezone, looked up from the destination */}
+          <TimezoneField
+            key={`arrival-${formSession}`}
+            label="Arrival timezone"
+            value={form.arrival_timezone}
+            onChange={tz => setField('arrival_timezone', tz)}
+            query={form.destination.trim()}
+            date={form.arrival_date || form.departure_date || undefined}
+            suggested={records.flatMap(r => [r.departure_timezone ?? '', r.arrival_timezone ?? ''])}
+          />
 
           {/* Confirmation Number */}
           <FormField label="Confirmation Number">

@@ -6,6 +6,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0022',
+    date: '2026-11-02',
+    changes: [
+      'Fixed: a Seattle hotel\'s check-out showed an hour late in the Itinerary. Hotels and restaurants used a short list of Rockies cities and treated every other city as Vancouver, which no longer keeps the same time as Seattle in winter.',
+      'Timezones now work anywhere in the world. Helm looks up each hotel\'s, restaurant\'s, flight\'s, transfer\'s and Itinerary item\'s timezone from its address, airport or location (with Google), shows it under the time, and keeps it with the record.',
+      'Change… lets you pick any timezone instead, searching by city or name (for example Tokyo or Eastern). The trip\'s own timezones are listed first. A timezone you pick is kept.',
+      'Hotels and restaurants have a Country field, to find places outside the US and Canada.',
+      'A record whose timezone isn\'t known shows "Time zone unknown" in the Itinerary instead of a wrong time, and Calendar sync asks for its timezone. Look up in its form finds it.',
+    ],
+  },
+  {
     version: 'v00.04.0021',
     date: '2026-11-01',
     changes: [

@@ -7,7 +7,8 @@ import { TabNavigationContext, useTabNavigation } from '@/components/advisor/Tri
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
-import { AIRPORT_LOOKUP } from '@/lib/gcal/timezones';
+import { TimezoneField } from '@/components/ui/TimezoneField';
+import { airportQuery } from '@/lib/geo/place-query';
 import { useToast } from '@/components/ui/Toast';
 import WarnBadge from '@/components/ui/WarnBadge';
 import { scrollToFirstError } from '@/lib/form-utils';
@@ -105,13 +106,6 @@ function validateFlightTiming(form: FlightForm): FlightErrors {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TIMEZONE_OPTIONS = [
-  { value: 'Pacific/Honolulu',    label: 'Honolulu (HST)' },
-  { value: 'America/Los_Angeles', label: 'Seattle / Pacific (PDT/PST)' },
-  { value: 'America/Vancouver',   label: 'Vancouver / Kamloops (PDT/PST)' },
-  { value: 'America/Edmonton',    label: 'Jasper / Banff (MDT/MST)' },
-];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const EMPTY_FORM: FlightForm = {
@@ -183,20 +177,6 @@ function flightToForm(f: Flight): FlightForm {
   };
 }
 
-function applyAirportLookup(
-  code: string,
-  side: 'origin' | 'destination',
-  setForm: React.Dispatch<React.SetStateAction<FlightForm>>,
-) {
-  const entry = AIRPORT_LOOKUP[code.toUpperCase()];
-  if (!entry) return;
-  setForm(prev => ({
-    ...prev,
-    [side === 'origin' ? 'origin_city' : 'destination_city']: entry.city,
-    [side === 'origin' ? 'departure_timezone' : 'arrival_timezone']: entry.timezone,
-  }));
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FlightsClient({
@@ -212,6 +192,8 @@ export function FlightsClient({
   onFormOnlyDone?: () => void;
 }) {
   const [flights, setFlights] = useState<Flight[]>(initialFlights);
+  // Remounts the timezone fields for each form opened, so their lookup state is per record.
+  const [formSession, setFormSession] = useState(0);
   // Device copy for offline editing (docs/offline-editing-plan.md).
   useOfflineList(`/api/trips/${tripId}/flights`, initialFlights, setFlights, !formOnlyRecordId);
   // Take refreshed records from the server (router.refresh after a save elsewhere, e.g. the Itinerary)
@@ -283,6 +265,7 @@ export function FlightsClient({
   const openAdd = () => {
     setEditFlight(null);
     setForm(EMPTY_FORM);
+    setFormSession(n => n + 1);
     setDeleteConfirm(false);
     setTouched(new Set());
     setFlightErrors({});
@@ -291,6 +274,7 @@ export function FlightsClient({
 
   const openEdit = (f: Flight) => {
     setEditFlight(f);
+    setFormSession(n => n + 1);
     setForm(flightToForm(f));
     setDeleteConfirm(false);
     setTouched(new Set());
@@ -471,10 +455,7 @@ export function FlightsClient({
                   value={form.origin_airport}
                   onChange={(e) => setField('origin_airport', e.target.value.toUpperCase())}
                   onFocus={() => setFocusedField('origin_airport')}
-                  onBlur={() => {
-                    setFocusedField(null);
-                    applyAirportLookup(form.origin_airport, 'origin', setForm);
-                  }}
+                  onBlur={() => setFocusedField(null)}
                   style={{ ...fieldStyle('origin_airport'), textTransform: 'uppercase' }}
                   placeholder="JFK"
                   title="3-letter IATA code — city and timezone will fill automatically"
@@ -491,10 +472,7 @@ export function FlightsClient({
                   value={form.destination_airport}
                   onChange={(e) => setField('destination_airport', e.target.value.toUpperCase())}
                   onFocus={() => setFocusedField('destination_airport')}
-                  onBlur={() => {
-                    setFocusedField(null);
-                    applyAirportLookup(form.destination_airport, 'destination', setForm);
-                  }}
+                  onBlur={() => setFocusedField(null)}
                   style={{ ...fieldStyle('destination_airport'), textTransform: 'uppercase' }}
                   placeholder="LHR"
                   title="3-letter IATA code — city and timezone will fill automatically"
@@ -561,22 +539,17 @@ export function FlightsClient({
             </div>
           </FormField>
 
-          {/* Departure Timezone */}
-          <FormField label="Departure Timezone" htmlFor="fl-dep-tz">
-            <select
-              id="fl-dep-tz"
-              value={form.departure_timezone}
-              onChange={(e) => setField('departure_timezone', e.target.value)}
-              onFocus={() => setFocusedField('departure_timezone')}
-              onBlur={() => setFocusedField(null)}
-              style={{ ...fieldStyle('departure_timezone'), cursor: 'pointer' }}
-            >
-              <option value="">Select…</option>
-              {TIMEZONE_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </FormField>
+          {/* Departure timezone, looked up from the airport (docs/timezone-lookup-plan.md) */}
+          <TimezoneField
+            key={`departure-${formSession}`}
+            label="Departure timezone"
+            value={form.departure_timezone}
+            onChange={tz => setField('departure_timezone', tz)}
+            query={airportQuery(form.origin_airport)}
+            date={form.departure_date || undefined}
+            suggested={flights.flatMap(f => [f.departure_timezone ?? '', f.arrival_timezone ?? ''])}
+            onFound={found => { if (found.city) setForm(prev => prev.origin_city ? prev : { ...prev, origin_city: found.city ?? '' }); }}
+          />
 
           <ItineraryTimingFlags
             label="Departure"
@@ -608,22 +581,17 @@ export function FlightsClient({
             </div>
           </FormField>
 
-          {/* Arrival Timezone */}
-          <FormField label="Arrival Timezone" htmlFor="fl-arr-tz">
-            <select
-              id="fl-arr-tz"
-              value={form.arrival_timezone}
-              onChange={(e) => setField('arrival_timezone', e.target.value)}
-              onFocus={() => setFocusedField('arrival_timezone')}
-              onBlur={() => setFocusedField(null)}
-              style={{ ...fieldStyle('arrival_timezone'), cursor: 'pointer' }}
-            >
-              <option value="">Select…</option>
-              {TIMEZONE_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </FormField>
+          {/* Arrival timezone, looked up from the airport */}
+          <TimezoneField
+            key={`arrival-${formSession}`}
+            label="Arrival timezone"
+            value={form.arrival_timezone}
+            onChange={tz => setField('arrival_timezone', tz)}
+            query={airportQuery(form.destination_airport)}
+            date={form.arrival_date || form.departure_date || undefined}
+            suggested={flights.flatMap(f => [f.departure_timezone ?? '', f.arrival_timezone ?? ''])}
+            onFound={found => { if (found.city) setForm(prev => prev.destination_city ? prev : { ...prev, destination_city: found.city ?? '' }); }}
+          />
 
           <ItineraryTimingFlags
             label="Arrival"

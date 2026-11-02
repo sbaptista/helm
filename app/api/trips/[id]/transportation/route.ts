@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
 import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
+import { fillMissingTimezones } from '@/lib/geo/timezone-lookup'
 
 function serviceClient() {
   return createClient(
@@ -69,6 +70,10 @@ export async function POST(
     if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await req.json()
+    await fillMissingTimezones(body, [
+      { timezone: 'departure_timezone', query: typeof body.origin === 'string' ? body.origin : '' },
+      { timezone: 'arrival_timezone', query: typeof body.destination === 'string' ? body.destination : '' },
+    ])
     const { data, error } = await supabase
       .from('transportation')
       .insert({ ...body, trip_id: tripId, gcal_dirty: body.gcal_include === true })

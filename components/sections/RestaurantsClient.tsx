@@ -12,6 +12,8 @@ import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
 import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
+import { TimezoneField } from '@/components/ui/TimezoneField'
+import { placeQuery } from '@/lib/geo/place-query'
 import { useRouter } from '@/lib/offline/router'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,6 +46,8 @@ export type Restaurant = {
   booking_source: string | null
   state_province: string | null
   postal_code: string | null
+  country?: string | null
+  timezone?: string | null
   reservation_is_all_day: boolean
   reservation_is_approx: boolean
 }
@@ -93,6 +97,8 @@ const EMPTY_FORM = {
   booking_source: '',
   state_province: '',
   postal_code: '',
+  country: '',
+  timezone: '',
   reservation_is_all_day: false,
   reservation_is_approx: false,
 }
@@ -156,6 +162,8 @@ function recordToForm(r: Restaurant) {
     booking_source:       r.booking_source       ?? '',
     state_province:       r.state_province       ?? '',
     postal_code:          r.postal_code          ?? '',
+    country:              r.country              ?? '',
+    timezone:             r.timezone             ?? '',
     reservation_is_all_day: r.reservation_is_all_day ?? false,
     reservation_is_approx:  r.reservation_is_approx  ?? false,
   }
@@ -191,6 +199,8 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
   useEffect(() => { setRecords(initialRestaurants) }, [initialRestaurants])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<Restaurant | null>(null)
+  // Remounts the timezone field for each form opened, so its lookup state is per record.
+  const [formSession, setFormSession] = useState(0)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -242,6 +252,7 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
   function openAdd() {
     setEditingRecord(null)
     setForm(EMPTY_FORM)
+    setFormSession(n => n + 1)
     setConfirmDelete(false)
     setTouched(new Set())
     setSheetOpen(true)
@@ -249,6 +260,7 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
 
   function openEdit(r: Restaurant) {
     setEditingRecord(r)
+    setFormSession(n => n + 1)
     setForm(recordToForm(r))
     setConfirmDelete(false)
     setTouched(new Set())
@@ -297,6 +309,9 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
         booking_source:      form.booking_source.trim() || null,
         state_province:      form.state_province.trim() || null,
         postal_code:         form.postal_code.trim() || null,
+        country:             form.country.trim() || null,
+        // Empty: the server looks it up from the place.
+        timezone:            form.timezone || null,
         reservation_is_all_day: form.reservation_is_all_day,
         reservation_is_approx: form.reservation_is_all_day ? false : form.reservation_is_approx,
       }
@@ -452,6 +467,26 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
               />
             </FormField>
           </div>
+
+          <FormField label="Country">
+            <input
+              type="text"
+              value={form.country}
+              onChange={e => setField('country', e.target.value)}
+              placeholder="Optional in the US and Canada, e.g. Japan"
+              title="Helps find the restaurant's timezone outside the US and Canada"
+              style={inputStyle()}
+            />
+          </FormField>
+
+          <TimezoneField
+            key={formSession}
+            value={form.timezone}
+            onChange={tz => setField('timezone', tz)}
+            query={placeQuery(form)}
+            date={form.reservation_date || undefined}
+            suggested={records.map(r => r.timezone ?? '')}
+          />
 
           <FormField label="Phone">
             <input

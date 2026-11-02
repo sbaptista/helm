@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries';
 import { normalizeZonedDateTime } from '@/lib/zoned-time';
+import { fillMissingTimezones, airportQuery } from '@/lib/geo/timezone-lookup';
 
 function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -32,6 +33,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const updates: Record<string, unknown> = {};
     for (const key of allowed) { if (key in body) updates[key] = body[key]; }
     if (Object.keys(updates).length === 0) return Response.json({ error: 'No valid fields to update.' }, { status: 400 });
+    // A form save sends both timezones; empty ones are looked up from the airports
+    // before the local times are converted.
+    if ('departure_timezone' in updates) {
+      await fillMissingTimezones(updates, [
+        { timezone: 'departure_timezone', query: airportQuery(updates.origin_airport as string | null) },
+        { timezone: 'arrival_timezone', query: airportQuery(updates.destination_airport as string | null) },
+      ]);
+    }
     if ('departure_time' in updates) {
       updates.departure_time = normalizeZonedDateTime(updates.departure_time, updates.departure_timezone);
     }

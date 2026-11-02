@@ -14,6 +14,8 @@ import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
 import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
+import { TimezoneField } from '@/components/ui/TimezoneField'
+import { placeQuery } from '@/lib/geo/place-query'
 import { useRouter } from '@/lib/offline/router'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -40,6 +42,8 @@ type Hotel = {
   show_in_itinerary: boolean
   province: string | null
   postal_code: string | null
+  country?: string | null
+  timezone?: string | null
   maps_url: string | null
   check_in_is_all_day: boolean
   check_in_is_approx: boolean
@@ -88,6 +92,8 @@ const EMPTY_FORM = {
   show_in_itinerary: true, // new records are listed in the Itinerary by default
   province: '',
   postal_code: '',
+  country: '',
+  timezone: '',
   maps_url: '',
   check_in_is_all_day: false,
   check_in_is_approx: false,
@@ -186,6 +192,8 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
   const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingHotel, setEditingHotel] = useState<Hotel | null>(null)
+  // Remounts the timezone field for each form opened, so its lookup state is per record.
+  const [formSession, setFormSession] = useState(0)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -244,6 +252,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
   function openAdd() {
     setEditingHotel(null)
     setForm(EMPTY_FORM)
+    setFormSession(n => n + 1)
     setConfirmDelete(false)
     setTouched(new Set())
     setSheetOpen(true)
@@ -251,6 +260,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
 
   function openEdit(hotel: Hotel) {
     setEditingHotel(hotel)
+    setFormSession(n => n + 1)
     setForm({
       name: hotel.name,
       address: hotel.address ?? '',
@@ -270,6 +280,8 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
       show_in_itinerary: hotel.show_in_itinerary ?? false,
       province: hotel.province ?? '',
       postal_code: hotel.postal_code ?? '',
+      country: hotel.country ?? '',
+      timezone: hotel.timezone ?? '',
       maps_url: hotel.maps_url ?? '',
       check_in_is_all_day: hotel.check_in_is_all_day ?? false,
       check_in_is_approx: hotel.check_in_is_approx ?? false,
@@ -315,6 +327,9 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
         show_in_itinerary: form.show_in_itinerary,
         province: form.province.trim() || null,
         postal_code: form.postal_code.trim() || null,
+        country: form.country.trim() || null,
+        // Empty: the server looks it up from the place.
+        timezone: form.timezone || null,
         maps_url: form.maps_url.trim() || null,
         check_in_is_all_day: form.check_in_is_all_day,
         check_in_is_approx: form.check_in_is_all_day ? false : form.check_in_is_approx,
@@ -442,6 +457,26 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
               />
             </FormField>
           </div>
+
+          <FormField label="Country">
+            <input
+              type="text"
+              value={form.country}
+              onChange={e => setField('country', e.target.value)}
+              placeholder="Optional in the US and Canada, e.g. Japan"
+              title="Helps find the hotel's timezone outside the US and Canada"
+              style={inputStyle}
+            />
+          </FormField>
+
+          <TimezoneField
+            key={formSession}
+            value={form.timezone}
+            onChange={tz => setField('timezone', tz)}
+            query={placeQuery(form)}
+            date={form.check_in_date || form.check_out_date || undefined}
+            suggested={hotels.map(h => h.timezone ?? '')}
+          />
 
           <FormField label="Maps URL">
             <input

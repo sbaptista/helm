@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
 import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
+import { fillMissingTimezones, placeQuery } from '@/lib/geo/timezone-lookup'
 
 function serverClient() {
   return createClient(
@@ -36,6 +37,8 @@ export async function PATCH(
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const supabase = serverClient()
     const body = await request.json()
+    // A form save sends timezone; an empty one is looked up from the place.
+    if ('timezone' in body) await fillMissingTimezones(body, [{ timezone: 'timezone', query: placeQuery(body) }])
     const { data: existing } = await supabase
       .from('hotels')
       .select('gcal_include, gcal_checkin_event_id, gcal_checkout_event_id')

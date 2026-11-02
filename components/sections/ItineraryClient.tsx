@@ -14,6 +14,7 @@ import { scrollToFirstError } from '@/lib/form-utils'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
 import { formatZonedTimeRange } from '@/lib/zoned-time'
+import { TimezoneField } from '@/components/ui/TimezoneField'
 import type { LinkedItineraryEntry, LinkedItinerarySources } from '@/lib/itinerary/linked-entries'
 import { FlightsClient } from './FlightsClient'
 import { HotelsClient } from './HotelsClient'
@@ -108,13 +109,6 @@ const DAY_TYPE_BORDER: Record<string, string> = {
   transit:     'var(--slate)',
   sightseeing: 'var(--red)',
 }
-
-const TRIP_CITIES = [
-  { city: 'Honolulu',                      tzid: 'Pacific/Honolulu' },
-  { city: 'Seattle',                       tzid: 'America/Los_Angeles' },
-  { city: 'Vancouver / Kamloops',           tzid: 'America/Vancouver' },
-  { city: 'Jasper / Lake Louise / Banff',   tzid: 'America/Edmonton' },
-]
 
 const HST_TZ = 'Pacific/Honolulu'
 
@@ -275,6 +269,8 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
 
   const [editingDay, setEditingDay] = useState<ItineraryDay | null>(null)
   const [editingRow, setEditingRow] = useState<ItineraryRow | null>(null)
+  // Remounts the timezone fields for each row form opened, so their lookup state is per row.
+  const [rowFormSession, setRowFormSession] = useState(0)
 
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
 
@@ -360,6 +356,11 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
 
   const [dayForm, setDayForm] = useState(EMPTY_DAY_FORM)
   const [rowForm, setRowForm] = useState(EMPTY_ROW_FORM)
+  // The trip's timezones, listed first in the timezone picker.
+  const timezoneSuggestions = useMemo(() => [
+    ...rows.flatMap(r => [r.start_timezone ?? '', r.end_timezone ?? '']),
+    ...linkedEntries.map(e => e.timezone ?? ''),
+  ].filter(Boolean), [rows, linkedEntries])
   // All Day and Time TBD rows sync as all-day events on their attached day
   const canSyncRowToCalendar = rowForm.is_all_day || rowForm.is_time_tbd ? !!rowForm.day_id : !!rowForm.start_date
 
@@ -486,6 +487,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
 
   function openAddRow(dayId: string) {
     setEditingRow(null)
+    setRowFormSession(n => n + 1)
     const day = days.find(d => d.id === dayId)
     const dayRows = rows.filter(r => r.day_id === dayId)
     setRowForm({
@@ -502,6 +504,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
 
   function openEditRow(r: ItineraryRow) {
     setEditingRow(r)
+    setRowFormSession(n => n + 1)
     setRowForm(rowToForm(r))
     setConfirmDeleteRow(false)
     setRowErrors({})
@@ -780,6 +783,10 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       {row.is_all_day ? (
                         <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--slate)', letterSpacing: '0.04em' }}>All Day</span>
+                      ) : row.linked?.timezone_missing ? (
+                        // No timezone yet: a time without one would be wrong
+                        // (docs/timezone-lookup-plan.md).
+                        <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--red)', minWidth: '80px' }}>Time zone unknown</span>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '80px' }}>
                           <span suppressHydrationWarning style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--gold-text)' }}>
@@ -1071,20 +1078,20 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
                   style={inputStyle(!!rowErrors.start_time_val)}
                 />
               </FormField>
-              <FormField label="Start Timezone" error={rowErrors.start_timezone}>
-                <select
-                  value={rowForm.start_timezone}
-                  onChange={e => { setRowForm(f => ({ ...f, start_timezone: e.target.value })); clearError('start_timezone') }}
-                  disabled={rowForm.is_all_day || rowForm.is_time_tbd}
-                  style={inputStyle(!!rowErrors.start_timezone)}
-                >
-                  <option value="">— Select —</option>
-                  {TRIP_CITIES.map(c => (
-                    <option key={c.tzid + c.city} value={c.tzid}>{c.city}</option>
-                  ))}
-                </select>
-              </FormField>
             </div>
+
+            {/* Looked up from Location (docs/timezone-lookup-plan.md) */}
+            <TimezoneField
+              key={`start-${rowFormSession}`}
+              label="Start timezone"
+              value={rowForm.start_timezone}
+              onChange={tz => { setRowForm(f => ({ ...f, start_timezone: tz })); clearError('start_timezone') }}
+              query={rowForm.location.trim()}
+              date={rowForm.start_date || undefined}
+              suggested={timezoneSuggestions}
+              error={rowErrors.start_timezone}
+              disabled={rowForm.is_all_day || rowForm.is_time_tbd}
+            />
 
             {/* End row: End Date | End Time | End TZ */}
             <div className="timing-grid">
@@ -1106,20 +1113,19 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
                   style={inputStyle(!!rowErrors.end_time_val)}
                 />
               </FormField>
-              <FormField label="End Timezone">
-                <select
-                  value={rowForm.end_timezone}
-                  onChange={e => setRowForm(f => ({ ...f, end_timezone: e.target.value }))}
-                  disabled={rowForm.is_all_day || rowForm.is_time_tbd}
-                  style={inputStyle()}
-                >
-                  <option value="">— Same as start —</option>
-                  {TRIP_CITIES.map(c => (
-                    <option key={c.tzid + c.city} value={c.tzid}>{c.city}</option>
-                  ))}
-                </select>
-              </FormField>
             </div>
+
+            <TimezoneField
+              key={`end-${rowFormSession}`}
+              label="End timezone"
+              value={rowForm.end_timezone}
+              onChange={tz => setRowForm(f => ({ ...f, end_timezone: tz }))}
+              query=""
+              date={rowForm.end_date || rowForm.start_date || undefined}
+              suggested={timezoneSuggestions}
+              emptyLabel="Same as start"
+              disabled={rowForm.is_all_day || rowForm.is_time_tbd}
+            />
 
             {/* Checkboxes inside fieldset */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '6px' }}>

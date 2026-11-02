@@ -31,6 +31,8 @@ source "$repo_root/scripts/security/helm-secrets-set"
 [[ "$(printf 'ALPHA=old\nBETA=keep\n' | remove_value ALPHA)" == 'BETA=keep' ]]
 is_allowed_name ANTHROPIC_API_KEY
 is_removable_name ANTHROPIC_API_KEY
+is_allowed_name GOOGLE_MAPS_API_KEY
+is_removable_name GOOGLE_MAPS_API_KEY
 is_removable_name BYPASS_AUTH_USER_ID
 must_not is_allowed_name BYPASS_AUTH_USER_ID
 
@@ -44,7 +46,7 @@ for name in "${required_environment[@]}"; do
     exit 1
   }
 done
-for name in ANTHROPIC_API_KEY BYPASS_AUTH_USER_ID; do
+for name in ANTHROPIC_API_KEY GOOGLE_MAPS_API_KEY BYPASS_AUTH_USER_ID; do
   for required in "${required_environment[@]}"; do
     [[ "$required" != "$name" ]] || { printf 'FAIL: helm-dev requires %s\n' "$name" >&2; exit 1; }
   done
