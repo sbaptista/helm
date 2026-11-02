@@ -82,20 +82,17 @@ export async function DELETE(
   const member = await checkMembership(supabase, group.trip_id, userId)
   if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  // Block if active items exist
-  const { count } = await supabase
-    .from('packing')
-    .select('id', { count: 'exact', head: true })
-    .eq('group_id', id)
-    .is('deleted_at', null)
-  if (count && count > 0) {
-    return NextResponse.json({ error: 'Cannot delete a category that has items' }, { status: 409 })
+  // Deletes the category with its sub-groups and items in one transaction.
+  // docs/packing-delete-category-plan.md
+  const { data, error } = await supabase.rpc('delete_packing_category', {
+    p_trip_id: group.trip_id,
+    p_user_id: userId,
+    p_group_id: id,
+  })
+  if (error?.code === 'P0001') return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error?.code === 'PGRST202') {
+    return NextResponse.json({ error: 'Delete Category database setup is not yet applied.' }, { status: 503 })
   }
-
-  const { error } = await supabase
-    .from('packing_groups')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, ...data })
 }

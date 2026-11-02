@@ -64,6 +64,26 @@ function choiceStyle(active: boolean): React.CSSProperties {
 
 // Multi-select checkbox (docs/packing-multi-select-plan.md): 44pt hit target,
 // dash when only some of its items are selected.
+// ▾ / ▸ on a category or sub-group heading (docs/packing-collapse-plan.md).
+function ShowHideButton({ hidden, name, onToggle }: { hidden: boolean; name: string; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={!hidden}
+      aria-label={`${hidden ? 'Show' : 'Hide'} ${name}`}
+      style={{
+        width: '44px', height: '44px', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'none', border: 'none', cursor: 'pointer',
+        color: 'var(--text2)', fontSize: '18px', padding: 0,
+      }}
+    >
+      {hidden ? '▸' : '▾'}
+    </button>
+  )
+}
+
 function SelectBox({ state, onToggle, label }: { state: SelectionState; onToggle: () => void; label: string }) {
   return (
     <label
@@ -194,6 +214,22 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
   const [moveGroupId, setMoveGroupId] = useState('')
   const [moveSubgroupId, setMoveSubgroupId] = useState('') // empty = none
 
+  // Hidden categories / sub-groups, remembered on this device (docs/packing-collapse-plan.md).
+  // Read in useEffect, never in the useState initializer, to avoid a hydration mismatch.
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
+  const hiddenKey = `helm-packing-hidden-${tripId}`
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(hiddenKey)
+      if (raw) setHiddenIds(new Set(JSON.parse(raw) as string[]))
+    } catch {
+      // Storage unavailable: everything stays shown.
+    }
+  }, [hiddenKey])
+
+  // Category awaiting delete confirmation in Manage Categories (docs/packing-delete-category-plan.md)
+  const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null)
+
   // Derived
   const personGroups = useMemo(() => {
     return groups
@@ -305,6 +341,13 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
         setItems(prev => [...prev, created])
         toast.show('Item added', 'success')
       }
+      // Show where the item went, in case that category or sub-group was hidden.
+      updateHidden(prev => {
+        const next = new Set(prev)
+        next.delete(itemGroupId)
+        if (itemSubgroupId) next.delete(itemSubgroupId)
+        return next
+      })
       closeItemSheet()
     } catch {
       toast.show('Something went wrong. Please try again.', 'error')
@@ -382,6 +425,40 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
   }
 
   // Multi-select
+  // Applies a change to the hidden set, drops ids of deleted categories / sub-groups, and saves it.
+  function updateHidden(change: (prev: Set<string>) => Set<string>) {
+    setHiddenIds(prev => {
+      const known = new Set([...groups.map(g => g.id), ...subgroups.map(s => s.id)])
+      const next = new Set([...change(prev)].filter(id => known.has(id)))
+      try {
+        localStorage.setItem(hiddenKey, JSON.stringify([...next]))
+      } catch {
+        // Not remembered; still applies until reload.
+      }
+      return next
+    })
+  }
+
+  function toggleHidden(id: string) {
+    updateHidden(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  // Show All when everything of this person's is hidden, otherwise Hide All.
+  const allHidden = personGroups.length > 0 && personGroups.every(g => hiddenIds.has(g.id))
+
+  function setAllHidden(hide: boolean) {
+    const ids = [...personGroups.map(g => g.id), ...personSubgroups.map(s => s.id)]
+    updateHidden(prev => {
+      const next = new Set(prev)
+      ids.forEach(id => { if (hide) next.add(id); else next.delete(id) })
+      return next
+    })
+  }
+
   function clearSelection() {
     setSelectedIds(new Set())
     setConfirmBulkDelete(false)
@@ -661,6 +738,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
 
   // Rename
   function startRename(kind: 'group' | 'subgroup', record: { id: string; name: string }) {
+    setConfirmDeleteGroupId(null)
     setRenaming({ kind, id: record.id, value: record.name, touched: false })
   }
 
@@ -747,6 +825,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
   }
 
   async function moveCategory(group: PackingGroup, direction: 'up' | 'down') {
+    setConfirmDeleteGroupId(null)
     const sorted = [...personGroups]
     const idx = sorted.findIndex(g => g.id === group.id)
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1
@@ -775,17 +854,62 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
     }
   }
 
-  async function handleDeleteCategory(group: PackingGroup) {
-    const res = await apiFetch(`/api/packing-groups/${group.id}`, { method: 'DELETE' })
-    if (res.status === 409) {
-      toast.show('Cannot delete a category that has items.', 'error')
-      return
+  function categoryContents(group: PackingGroup) {
+    return {
+      items: items.filter(i => i.group_id === group.id).length,
+      subgroups: subgroups.filter(s => s.group_id === group.id).length,
     }
-    if (res.ok) {
+  }
+
+  // Deletes the category with its sub-groups and items. An empty category goes
+  // through apiFetch so it still works offline; one with contents needs the server.
+  async function handleDeleteCategory(group: PackingGroup) {
+    const contents = categoryContents(group)
+    const hasContents = contents.items > 0 || contents.subgroups > 0
+    setBusy({ message: `Deleting ${group.name}…` })
+    try {
+      let removedItems: string[] = []
+      let removedSubs: string[] = []
+      if (hasContents) {
+        // Changes still in the outbox must reach the server first, or they could land in a deleted category.
+        if (!(await flushOutbox())) {
+          toast.show('Some changes are still waiting to sync. Try again in a moment.', 'error')
+          return
+        }
+        const res = await fetch(`/api/packing-groups/${group.id}`, { method: 'DELETE' })
+        const result = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          toast.show(result.error ?? 'Failed to delete', 'error')
+          return
+        }
+        removedItems = result.itemIds ?? []
+        removedSubs = result.subgroupIds ?? []
+        removedItems.forEach(id => snapshotRemove('packing', tripId, id))
+        removedSubs.forEach(id => snapshotRemove('packing-subgroups', tripId, id))
+        snapshotRemove('packing-groups', tripId, group.id)
+      } else {
+        const res = await apiFetch(`/api/packing-groups/${group.id}`, { method: 'DELETE' })
+        if (!res.ok) {
+          toast.show('Failed to delete', 'error')
+          return
+        }
+      }
+      const itemSet = new Set(removedItems)
+      const subSet = new Set(removedSubs)
+      setItems(prev => prev.filter(i => !itemSet.has(i.id)))
+      setSubgroups(prev => prev.filter(s => !subSet.has(s.id)))
       setGroups(prev => prev.filter(g => g.id !== group.id))
-      toast.show('Category deleted', 'success')
-    } else {
+      setSelectedIds(prev => new Set([...prev].filter(id => !itemSet.has(id))))
+      setConfirmDeleteGroupId(null)
+      const parts = [
+        removedSubs.length ? plural(removedSubs.length, 'sub-group') : '',
+        removedItems.length ? plural(removedItems.length, 'item') : '',
+      ].filter(Boolean).join(', ')
+      toast.show(`${group.name} deleted${parts ? ` (${parts})` : ''}`, 'success')
+    } catch {
       toast.show('Failed to delete', 'error')
+    } finally {
+      setBusy(null)
     }
   }
 
@@ -978,6 +1102,9 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
           <Button variant="ghost" size="sm" onClick={handleResetPacked}>
             ↺ Reset Packed
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => setAllHidden(!allHidden)} disabled={personGroups.length === 0}>
+            {allHidden ? 'Show All' : 'Hide All'}
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setCatSheetOpen(true)}>
             Manage Categories
           </Button>
@@ -1013,6 +1140,14 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                 <div role="menu" className="pack-more-menu">
                   <button role="menuitem" className="pack-more-item" onClick={() => { setMoreOpen(false); handleResetPacked() }}>
                     ↺ Reset Packed
+                  </button>
+                  <button
+                    role="menuitem"
+                    className="pack-more-item"
+                    disabled={personGroups.length === 0}
+                    onClick={() => { setMoreOpen(false); setAllHidden(!allHidden) }}
+                  >
+                    {allHidden ? 'Show All' : 'Hide All'}
                   </button>
                   <button role="menuitem" className="pack-more-item" onClick={() => { setMoreOpen(false); setCatSheetOpen(true) }}>
                     Manage Categories
@@ -1111,10 +1246,12 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
             .sort((a, b) => a.sort_order - b.sort_order)
           const packedCount = groupItems.filter(i => i.packed).length
           const ownedCount = groupItems.filter(i => i.owned).length
+          const groupHidden = hiddenIds.has(group.id)
 
           return (
             <div key={group.id} className="pack-group">
               <div className="pack-group-header">
+                <ShowHideButton hidden={groupHidden} name={group.name} onToggle={() => toggleHidden(group.id)} />
                 {selectMode && groupItems.length > 0 && (
                   <SelectBox
                     state={selectionStateOf(groupItems)}
@@ -1122,7 +1259,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                     label={`Select all in ${group.name}`}
                   />
                 )}
-                <span className="pack-group-name" style={{ flex: 1 }}>{group.name}</span>
+                <span className="pack-group-name" onClick={() => toggleHidden(group.id)} style={{ flex: 1, cursor: 'pointer' }}>{group.name}</span>
                 <span className="pack-group-progress">
                   {packedCount}/{groupItems.length} packed · {ownedCount} owned
                 </span>
@@ -1136,6 +1273,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                 </Button>
               </div>
 
+              {!groupHidden && (<>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
                 <div style={{ width: '4px', flexShrink: 0 }} />
                 <span style={{ flex: 1 }} />
@@ -1152,12 +1290,14 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                 const subItems = groupItems
                   .filter(i => i.subgroup_id === sub.id)
                   .sort((a, b) => a.sort_order - b.sort_order)
+                const subHidden = hiddenIds.has(sub.id)
                 return (
                   <div key={sub.id} className="pack-subgroup">
                     <div
                       className="pack-subgroup-header"
-                      style={selectMode ? { display: 'flex', alignItems: 'center', gap: '4px', padding: 0 } : undefined}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: 0 }}
                     >
+                      <ShowHideButton hidden={subHidden} name={sub.name} onToggle={() => toggleHidden(sub.id)} />
                       {selectMode && subItems.length > 0 && (
                         <SelectBox
                           state={selectionStateOf(subItems)}
@@ -1165,12 +1305,18 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                           label={`Select all in ${sub.name}`}
                         />
                       )}
-                      {sub.name}
+                      <span onClick={() => toggleHidden(sub.id)} style={{ flex: 1, cursor: 'pointer' }}>
+                        {sub.name}
+                        {subHidden && (
+                          <span style={{ textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}> · {plural(subItems.length, 'item')}</span>
+                        )}
+                      </span>
                     </div>
-                    {subItems.map(item => renderItem(item))}
+                    {!subHidden && subItems.map(item => renderItem(item))}
                   </div>
                 )
               })}
+              </>)}
             </div>
           )
         })}
@@ -1269,7 +1415,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
       {/* Manage Categories Sheet */}
       <ResponsiveSheet
         open={catSheetOpen}
-        onClose={() => { setCatSheetOpen(false); setRenaming(null) }}
+        onClose={() => { setCatSheetOpen(false); setRenaming(null); setConfirmDeleteGroupId(null) }}
         title="Manage Categories"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '40px' }}>
@@ -1279,19 +1425,41 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
             </p>
           )}
           {personGroups.map((g, i) => {
-            const hasItems = personItems.some(item => item.group_id === g.id && !item.subgroup_id)
+            const contents = categoryContents(g)
+            const hasContents = contents.items > 0 || contents.subgroups > 0
+            const contentsText = [
+              contents.subgroups ? plural(contents.subgroups, 'sub-group') : '',
+              contents.items ? plural(contents.items, 'item') : '',
+            ].filter(Boolean).join(' and ')
             return (
               <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 'var(--r)', padding: '10px 14px' }}>
-                {renaming?.kind === 'group' && renaming.id === g.id ? renderRenameEditor('Category name') : (<>
+                {confirmDeleteGroupId === g.id ? (
+                  <div role="alert" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.5 }}>
+                      Delete <strong>{g.name}</strong>{contentsText ? ` with ${contentsText}` : ''}? This can&apos;t be undone.
+                    </span>
+                    {hasContents && !isOnline && (
+                      <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
+                        Deleting a category with items needs a connection.
+                      </span>
+                    )}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteGroupId(null)} disabled={bulkBusy}>Cancel</Button>
+                      <Button variant="danger" size="sm" onClick={() => handleDeleteCategory(g)} disabled={bulkBusy || (hasContents && !isOnline)}>Delete</Button>
+                    </div>
+                  </div>
+                ) : renaming?.kind === 'group' && renaming.id === g.id ? renderRenameEditor('Category name') : (<>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500 }}>{g.name}</span>
                 </div>
                 <button onClick={() => startRename('group', g)} aria-label={`Rename ${g.name}`} title="Rename" style={renameBtnStyle}>✎</button>
                 <button onClick={() => moveCategory(g, 'up')} disabled={i === 0} style={{ ...iconBtnStyle, opacity: i === 0 ? 0.3 : 1 }}>↑</button>
                 <button onClick={() => moveCategory(g, 'down')} disabled={i === personGroups.length - 1} style={{ ...iconBtnStyle, opacity: i === personGroups.length - 1 ? 0.3 : 1 }}>↓</button>
-                <button 
-                  onClick={() => hasItems ? toast.show('Cannot delete a category with items', 'error') : handleDeleteCategory(g)}
-                  style={{ ...iconBtnStyle, color: 'var(--red)', borderColor: 'rgba(139,32,32,0.2)', opacity: hasItems ? 0.3 : 1 }}>×</button>
+                <button
+                  onClick={() => { setRenaming(null); setConfirmDeleteGroupId(g.id) }}
+                  aria-label={`Delete ${g.name}`}
+                  title="Delete"
+                  style={{ ...renameBtnStyle, color: 'var(--red)', borderColor: 'rgba(139,32,32,0.2)' }}>×</button>
                 </>)}
               </div>
             )

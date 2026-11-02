@@ -6,6 +6,25 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0019',
+    date: '2026-11-01',
+    changes: [
+      'Packing categories and sub-groups can now be hidden and shown: tap ▾ / ▸ or the name on the heading. A hidden category keeps its heading and progress; a hidden sub-group shows how many items it holds.',
+      'Show All / Hide All is in the toolbar (under More on iPhone). Each device remembers what is hidden, separately for Stan and Cathy.',
+      'Selecting a hidden heading still selects everything in it, and saving an item into a hidden category or sub-group shows it again.',
+    ],
+  },
+  {
+    version: 'v00.04.0018',
+    date: '2026-11-01',
+    changes: [
+      'Packing categories that have items can now be deleted. Deleting a category also deletes its sub-groups and all their items.',
+      'Tapping × in Manage Categories now asks first, saying how many sub-groups and items will go, and an "in progress" box shows while it is deleted.',
+      'An empty category can still be deleted offline; deleting one with items needs a connection.',
+      'Fixed: deleting a category that had sub-groups but no items left those sub-groups behind.',
+    ],
+  },
+  {
     version: 'v00.04.0017',
     date: '2026-11-01',
     changes: [
