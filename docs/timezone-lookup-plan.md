@@ -148,3 +148,13 @@ Stan isn't sure the key is set up correctly, so the build includes a check (belo
 **Not changed:** the server's old timezone data for BC (see "Separate").
 
 **Checks:** typecheck and lint pass. Not tested in the app: the browser pane isn't signed in, and the key isn't set yet.
+
+## Server timezone data (00.04.0023)
+
+- **The issue:** the server converts local times with Node's bundled tz data. Node v22.22.2, on this Mac, has tz 2025c, which still puts America/Vancouver on PST in winter. BC is on permanent UTC−7 from 2026-11-01 (tz 2026b and later). So server-converted times for BC places from November 2026 on are an hour off.
+- **The fix is newer Node, not code:**
+  - Node 22.23.4 (LTS, 2026-10-21) ships tz 2026e. So do Node 24.16.0+ (2026b) and the Node 26 line.
+  - This Mac: an admin installs Node 22.23.4 or later.
+  - Vercel: its Node.js Version setting picks the major version only, and Vercel chooses the patch.
+- **Check:** `GET /api/version` now returns `timezoneData: { node, tzdata, bcRuleCurrent }`. It's public, so it can be checked on production without signing in. `bcRuleCurrent` is true when America/Vancouver is UTC−7 on 2027-01-15.
+  - Before the upgrade, this Mac's dev server reported `{"node":"v22.22.2","tzdata":"2025c","bcRuleCurrent":false}`.

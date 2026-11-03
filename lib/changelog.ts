@@ -6,6 +6,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0023',
+    date: '2026-11-02',
+    changes: [
+      'Behind the scenes: Helm now reports which timezone data its server uses, to confirm it has British Columbia\'s switch to year-round UTC−7. Older data put Vancouver, Kamloops and Whistler times an hour off from November 2026.',
+    ],
+  },
+  {
     version: 'v00.04.0022',
     date: '2026-11-02',
     changes: [
