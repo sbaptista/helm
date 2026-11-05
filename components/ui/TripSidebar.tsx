@@ -15,6 +15,7 @@ import {
   ScrollText,
   Printer,
   FileUp,
+  Pencil,
 } from 'lucide-react'
 import type { GCalState } from '@/components/advisor/CalendarModal'
 import HelmVersionLabel from '@/components/ui/HelmVersionLabel'
@@ -30,6 +31,7 @@ interface TripSidebarProps {
   warnCounts: Record<string, number>
   tripId: string
   onPrint: () => void
+  onEditTrip: () => void
   onImport: () => void
   onShowLogs: () => void
   onShowCalendar: () => void
@@ -166,6 +168,7 @@ export function TripSidebar({
   tripDates,
   warnCounts,
   onPrint,
+  onEditTrip,
   onImport,
   onShowLogs,
   onShowCalendar,
@@ -333,6 +336,8 @@ export function TripSidebar({
               ) : undefined
             }
           />
+          {/* Works offline: title and destination wait on the device (docs/edit-trip-in-trip-plan.md). */}
+          <ActionItem icon={Pencil}     label="Edit Trip"       onClick={() => { onEditTrip(); onClose() }} />
           <ActionItem icon={Printer}    label="Print Trip"      needsConnection onClick={() => { onPrint(); onClose() }} />
           <ActionItem icon={FileUp}     label="Import Document" needsConnection onClick={() => { onImport(); onClose() }} />
         </div>

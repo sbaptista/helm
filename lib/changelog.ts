@@ -6,6 +6,42 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0028',
+    date: '2026-11-05',
+    changes: [
+      'Behind the scenes (development only): the DEV panel has a Simulate Offline switch, so offline editing can be tested on localhost without turning Wi-Fi off.',
+    ],
+  },
+  {
+    version: 'v00.04.0027',
+    date: '2026-11-05',
+    changes: [
+      'Fixed: offline, a trip card\'s ⋯ menu on the dashboard hid Edit along with the actions that need a connection. Edit is now available offline; the other actions still say they need a connection.',
+    ],
+  },
+  {
+    version: 'v00.04.0026',
+    date: '2026-11-05',
+    changes: [
+      'You can now edit a trip\'s title and destination from inside the trip: tap Edit Trip in the menu, or the pencil next to the destination. No need to go back to the dashboard.',
+      'Editing a trip\'s title and destination now works offline, from the trip or the dashboard. The change shows straight away and is sent when Helm is back online. If the same detail was changed on another device meanwhile, the later edit is kept and the other value is listed under Sync conflicts on Logs.',
+    ],
+  },
+  {
+    version: 'v00.04.0025',
+    date: '2026-11-05',
+    changes: [
+      'The packet\'s title page now says "Helm" (instead of "Helm Trip Companion"), with the motto directly under it.',
+    ],
+  },
+  {
+    version: 'v00.04.0024',
+    date: '2026-11-05',
+    changes: [
+      'The printed 8.5×11 trip packet now has the Helm wheel and "Your trips, beautifully organized" at the top of every page, and a large Helm wheel and the motto on its title page.',
+    ],
+  },
+  {
     version: 'v00.04.0023',
     date: '2026-11-02',
     changes: [

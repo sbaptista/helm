@@ -65,6 +65,36 @@ export function PrintStyles() {
         .itin-detail { font-size: 10pt; color: #3D3020; margin-top: 2pt; }
       }
 
+      /* Page frame: the thead row repeats at the top of every printed page.
+         Child combinators keep these rules off the section tables inside. */
+      table.print-frame { width: 100%; border-collapse: collapse; margin: 0; }
+      .print-frame > thead { display: table-header-group; }
+      .print-frame > thead > tr > td,
+      .print-frame > tbody > tr > td { padding: 0; border: none; vertical-align: top; }
+      .print-brand {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12pt;
+        border-bottom: 1pt solid #B8892A;
+        padding-bottom: 5pt;
+        margin-bottom: 14pt;
+      }
+      .print-brand-mark { display: flex; align-items: center; gap: 6pt; }
+      .print-brand-name {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 15pt;
+        font-weight: 700;
+        color: #0D1E35;
+        letter-spacing: 0.04em;
+      }
+      .print-brand-motto {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 12pt;
+        font-style: italic;
+        color: #6E4C10;
+      }
+
       /* Web Preview fallback */
       .print-preview-only {
         background: white;

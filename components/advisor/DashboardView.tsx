@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
-import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { TripCard } from '@/components/advisor/TripCard';
 import { CreateTripModal } from '@/components/advisor/CreateTripModal';
 import { CopyTripModal } from '@/components/advisor/CopyTripModal';
 import { PrintExportModal } from '@/components/advisor/PrintExportModal';
+import { EditTripModal } from '@/components/advisor/EditTripModal';
+import { useDeviceTrips } from '@/hooks/useDeviceTrips';
 import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
 import UpdateBanner, { BANNER_HEIGHT } from '@/components/ui/UpdateBanner';
 import WhatsNewSheet from '@/components/ui/WhatsNewSheet';
@@ -169,7 +170,9 @@ function FilteredEmptyState() {
   );
 }
 
-function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }: DashboardViewProps) {
+function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSignOut = true }: DashboardViewProps) {
+  // Titles and destinations edited offline show before they sync.
+  const trips = useDeviceTrips(serverTrips);
   const router = useRouter();
   const toast = useToast();
   const [filter, setFilter] = useState<FilterValue>('all');
@@ -184,12 +187,6 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
-
-  // Edit form state
-  const [editTitle, setEditTitle] = useState('');
-  const [editDestination, setEditDestination] = useState('');
-  const [editSaving, setEditSaving] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
 
   // Delete state
   const [deleteConfirming, setDeleteConfirming] = useState(false);
@@ -222,9 +219,6 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
 
   function openEdit(trip: Trip) {
     setSelectedTrip(trip);
-    setEditTitle(trip.title);
-    setEditDestination(trip.destination ?? '');
-    setEditError(null);
     setEditOpen(true);
   }
 
@@ -285,30 +279,6 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
       router.refresh();
     } catch (err) {
       toast.show(err instanceof Error ? err.message : 'Something went wrong.', 'neutral');
-    }
-  }
-
-  async function handleEditSave() {
-    if (!selectedTrip) return;
-    setEditSaving(true);
-    setEditError(null);
-    try {
-      const res = await fetch(`/api/trips/${selectedTrip.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: editTitle,
-          destination: editDestination,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Failed to save.');
-      setEditOpen(false);
-      router.refresh();
-    } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Something went wrong.');
-    } finally {
-      setEditSaving(false);
     }
   }
 
@@ -705,44 +675,7 @@ function DashboardViewInner({ trips, userEmail, fetchError, showSignOut = true }
       />
 
       {/* Edit Trip modal */}
-      <Modal open={editOpen} onClose={() => { if (!editSaving) setEditOpen(false); }}>
-        <ModalHeader title="Edit Trip" onClose={() => { if (!editSaving) setEditOpen(false); }} />
-        <ModalBody>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Trip title
-              <input
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                style={inputStyle()}
-                onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle())}
-                onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle())}
-                disabled={editSaving}
-              />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Destination
-              <input
-                value={editDestination}
-                onChange={(e) => setEditDestination(e.target.value)}
-                style={inputStyle()}
-                onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle())}
-                onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle())}
-                disabled={editSaving}
-              />
-            </label>
-            {editError && (
-              <p style={{ fontSize: '13px', color: 'var(--red)', fontFamily: "'Lato', sans-serif" }}>{editError}</p>
-            )}
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="ghost" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancel</Button>
-          <Button variant="primary" onClick={handleEditSave} disabled={editSaving || !editTitle.trim()}>
-            {editSaving ? 'Saving…' : 'Save'}
-          </Button>
-        </ModalFooter>
-      </Modal>
+      <EditTripModal open={editOpen} onClose={() => setEditOpen(false)} trip={selectedTrip} />
 
       {/* Delete Trip modal */}
       <Modal open={deleteOpen} onClose={() => { if (!deleteConfirming) setDeleteOpen(false); }}>

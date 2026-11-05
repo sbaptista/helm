@@ -9,6 +9,9 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Moda
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { CalendarModal, type GCalState } from '@/components/advisor/CalendarModal';
 import { PrintExportModal } from '@/components/advisor/PrintExportModal';
+import { EditTripModal } from '@/components/advisor/EditTripModal';
+import { useDeviceTrip } from '@/hooks/useDeviceTrips';
+import { Pencil } from 'lucide-react';
 import { LogsClient } from '@/components/sections/LogsClient';
 import { DashboardBar } from '@/components/ui/DashboardBar';
 import { TripTopBar } from '@/components/ui/TripTopBar';
@@ -196,7 +199,12 @@ function TripDetailViewInner({
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const localTrip = trip;
+  // Title and destination as this device knows them: an edit made offline
+  // shows before it syncs (docs/edit-trip-in-trip-plan.md).
+  const localTrip = useDeviceTrip(trip);
+
+  // Edit Trip (title, destination); works offline.
+  const [editTripOpen, setEditTripOpen] = useState(false);
 
   // Logs view
   const [showLogs, setShowLogs] = useState(false);
@@ -383,6 +391,7 @@ const handleImportClose = () => {
         warnCounts={warnCounts}
         tripId={trip.id}
         onPrint={needsConnection(() => setPrintOpen(true))}
+        onEditTrip={() => setEditTripOpen(true)}
         onImport={needsConnection(() => {
           if (importDone && hasSectionData) {
             setReimportConfirmOpen(true);
@@ -401,6 +410,12 @@ const handleImportClose = () => {
         open={showCalendar}
         onOpenChange={setShowCalendar}
         onStatusChange={setCalendarStatus}
+      />
+
+      <EditTripModal
+        open={editTripOpen}
+        onClose={() => setEditTripOpen(false)}
+        trip={localTrip}
       />
 
       <PrintExportModal
@@ -442,6 +457,20 @@ const handleImportClose = () => {
             <span className="trip-hero-meta-dates">
               {formatDateRange(localTrip.start_date, localTrip.end_date)}
             </span>
+            <button
+              type="button"
+              onClick={() => setEditTripOpen(true)}
+              aria-label="Edit trip title and destination"
+              title="Edit trip"
+              style={{
+                width: '44px', height: '44px', marginLeft: '4px', flexShrink: 0,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none', border: 'none', borderRadius: 'var(--r)', cursor: 'pointer',
+                color: 'var(--text2)',
+              }}
+            >
+              <Pencil size={18} />
+            </button>
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { unwrapItem, unwrapList, type Collection, type OfflineRecord } from '@/lib/offline/collections';
+import { listUrl, unwrapItem, unwrapList, type Collection, type OfflineRecord } from '@/lib/offline/collections';
 import { confirmOnline, isOnline, setOnline } from '@/lib/offline/status';
 import {
   addConflict, announceOfflineData, getOutbox, removeOp, setSnapshot, setSyncing,
@@ -50,7 +50,7 @@ async function serverList(lists: ServerLists, collection: Collection, tripId: st
   const cached = lists.get(key);
   if (cached) return cached;
   try {
-    const res = await fetch(`/api/trips/${tripId}/${collection}`, { cache: 'no-store' });
+    const res = await fetch(listUrl(collection, tripId), { cache: 'no-store' });
     if (!res.ok) return undefined;
     const records = unwrapList(collection, await res.json());
     if (!records) return undefined;

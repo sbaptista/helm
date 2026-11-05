@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  COLLECTION_LABELS, parseApiUrl, recordName, unwrapItem, unwrapList, wrapItem, wrapList,
+  COLLECTION_LABELS, OFFLINE_TRIP_FIELDS, parseApiUrl, recordName, unwrapItem, unwrapList, wrapItem, wrapList,
   type Collection, type OfflineRecord,
 } from '@/lib/offline/collections';
 import { confirmOnline, isOnline, setOnline } from '@/lib/offline/status';
@@ -63,6 +63,15 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
   }
 
   if (method !== 'POST' && method !== 'PATCH' && method !== 'DELETE') return fetch(input, init);
+  // Only a trip's title and destination can wait for a connection.
+  if (target.collection === 'trips') {
+    const fields = Object.keys(parseBody(init) ?? {});
+    const offlineEdit = method === 'PATCH' && fields.length > 0 && fields.every((f) => OFFLINE_TRIP_FIELDS.includes(f));
+    if (!offlineEdit) {
+      if (!isOnline()) return needsConnection();
+      return fetch(input, init);
+    }
+  }
   if (method === 'POST' && target.kind !== 'list') return fetch(input, init);
   if (method !== 'POST' && target.kind !== 'item') return fetch(input, init);
 
@@ -76,7 +85,9 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
   }
 
   const collection = target.collection;
-  const tripId = target.kind === 'list' ? target.tripId : findTripId(collection, target.id);
+  const tripId = target.kind === 'list' ? target.tripId
+    : collection === 'trips' ? target.id
+    : findTripId(collection, target.id);
   const recordId = target.kind === 'list' ? (body?.id as string) : target.id;
 
   // Online with nothing waiting: send it now. (Changes that failed don't

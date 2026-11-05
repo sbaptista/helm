@@ -2,6 +2,7 @@ import { getDataClient } from '@/lib/supabase/data-client';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { PrintStyles } from '@/components/advisor/print/PrintStyles';
+import { HelmWheel } from '@/components/brand/HelmWheel';
 import { CardPrintView, type ReferenceCardType } from '@/components/advisor/print/CardPrintView';
 import { CardPdfGenerator } from '@/components/advisor/print/CardPdfGenerator';
 import { stripEmojiForPrint, formatPrintDateRange } from '@/lib/printing/printing-service';
@@ -131,20 +132,42 @@ export default async function TripPrintPage({
 
   const showSection = (key: string) => sp[key] === '1';
   const itinFull = sp.detail === 'full';
+  const MOTTO = 'Your trips, beautifully organized';
 
   return (
     <div className="print-preview-root">
       <PrintStyles />
-      
+
+      {/* The table's header row repeats at the top of every printed page,
+          so the Helm icon and motto appear on each page of the packet. */}
+      <table className="print-frame">
+        <thead>
+          <tr>
+            <td>
+              <div className="print-brand">
+                <span className="print-brand-mark">
+                  <HelmWheel size="20pt" weight={1.6} />
+                  <span className="print-brand-name">Helm</span>
+                </span>
+                <span className="print-brand-motto">{MOTTO}</span>
+              </div>
+            </td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+
       {/* Title Page */}
-      <section className="print-section" style={{ height: '9in', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-        <div style={{ fontSize: '10pt', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-text)', marginBottom: '16pt' }}>Helm Trip Companion</div>
+      <section className="print-section" style={{ height: '8.5in', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+        <div style={{ marginBottom: '20pt' }}><HelmWheel size="1.6in" /></div>
+        <div style={{ fontSize: '10pt', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-text)', marginBottom: '4pt' }}>Helm</div>
+        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '14pt', fontStyle: 'italic', color: 'var(--navy)', marginBottom: '20pt' }}>{MOTTO}</div>
         <h1 style={{ fontSize: '42pt' }}>{stripEmojiForPrint(trip.title)}</h1>
         <div style={{ fontSize: '18pt', fontStyle: 'italic', color: 'var(--navy)', marginBottom: '8pt' }}>{trip.destination}</div>
         <div style={{ fontSize: '14pt', fontWeight: 700, color: 'var(--gold-text)' }}>
           {formatPrintDateRange(tripRange.start_date ?? '', tripRange.end_date ?? '') || 'No dates set'}
-        </div>
-      </section>
+        </div>      </section>
 
       {/* Overview */}
       {showSection('overview') && (
@@ -358,6 +381,11 @@ export default async function TripPrintPage({
           ))}
         </section>
       )}
+
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <script dangerouslySetInnerHTML={{ __html: `
         window.onload = () => {

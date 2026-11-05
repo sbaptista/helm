@@ -237,6 +237,10 @@ and the dev server only runs under `helm-dev`. Plan:
   tested on localhost by turning Wi-Fi off on the iPad or iPhone while a trip
   is already open, or by using a DEV-panel "Simulate offline" switch that makes
   `useOnlineStatus` report offline and holds the outbox.
+  **Built 2026-11-05 (v00.04.0028):** DEV panel **Simulate Offline**
+  (`setSimulatedOffline` in `lib/offline/status.ts`, key
+  `helm-dev-simulate-offline`, development only). It survives a reload;
+  turning it off checks the real connection at once, and the outbox syncs.
 - Cold start offline (§2) needs the service worker, so it is checked on
   production after release, as Calendar connect is now.
 

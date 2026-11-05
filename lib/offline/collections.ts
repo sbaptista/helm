@@ -1,12 +1,15 @@
 // The record types that can be edited offline, and how their API URLs look:
 //   list and create: /api/trips/{tripId}/{collection}
 //   update and delete: /api/{collection}/{id}
+// Trips themselves are the exception (docs/edit-trip-in-trip-plan.md): only
+// their title and destination are edited offline, at /api/trips/{id}, and
+// their "list" is that one trip, read from the same URL.
 
 export const COLLECTIONS = [
   'checklist', 'checklist-groups', 'flights', 'hotels',
   'itinerary/days', 'itinerary/rows', 'key-info', 'key-info-groups',
   'packing', 'packing-groups', 'packing-subgroups', 'restaurants',
-  'transportation',
+  'transportation', 'trips',
 ] as const;
 
 export type Collection = typeof COLLECTIONS[number];
@@ -15,6 +18,15 @@ export type Collection = typeof COLLECTIONS[number];
 const ENVELOPES: Partial<Record<Collection, { list: string; item: string }>> = {
   flights: { list: 'flights', item: 'flight' },
 };
+
+// Trip fields that can be changed offline; any other trip change needs a
+// connection (status, delete, clear).
+export const OFFLINE_TRIP_FIELDS = ['title', 'destination'];
+
+// Where a trip's current records of one type are read from.
+export function listUrl(collection: Collection, tripId: string): string {
+  return collection === 'trips' ? `/api/trips/${tripId}` : `/api/trips/${tripId}/${collection}`;
+}
 
 export const COLLECTION_LABELS: Record<Collection, string> = {
   'checklist': 'Checklist item',
@@ -30,6 +42,7 @@ export const COLLECTION_LABELS: Record<Collection, string> = {
   'packing-subgroups': 'Packing subgroup',
   'restaurants': 'Restaurant',
   'transportation': 'Transfer',
+  'trips': 'Trip',
 };
 
 // Fields that name a record in the sync lists, first one present wins.
@@ -59,13 +72,17 @@ export function parseApiUrl(url: string): ApiTarget | null {
 export type OfflineRecord = Record<string, unknown> & { id: string };
 
 export function unwrapList(collection: Collection, json: unknown): OfflineRecord[] | null {
+  if (collection === 'trips') {
+    const trip = unwrapItem(collection, json);
+    return trip ? [trip] : null;
+  }
   const key = ENVELOPES[collection]?.list;
   const value = key ? (json as Record<string, unknown> | null)?.[key] : json;
   return Array.isArray(value) ? (value as OfflineRecord[]) : null;
 }
 
 export function unwrapItem(collection: Collection, json: unknown): OfflineRecord | null {
-  const key = ENVELOPES[collection]?.item;
+  const key = collection === 'trips' ? 'trip' : ENVELOPES[collection]?.item;
   const value = key ? (json as Record<string, unknown> | null)?.[key] : json;
   return value && typeof value === 'object' && typeof (value as OfflineRecord).id === 'string'
     ? (value as OfflineRecord)
@@ -78,7 +95,7 @@ export function wrapList(collection: Collection, records: OfflineRecord[]): unkn
 }
 
 export function wrapItem(collection: Collection, record: OfflineRecord): unknown {
-  const key = ENVELOPES[collection]?.item;
+  const key = collection === 'trips' ? 'trip' : ENVELOPES[collection]?.item;
   return key ? { [key]: record } : record;
 }
 

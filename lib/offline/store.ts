@@ -135,6 +135,24 @@ export function snapshotRemove(collection: Collection, tripId: string, id: strin
   updateSnapshot(collection, tripId, (records) => records.filter((r) => r.id !== id));
 }
 
+// Keeps each trip's title and destination on the device, as the server just
+// sent them (docs/edit-trip-in-trip-plan.md), in one write. Skips trips with
+// changes still waiting to be sent, and trips whose copy is already the same.
+export function rememberTrips(trips: Array<{ id: string; title: string; destination: string | null }>): void {
+  const s = load();
+  const snapshots = { ...s.snapshots };
+  let changed = false;
+  for (const trip of trips) {
+    if (s.outbox.some((o) => o.collection === 'trips' && o.tripId === trip.id)) continue;
+    const key = snapKey('trips', trip.id);
+    const kept = snapshots[key]?.records[0];
+    if (kept && kept.title === trip.title && (kept.destination ?? null) === (trip.destination ?? null)) continue;
+    snapshots[key] = { records: [{ id: trip.id, title: trip.title, destination: trip.destination }], at: Date.now() };
+    changed = true;
+  }
+  if (changed) save({ ...s, snapshots });
+}
+
 // Which trip a record belongs to: update and delete URLs don't say.
 export function findTripId(collection: Collection, recordId: string): string | null {
   const s = load();

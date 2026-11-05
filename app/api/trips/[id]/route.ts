@@ -8,6 +8,30 @@ function getSupabase() {
   return createClient(url, key);
 }
 
+// ─── GET /api/trips/[id] ──────────────────────────────────────────────────────
+
+// One trip, as PATCH returns it. Offline sync reads it before sending a
+// title or destination edited offline, to merge field by field
+// (docs/edit-trip-in-trip-plan.md).
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  const { id } = await params;
+
+  let supabase;
+  try {
+    supabase = getSupabase();
+  } catch (e) {
+    return Response.json({ error: (e as Error).message }, { status: 500 });
+  }
+
+  const { data, error } = await supabase.from('trips').select('*').eq('id', id).maybeSingle();
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (!data) return Response.json({ error: 'Trip not found.' }, { status: 404 });
+  return Response.json({ trip: data });
+}
+
 // ─── PATCH /api/trips/[id] ────────────────────────────────────────────────────
 
 export async function PATCH(

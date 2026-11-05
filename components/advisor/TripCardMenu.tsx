@@ -104,12 +104,13 @@ export function TripCardMenu({
           }}
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Edit (title, destination) works offline (docs/edit-trip-in-trip-plan.md). */}
+          <MenuItem label="Edit" onClick={() => { setOpen(false); onEdit(); }} />
           {!isOnline ? (
-            <p style={{ margin: 0, padding: '10px 14px', fontSize: '15px', lineHeight: 1.4, color: 'var(--text2)' }}>
-              Trip actions need a connection.
+            <p style={{ margin: 0, padding: '10px 14px', fontSize: '15px', lineHeight: 1.4, color: 'var(--text2)', borderTop: '1px solid var(--border2)' }}>
+              Other trip actions need a connection.
             </p>
           ) : (<>
-          <MenuItem label="Edit" onClick={() => { setOpen(false); onEdit(); }} />
           <MenuItem label="Copy Trip" onClick={() => { setOpen(false); onCopy(); }} />
           <MenuItem label="Print" onClick={() => { setOpen(false); onPrint(); }} />
 

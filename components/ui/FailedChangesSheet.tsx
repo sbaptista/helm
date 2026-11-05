@@ -8,7 +8,7 @@ import {
   announceOfflineData, getOfflineVersion, getOutbox, removeOp, retryFailed, setSnapshot,
   subscribeOffline,
 } from '@/lib/offline/store';
-import { unwrapList } from '@/lib/offline/collections';
+import { listUrl, unwrapList } from '@/lib/offline/collections';
 import { flushOutbox } from '@/lib/offline/sync';
 
 const ACTION = { POST: 'Add', PATCH: 'Change', DELETE: 'Delete' } as const;
@@ -26,7 +26,7 @@ export default function FailedChangesSheet({ open, onClose }: { open: boolean; o
     // Put the list back to what the server has.
     if (op && isOnline) {
       try {
-        const res = await fetch(`/api/trips/${op.tripId}/${op.collection}`, { cache: 'no-store' });
+        const res = await fetch(listUrl(op.collection, op.tripId), { cache: 'no-store' });
         const records = res.ok ? unwrapList(op.collection, await res.json()) : null;
         if (records) setSnapshot(op.collection, op.tripId, records);
       } catch {}

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { PersistentMessage } from '@/components/ui/PersistentMessage';
+import { isSimulatedOffline, setSimulatedOffline } from '@/lib/offline/status';
 
 const VARIANT_KEY = 'helm-auth-variant';
 const UPDATE_SIM_KEY = 'helm-dev-simulate-update';
@@ -15,12 +16,14 @@ function DevDebugPanelInner() {
   const [showFatal, setShowFatal] = useState(false);
   const [authVariant, setAuthVariant] = useState<'a' | 'b'>('a');
   const [simulateUpdate, setSimulateUpdate] = useState(false);
+  const [simulateOffline, setSimulateOffline] = useState(false);
   const [tzResults, setTzResults] = useState<string[] | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(VARIANT_KEY);
     if (stored === 'b') setAuthVariant('b');
     setSimulateUpdate(localStorage.getItem(UPDATE_SIM_KEY) === 'true');
+    setSimulateOffline(isSimulatedOffline());
   }, []);
 
   async function triggerError() {
@@ -223,6 +226,23 @@ function DevDebugPanelInner() {
                 }}
               >
                 {simulateUpdate ? '✓ Update Simulated' : 'Simulate Update'}
+              </button>
+              {/* Helm acts offline (saves wait, outbox held) with the network up. */}
+              <button
+                type="button"
+                style={{
+                  ...btnStyle,
+                  marginTop: '6px',
+                  background: simulateOffline ? 'var(--action)' : 'var(--bg2)',
+                  color: simulateOffline ? 'var(--action-text)' : 'var(--text)',
+                }}
+                onClick={() => {
+                  const next = !simulateOffline;
+                  setSimulateOffline(next);
+                  setSimulatedOffline(next);
+                }}
+              >
+                {simulateOffline ? '✓ Offline Simulated' : 'Simulate Offline'}
               </button>
             </div>
           </div>

@@ -82,9 +82,12 @@ export function SyncConflicts({ tripId }: { tripId: string }) {
               <div style={{ fontSize: '13px', color: 'var(--text3)' }}>{new Date(c.at).toLocaleString()}</div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <Button variant="secondary" loading={busy === c.id} onClick={() => void restore(c)}>
-                {c.field ? 'Use replaced value' : 'Recreate'}
-              </Button>
+              {/* A deleted trip can't be recreated from here. */}
+              {(c.field || c.collection !== 'trips') && (
+                <Button variant="secondary" loading={busy === c.id} onClick={() => void restore(c)}>
+                  {c.field ? 'Use replaced value' : 'Recreate'}
+                </Button>
+              )}
               <Button variant="ghost" onClick={() => dismissConflict(c.id)}>Dismiss</Button>
             </div>
           </div>
