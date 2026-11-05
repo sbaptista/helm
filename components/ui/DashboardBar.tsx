@@ -20,7 +20,9 @@ export function DashboardBar({ onSearch }: DashboardBarProps) {
       background: 'var(--bg)',
       borderBottom: '1px solid var(--border)',
     }}>
-      <Link href="/" style={{
+      {/* The dashboard's own path, not "/": "/" redirects, and offline the
+          service worker only has the dashboard saved under its own path. */}
+      <Link href="/advisor/dashboard" style={{
         fontSize: 'var(--fs-sm)',
         color: 'var(--gold)',
         textDecoration: 'underline',

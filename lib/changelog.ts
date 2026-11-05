@@ -6,6 +6,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0029',
+    date: '2026-11-05',
+    changes: [
+      'Fixed: offline, "← Helm Dashboard" in a trip showed "This page hasn\'t been saved on this device yet" even though the dashboard was saved. The link went to Helm\'s start address, which forwards to the dashboard and isn\'t saved itself; it now goes to the dashboard directly.',
+    ],
+  },
+  {
     version: 'v00.04.0028',
     date: '2026-11-05',
     changes: [
