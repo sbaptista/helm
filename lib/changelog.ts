@@ -6,6 +6,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0031',
+    date: '2026-11-05',
+    changes: [
+      'Offline, the 🔍 Search button at the top of a trip is dimmed, like the other actions that need a connection.',
+      'The offline page for pages that need a connection (Search, Print, sign-in) now says so, explains that the dashboard and saved trips still work offline, and has a Go to dashboard button. It no longer says offline editing is "on the roadmap".',
+    ],
+  },
+  {
     version: 'v00.04.0030',
     date: '2026-11-05',
     changes: [

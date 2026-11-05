@@ -1,12 +1,16 @@
 'use client'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
+import { useIsOnline } from '@/hooks/useOnlineStatus'
 
 interface DashboardBarProps {
   onSearch: () => void
 }
 
 export function DashboardBar({ onSearch }: DashboardBarProps) {
+  // Search reads every trip from the server: offline it's dimmed, like the
+  // other online-only actions (docs/offline-editing-plan.md §4).
+  const isOnline = useIsOnline()
   return (
     <div style={{
       position: 'sticky',
@@ -36,10 +40,13 @@ export function DashboardBar({ onSearch }: DashboardBarProps) {
       </Link>
       <button
         onClick={onSearch}
+        disabled={!isOnline}
+        title={isOnline ? 'Search' : 'Search needs a connection'}
         style={{
           background: 'none',
           border: 'none',
-          cursor: 'pointer',
+          cursor: isOnline ? 'pointer' : 'not-allowed',
+          opacity: isOnline ? 1 : 0.4,
           color: 'var(--text-secondary, var(--text3))',
           display: 'flex',
           alignItems: 'center',
@@ -49,7 +56,7 @@ export function DashboardBar({ onSearch }: DashboardBarProps) {
           borderRadius: 'var(--r)',
           padding: 0,
         }}
-        aria-label="Search"
+        aria-label={isOnline ? 'Search' : 'Search (needs a connection)'}
       >
         <Search size={20} />
       </button>

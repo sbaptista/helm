@@ -73,6 +73,9 @@ export default function OfflinePage() {
         .hop-body-text { font-family:'Lato',sans-serif; font-size:18px; font-weight:300; color:#F2EDE4; line-height:1.8; max-width:360px; opacity:0; animation:hop-fade-up 0.9s ease forwards 0.8s; }
         .hop-divider { width:40px; height:1px; background:#B8892A; margin:28px auto; opacity:0; animation:hop-fade-in 1s ease forwards 1.0s; }
         .hop-caveat { font-family:'Lato',sans-serif; font-size:15px; font-weight:300; font-style:italic; color:#F2EDE4; line-height:1.75; max-width:340px; opacity:0; animation:hop-fade-up 0.9s ease forwards 1.05s; }
+        .hop-dash-btn { margin-top:32px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; padding:11px 32px; background:rgba(242,237,228,0.07); border:1px solid rgba(242,237,228,0.32); border-radius:24px; color:#F2EDE4; font-family:'Lato',sans-serif; font-size:15px; letter-spacing:0.08em; text-decoration:none; cursor:pointer; transition:background 0.25s ease,border-color 0.25s ease; opacity:0; animation:hop-fade-up 0.9s ease forwards 1.2s; }
+        .hop-dash-btn:hover { background:rgba(242,237,228,0.14); border-color:rgba(242,237,228,0.55); }
+        .hop-dash-btn:active { background:rgba(242,237,228,0.20); }
         .hop-status { margin-top:44px; display:inline-flex; align-items:center; gap:7px; font-family:'Lato',sans-serif; font-size:10px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#B8892A; border:1px solid rgba(184,137,42,0.25); border-radius:20px; padding:5px 14px; opacity:0; animation:hop-fade-up 0.9s ease forwards 1.3s; }
         .hop-dot { width:5px; height:5px; border-radius:50%; background:#B8892A; animation:hop-dot-pulse 2.8s ease-in-out infinite; }
         @keyframes hop-dot-pulse { 0%,100%{opacity:0.35;transform:scale(1)} 50%{opacity:1;transform:scale(1.5)} }
@@ -150,16 +153,20 @@ export default function OfflinePage() {
               <polygon points="11,1 13,8 20,11 13,14 11,21 9,14 2,11 9,8" fill="#B8892A"/>
             </svg>
             <div className="hop-wordmark">Helm</div>
-            <h1 className="hop-headline">Taking a breather</h1>
+            <h1 className="hop-headline">This page needs a connection</h1>
             <p className="hop-body-text">
-              Helm needs an internet connection to keep your trip data safe and in sync.
-              We&rsquo;ll be right back as soon as you&rsquo;re connected again.
+              You&rsquo;re offline. Your dashboard and the trips saved on this device
+              still work, and changes you make there are sent when you&rsquo;re back online.
             </p>
             <div className="hop-divider" />
             <p className="hop-caveat">
-              If you were mid-edit when this happened, that change may not have been saved.
-              We&rsquo;re sorry &mdash; offline editing is on the roadmap.
+              This page opens again as soon as you&rsquo;re connected.
             </p>
+            {/* A full page load, so offline the service worker serves the
+                dashboard saved on this device (public/sw.js). */}
+            <a className="hop-dash-btn" href="/advisor/dashboard">
+              Go to dashboard
+            </a>
             <div className="hop-status">
               <div className="hop-dot" />
               Offline
