@@ -6,6 +6,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0030',
+    date: '2026-11-05',
+    changes: [
+      'When the connection drops and Helm can\'t carry on drawing the page, it now says "Connection lost" and offers Reload, which opens the copy saved on this device, instead of "Something went wrong".',
+      'Behind the scenes: details of a problem that happens offline are kept on the device and sent to Logs once Helm is back online, so its cause can be found.',
+    ],
+  },
+  {
     version: 'v00.04.0029',
     date: '2026-11-05',
     changes: [

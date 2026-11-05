@@ -195,6 +195,11 @@ function DevDebugPanelInner() {
               flexDirection: 'column',
               gap: '4px',
             }}>
+              {/* Goes through the root ErrorBoundary (FatalErrorPage); offline
+                  with Simulate Offline on, it shows "Connection lost". */}
+              <button type="button" style={btnStyle} onClick={() => window.dispatchEvent(new Event('helm-dev-render-error'))}>
+                Trigger Render Error
+              </button>
               <button type="button" style={btnStyle} onClick={testTimezoneLookup}>
                 Test timezone lookup
               </button>

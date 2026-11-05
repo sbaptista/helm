@@ -5,9 +5,11 @@ import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
 
 interface Props {
   error?: Error | null;
+  /** Offline when the error happened (ErrorBoundary): a reload opens the saved copy. */
+  offline?: boolean;
 }
 
-export default function FatalErrorPage({ error: _error }: Props) {
+export default function FatalErrorPage({ error: _error, offline = false }: Props) {
 
   useEffect(() => {
     const timeoutIds: ReturnType<typeof setTimeout>[] = [];
@@ -78,7 +80,7 @@ export default function FatalErrorPage({ error: _error }: Props) {
         .hep-body-text { font-family:'Lato',sans-serif; font-size:18px; font-weight:300; color:#F2EDE4; line-height:1.8; max-width:360px; opacity:0; animation:hep-fade-up 0.9s ease forwards 0.8s; }
         .hep-divider { width:40px; height:1px; background:#B8892A; margin:28px auto; opacity:0; animation:hep-fade-in 1s ease forwards 1.0s; }
         .hep-caveat { font-family:'Lato',sans-serif; font-size:15px; font-weight:300; font-style:italic; color:#F2EDE4; line-height:1.75; max-width:340px; opacity:0; animation:hep-fade-up 0.9s ease forwards 1.05s; }
-        .hep-reload-btn { margin-top:36px; padding:11px 32px; background:rgba(242,237,228,0.07); border:1px solid rgba(242,237,228,0.32); border-radius:24px; color:#F2EDE4; font-family:'Lato',sans-serif; font-size:13px; font-weight:400; letter-spacing:0.08em; cursor:pointer; transition:background 0.25s ease,border-color 0.25s ease; opacity:0; animation:hep-fade-up 0.9s ease forwards 1.2s; }
+        .hep-reload-btn { margin-top:36px; min-height:44px; padding:11px 32px; background:rgba(242,237,228,0.07); border:1px solid rgba(242,237,228,0.32); border-radius:24px; color:#F2EDE4; font-family:'Lato',sans-serif; font-size:15px; font-weight:400; letter-spacing:0.08em; cursor:pointer; transition:background 0.25s ease,border-color 0.25s ease; opacity:0; animation:hep-fade-up 0.9s ease forwards 1.2s; }
         .hep-reload-btn:hover { background:rgba(242,237,228,0.14); border-color:rgba(242,237,228,0.55); }
         .hep-reload-btn:active { background:rgba(242,237,228,0.20); }
         .hep-timestamp { margin-top:20px; font-family:'Lato',sans-serif; font-size:11px; color:rgba(242,237,228,0.36); letter-spacing:0.05em; opacity:0; animation:hep-fade-up 0.9s ease forwards 1.35s; }
@@ -159,25 +161,37 @@ export default function FatalErrorPage({ error: _error }: Props) {
               <polygon points="11,1 13,8 20,11 13,14 11,21 9,14 2,11 9,8" fill="#B8892A"/>
             </svg>
             <div className="hep-wordmark">Helm</div>
-            <h1 className="hep-headline">Something went wrong</h1>
-            <p className="hep-body-text">
-              Helm ran into an unexpected problem. Your trip data is safe &mdash;
-              nothing that was already saved has been affected.
-            </p>
-            <div className="hep-divider" />
-            <p className="hep-caveat">
-              If you were editing something when this happened, that change may
-              not have been saved. We&rsquo;re sorry &mdash; that one&rsquo;s on us.
-            </p>
+            {offline ? (<>
+              <h1 className="hep-headline">Connection lost</h1>
+              <p className="hep-body-text">
+                Helm needs to reload to show the copy saved on this device.
+              </p>
+              <div className="hep-divider" />
+              <p className="hep-caveat">
+                Changes you made are safe on this device and will be sent when
+                you&rsquo;re back online.
+              </p>
+            </>) : (<>
+              <h1 className="hep-headline">Something went wrong</h1>
+              <p className="hep-body-text">
+                Helm ran into an unexpected problem. Your trip data is safe &mdash;
+                nothing that was already saved has been affected.
+              </p>
+              <div className="hep-divider" />
+              <p className="hep-caveat">
+                If you were editing something when this happened, that change may
+                not have been saved. We&rsquo;re sorry &mdash; that one&rsquo;s on us.
+              </p>
+            </>)}
             <button className="hep-reload-btn" onClick={() => window.location.reload()}>
-              Reload page
+              {offline ? 'Reload' : 'Reload page'}
             </button>
             <p className="hep-timestamp" suppressHydrationWarning>
               {'Occurred at ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
             </p>
             <div className="hep-status">
               <div className="hep-dot" />
-              Error
+              {offline ? 'Offline' : 'Error'}
             </div>
           </div>
         </main>
