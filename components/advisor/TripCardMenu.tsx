@@ -11,9 +11,10 @@ interface TripCardMenuProps {
   onCopy: () => void;
   onPrint: () => void;
   onDelete: () => void;
-  onArchive: () => void;
   onClear: () => void;
   onStatusChange: (status: TripStatus) => void;
+  // Lets the card raise itself above the cards after it while the menu is open.
+  onOpenChange?: (open: boolean) => void;
 }
 
 const STATUS_OPTIONS: { value: TripStatus; label: string }[] = [
@@ -36,11 +37,12 @@ export function TripCardMenu({
   onCopy,
   onPrint,
   onDelete,
-  onArchive,
   onClear,
   onStatusChange,
+  onOpenChange,
 }: TripCardMenuProps) {
   const [open, setOpen] = useState(false);
+  useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
   const isOnline = useIsOnline();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -104,6 +106,21 @@ export function TripCardMenu({
           }}
           onClick={(e) => e.stopPropagation()}
         >
+          {currentStatus === 'archived' ? (
+            /* Archived before Archive was removed: no data left, so only Delete. */
+            <>
+              <p style={{ margin: 0, padding: '10px 14px', fontSize: '15px', lineHeight: 1.4, color: 'var(--text2)' }}>
+                This trip was archived and has no data left.
+              </p>
+              {isOnline ? (
+                <MenuItem label="Delete" onClick={() => { setOpen(false); onDelete(); }} danger />
+              ) : (
+                <p style={{ margin: 0, padding: '10px 14px', fontSize: '15px', lineHeight: 1.4, color: 'var(--text2)', borderTop: '1px solid var(--border2)' }}>
+                  Delete needs a connection.
+                </p>
+              )}
+            </>
+          ) : (<>
           {/* Edit (title, destination) works offline (docs/edit-trip-in-trip-plan.md). */}
           <MenuItem label="Edit" onClick={() => { setOpen(false); onEdit(); }} />
           {!isOnline ? (
@@ -151,9 +168,9 @@ export function TripCardMenu({
 
           <div style={{ height: '1px', background: 'var(--border2)', margin: '6px 0' }} />
 
-          <MenuItem label="Archive" onClick={() => { setOpen(false); onArchive(); }} />
           <MenuItem label="Clear Data" onClick={() => { setOpen(false); onClear(); }} />
           <MenuItem label="Delete" onClick={() => { setOpen(false); onDelete(); }} danger />
+          </>)}
           </>)}
         </div>
       )}

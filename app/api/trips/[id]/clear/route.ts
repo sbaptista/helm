@@ -1,118 +1,69 @@
-import { createClient } from '@supabase/supabase-js';
-
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error('Supabase credentials not configured.');
-  return createClient(url, key);
-}
-
-const IMPORT_TABLES = [
-  'itinerary_rows',
-  'itinerary_days',
-  'flights',
-  'hotels',
-  'transportation',
-  'restaurants',
-  'checklist_items',
-  'packing_items',
-  'key_info',
-];
+import { logger } from '@/lib/logger';
+import { requireTripMember, tripServiceClient } from '@/lib/auth/trip-access';
+import { calendarUnreachableResponse, clearTripCalendar, tripBackup } from '@/lib/trips/clear-trip';
 
 // ─── POST /api/trips/[id]/clear ───────────────────────────────────────────────
 //
-// body: { action: 'archive' | 'download_clear' | 'discard' }
+// body: { action: 'discard' | 'download_discard', skipCalendar?: boolean }
 //
-// archive        — set trips.status = 'archived', leave data intact
-// download_clear — return the latest import_jobs row, then delete all import data
-// discard        — delete all import data, no download
+// discard          — delete every section's data, keep the trip
+// download_discard — return a backup of every section, then discard
+//
+// The trip's Google Calendar events are removed first; if Google can't be
+// reached the response is 409 calendar_unreachable, and the dashboard offers
+// to go ahead anyway (skipCalendar). The data is deleted in one transaction by
+// clear_trip_data. docs/archive-route-plan.md
+
+// Archive was removed 2026-11-06 (it was Delete under another name).
+const ACTIONS = ['discard', 'download_discard'] as const;
+type Action = (typeof ACTIONS)[number];
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
+  const access = await requireTripMember(id, { role: 'advisor' });
+  if ('response' in access) return access.response;
 
-  let body: { action?: string };
+  let body: { action?: string; skipCalendar?: boolean };
   try {
     body = await request.json();
   } catch {
     return Response.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { action } = body;
-  if (!action || !['archive', 'download_clear', 'discard'].includes(action)) {
-    return Response.json({ error: 'action must be archive, download_clear, or discard.' }, { status: 400 });
+  // 'download_clear' is the dialog's old name for download_discard.
+  const action = (body.action === 'download_clear' ? 'download_discard' : body.action) as Action;
+  if (!ACTIONS.includes(action)) {
+    return Response.json({ error: 'action must be discard or download_discard.' }, { status: 400 });
   }
 
-  let supabase;
   try {
-    supabase = getSupabase();
-  } catch (e) {
-    return Response.json({ error: (e as Error).message }, { status: 500 });
-  }
+    const supabase = tripServiceClient();
 
-  // ── archive ────────────────────────────────────────────────────────────────
-  if (action === 'archive') {
-    // Fetch the completed import_job
-    const { data: job } = await supabase
-      .from('import_jobs')
-      .select('id, flag_resolutions, section_counts')
-      .eq('trip_id', id)
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const backup = action === 'download_discard' ? await tripBackup(supabase, id) : null;
 
-    if (job) {
-      // Move payload to import_archive
-      await supabase.from('import_archive').insert({
-        import_job_id:    job.id,
-        trip_id:          id,
-        flag_resolutions: job.flag_resolutions ?? null,
-        section_counts:   job.section_counts ?? null,
-      });
-
-      // Mark import_job as archived and clear the heavy payload
-      await supabase
-        .from('import_jobs')
-        .update({ status: 'archived', flag_resolutions: null })
-        .eq('id', job.id);
+    if (body.skipCalendar !== true) {
+      const calendar = await clearTripCalendar(supabase, id, access.userId);
+      if (calendar === 'failed') return calendarUnreachableResponse();
     }
 
-    // Delete all section data
-    for (const table of IMPORT_TABLES) {
-      await supabase.from(table).delete().eq('trip_id', id);
-    }
+    const { data, error } = await supabase.rpc('clear_trip_data', {
+      p_trip_id: id,
+      p_user_id: access.userId,
+      p_mode: 'discard',
+    });
+    if (error) throw new Error(error.message);
 
-    await supabase.from('trips').update({ status: 'archived' }).eq('id', id);
-
-    return Response.json({ success: true });
+    return Response.json({
+      success: true,
+      counts: (data as { counts?: Record<string, number> } | null)?.counts ?? {},
+      ...(backup ? { backup } : {}),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await logger.error('api/trips/clear', 'Trip data could not be cleared', { error: message, action }, id);
+    return Response.json({ error: `Nothing was deleted: ${message}` }, { status: 500 });
   }
-
-  // ── download_clear: fetch latest import_jobs row first ─────────────────────
-  let importJob: Record<string, unknown> | null = null;
-  if (action === 'download_clear') {
-    const { data } = await supabase
-      .from('import_jobs')
-      .select('*')
-      .eq('trip_id', id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    importJob = data ?? null;
-  }
-
-  // ── discard / download_clear: delete all import data ──────────────────────
-  for (const table of IMPORT_TABLES) {
-    const { error } = await supabase.from(table).delete().eq('trip_id', id);
-    if (error && error.code !== 'PGRST116') {
-      console.warn(`[clear trip] ${table}: ${error.message}`);
-    }
-  }
-
-  // Also delete import_jobs rows
-  await supabase.from('import_jobs').delete().eq('trip_id', id);
-
-  return Response.json({ success: true, importJob });
 }

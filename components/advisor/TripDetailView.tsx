@@ -19,6 +19,22 @@ import { TripSidebar } from '@/components/ui/TripSidebar';
 import type { Trip } from '@/types/trips';
 import { useOfflineWarmup } from '@/hooks/useOfflineWarmup';
 import { useIsOnline } from '@/hooks/useOnlineStatus';
+import { isOnline as isOnlineNow } from '@/lib/offline/status';
+import {
+  DEV_IMPORT_ERROR_KEY,
+  IMPORT_ERROR_MESSAGES,
+  IMPORT_ERROR_RETRYABLE,
+  IMPORT_STREAM_ERROR_MARKER,
+  isImportErrorCode,
+  type ImportErrorCode,
+} from '@/lib/import/errors';
+
+// An import failure with a known cause (docs/import-fix-plan.md, Steps 8–9).
+class ImportFailure extends Error {
+  constructor(readonly code: ImportErrorCode, message = IMPORT_ERROR_MESSAGES[code]) {
+    super(message);
+  }
+}
 
 export const TabNavigationContext = React.createContext<{
   navigateTo: (tab: string, itemId?: string) => void
@@ -105,8 +121,6 @@ function formatDateRange(departure: string | null, returnDate: string | null): s
 
 interface TripDetailViewProps {
   trip:                   Trip;
-  hasImport?:             boolean;
-  hasSectionData?:        boolean;
   overviewContent?:       React.ReactNode;
   itineraryContent?:      React.ReactNode;
   flightsContent?:        React.ReactNode;
@@ -120,8 +134,6 @@ interface TripDetailViewProps {
 
 function TripDetailViewInner({
   trip,
-  hasImport = false,
-  hasSectionData = false,
   overviewContent,
   itineraryContent,
   flightsContent,
@@ -183,20 +195,14 @@ function TripDetailViewInner({
 
   // Import modal
   const [importOpen, setImportOpen] = useState(false);
-  const [reimportConfirmOpen, setReimportConfirmOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importPhase, setImportPhase] = useState<'idle' | 'reading' | 'mapping' | 'parsing' | 'navigating' | 'error'>('idle');
   const [importError, setImportError] = useState<string | null>(null);
+  // False when trying the same file again can't help (credits, not set up, too long).
+  const [importRetryable, setImportRetryable] = useState(true);
   const [importProgress, setImportProgress] = useState(0);
   const [totalChars, setTotalChars] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [importDone, setImportDone] = useState(() => {
-    if (hasImport) return true;
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem(`helm_import_done_${trip.id}`) === '1';
-    }
-    return false;
-  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Title and destination as this device knows them: an edit made offline
@@ -275,21 +281,38 @@ const handleImportClose = () => {
     }
 
     try {
+      if (!isOnlineNow()) throw new ImportFailure('connection');
+
       const form = new FormData();
       form.append('file', uploadBlob, selectedFile.name);
       form.append('tripId', trip.id);
       form.append('departureDate', trip.start_date ?? '');
       form.append('returnDate', trip.end_date ?? '');
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const devError = localStorage.getItem(DEV_IMPORT_ERROR_KEY);
+          if (devError) form.append('devAiError', devError);
+        } catch {}
+      }
 
-      const res = await fetch('/api/trips/import', { method: 'POST', body: form });
+      let res: Response;
+      try {
+        res = await fetch('/api/trips/import', { method: 'POST', body: form });
+      } catch {
+        // fetch rejects only when the request couldn't be made or finished.
+        throw new ImportFailure('connection');
+      }
 
-      // Pre-streaming errors come back as JSON with a non-200 status.
+      // Errors before Claude starts writing come back as JSON with a status.
       if (!res.ok) {
         let errorMsg = `Import failed (HTTP ${res.status}).`;
+        let code: unknown;
         try {
           const errJson = await res.json();
           if (typeof errJson.error === 'string' && errJson.error) errorMsg = errJson.error;
+          code = errJson.code;
         } catch {}
+        if (isImportErrorCode(code)) throw new ImportFailure(code, errorMsg);
         throw new Error(errorMsg);
       }
 
@@ -301,19 +324,31 @@ const handleImportClose = () => {
       let accumulated = '';
       let firstChunk = true;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (firstChunk) {
-          setImportPhase('mapping');
-          firstChunk = false;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (firstChunk) {
+            setImportPhase('mapping');
+            firstChunk = false;
+          }
+          const chunk = decoder.decode(value, { stream: true });
+          accumulated += chunk;
+          setImportProgress(accumulated.length);
         }
-        const chunk = decoder.decode(value, { stream: true });
-        accumulated += chunk;
-        setImportProgress(accumulated.length);
+      } catch {
+        throw new ImportFailure('connection');
       }
       accumulated += decoder.decode(); // flush remaining bytes
       setImportProgress(accumulated.length);
+
+      // An error after Claude started writing ends the stream with a marker.
+      const markerAt = accumulated.indexOf(IMPORT_STREAM_ERROR_MARKER);
+      if (markerAt !== -1) {
+        let code: unknown;
+        try { code = JSON.parse(accumulated.slice(markerAt + IMPORT_STREAM_ERROR_MARKER.length)).code; } catch {}
+        throw new ImportFailure(isImportErrorCode(code) ? code : 'ai_error');
+      }
 
       setImportPhase('parsing');
 
@@ -342,6 +377,7 @@ const handleImportClose = () => {
     } catch (err) {
       setImportPhase('error');
       setImportError(err instanceof Error ? err.message : 'Something went wrong.');
+      setImportRetryable(!(err instanceof ImportFailure) || IMPORT_ERROR_RETRYABLE.has(err.code));
     }
   };
 
@@ -392,13 +428,8 @@ const handleImportClose = () => {
         tripId={trip.id}
         onPrint={needsConnection(() => setPrintOpen(true))}
         onEditTrip={() => setEditTripOpen(true)}
-        onImport={needsConnection(() => {
-          if (importDone && hasSectionData) {
-            setReimportConfirmOpen(true);
-          } else {
-            setImportOpen(true);
-          }
-        })}
+        // Imports only add, so another document can be imported at any time.
+        onImport={needsConnection(() => setImportOpen(true))}
         onShowLogs={needsConnection(() => { setShowLogs(true); setSidebarOpen(false); })}
         onShowCalendar={needsConnection(() => { setShowCalendar(true); setSidebarOpen(false); })}
         calendarStatus={calendarStatus}
@@ -704,7 +735,7 @@ const handleImportClose = () => {
           >
             Cancel
           </Button>
-          {importPhase === 'error' && (
+          {importPhase === 'error' && importRetryable && (
             <Button variant="ghost" onClick={() => { setImportPhase('idle'); setImportError(null); }}>
               Try Again
             </Button>
@@ -717,29 +748,6 @@ const handleImportClose = () => {
         </ModalFooter>
       </Modal>
 
-      {/* Re-import confirmation modal */}
-      <Modal open={reimportConfirmOpen} onClose={() => setReimportConfirmOpen(false)}>
-        <ModalHeader title="Re-import Document" onClose={() => setReimportConfirmOpen(false)} />
-        <ModalBody>
-          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text)', lineHeight: 1.6 }}>
-            Importing a new document may add to or overwrite existing trip data. Continue?
-          </p>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="ghost" onClick={() => setReimportConfirmOpen(false)}>Cancel</Button>
-          <Button
-            variant="primary"
-            onClick={() => {
-              sessionStorage.removeItem(`helm_import_done_${trip.id}`);
-              setImportDone(false);
-              setReimportConfirmOpen(false);
-              setImportOpen(true);
-            }}
-          >
-            Continue
-          </Button>
-        </ModalFooter>
-      </Modal>
 
       {/* Version footer */}
       <footer

@@ -13,7 +13,6 @@ interface TripCardProps {
   onCopy: () => void;
   onPrint: () => void;
   onDelete: () => void;
-  onArchive: () => void;
   onClear: () => void;
   onStatusChange: (status: TripStatus) => void;
 }
@@ -50,9 +49,10 @@ const STATUS_LABELS: Record<TripStatus, string> = {
   archived: 'Archived',
 };
 
-export function TripCard({ trip, onEdit, onCopy, onPrint, onDelete, onArchive, onClear, onStatusChange }: TripCardProps) {
+export function TripCard({ trip, onEdit, onCopy, onPrint, onDelete, onClear, onStatusChange }: TripCardProps) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -64,6 +64,9 @@ export function TripCard({ trip, onEdit, onCopy, onPrint, onDelete, onArchive, o
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      // Card's transform gives each card its own stacking context, so an open
+      // menu would sit under the cards after it; raise this card instead.
+      style={{ position: 'relative', zIndex: menuOpen ? 20 : 'auto' }}
     >
     <Card
       hover
@@ -95,12 +98,12 @@ export function TripCard({ trip, onEdit, onCopy, onPrint, onDelete, onArchive, o
           <Badge status={trip.status}>{STATUS_LABELS[trip.status]}</Badge>
           <TripCardMenu
             tripId={trip.id}
+            onOpenChange={setMenuOpen}
             currentStatus={trip.status}
             onEdit={onEdit}
             onCopy={onCopy}
             onPrint={onPrint}
             onDelete={onDelete}
-            onArchive={onArchive}
             onClear={onClear}
             onStatusChange={onStatusChange}
           />

@@ -15,8 +15,9 @@ import { FormField, inputStyle } from '@/components/ui/FormField'
 import { useToast } from '@/components/ui/Toast'
 import { useIsOnline } from '@/hooks/useOnlineStatus'
 import { SelectBox, ShowHideButton, plural, type SelectionState } from '@/components/ui/SelectionControls'
+import { VISIBLE_PACKING_PEOPLE, type PackingPerson } from '@/lib/packing/people'
 
-type Person = 'stan' | 'cathy'
+type Person = PackingPerson
 type CopyPeople = Person | 'both'
 
 interface CopyTarget {
@@ -650,7 +651,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           targetTripId: target.id,
-          people: copyPeople === 'both' ? ['stan', 'cathy'] : [copyPeople],
+          people: copyPeople === 'both' ? [...VISIBLE_PACKING_PEOPLE] : [copyPeople],
         }),
       })
       const result = await res.json().catch(() => ({}))
@@ -1124,8 +1125,9 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
           {addButton}
         </div>
 
-        <div className="pack-tabs">
-          {(['stan', 'cathy'] as Person[]).map(p => (
+        {/* One tab per person shown (lib/packing/people.ts); none when only one. */}
+        {VISIBLE_PACKING_PEOPLE.length > 1 && <div className="pack-tabs">
+          {VISIBLE_PACKING_PEOPLE.map(p => (
             <button
               key={p}
               className={`pack-tab${activePerson === p ? ' active' : ''}`}
@@ -1135,7 +1137,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
               🎒 {p.charAt(0).toUpperCase() + p.slice(1)}
             </button>
           ))}
-        </div>
+        </div>}
 
         {/* Multi-select action bar, inside the pinned controls */}
         {selectMode && (
@@ -1497,9 +1499,9 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
-          <FormField label="Whose list">
+          {VISIBLE_PACKING_PEOPLE.length > 1 && <FormField label="Whose list">
             <div role="group" aria-label="Whose list" style={{ display: 'flex', gap: '8px' }}>
-              {(['stan', 'cathy', 'both'] as CopyPeople[]).map(p => (
+              {([...VISIBLE_PACKING_PEOPLE, 'both'] as CopyPeople[]).map(p => (
                 <button
                   key={p}
                   type="button"
@@ -1522,7 +1524,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                 </button>
               ))}
             </div>
-          </FormField>
+          </FormField>}
 
           <FormField label="Copy to" htmlFor="packing-copy-target">
             {copyTargets === null ? (
@@ -1586,15 +1588,15 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                 </div>
               </FormField>
 
-              <FormField label="To whose list">
+              {VISIBLE_PACKING_PEOPLE.length > 1 && <FormField label="To whose list">
                 <div role="group" aria-label="To whose list" style={{ display: 'flex', gap: '8px' }}>
-                  {(['stan', 'cathy'] as Person[]).map(p => (
+                  {VISIBLE_PACKING_PEOPLE.map(p => (
                     <button key={p} type="button" aria-pressed={movePerson === p} onClick={() => chooseMovePerson(p)} style={choiceStyle(movePerson === p)}>
                       {cap(p)}
                     </button>
                   ))}
                 </div>
-              </FormField>
+              </FormField>}
 
               <FormField label="Category" htmlFor="packing-move-group">
                 {moveGroups.length === 0 ? (

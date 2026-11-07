@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireTripMember } from '@/lib/auth/trip-access'
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
@@ -8,6 +9,8 @@ function serverClient() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_U
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params
+  const access = await requireTripMember(tripId)
+  if ('response' in access) return access.response
   try {
     const supabase = serverClient()
     const { data, error } = await supabase.from('hotels').select('*').eq('trip_id', tripId).is('deleted_at', null).order('check_in_date', { ascending: true }).order('sort_order', { ascending: true })
@@ -24,6 +27,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params
+  const access = await requireTripMember(tripId)
+  if ('response' in access) return access.response
   try {
     const supabase = serverClient()
     const body = await request.json()

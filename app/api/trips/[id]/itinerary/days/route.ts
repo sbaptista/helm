@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireTripMember } from '@/lib/auth/trip-access'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
@@ -31,6 +32,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: tripId } = await params
+  const access = await requireTripMember(tripId)
+  if ('response' in access) return access.response
   try {
     const supabase = serviceClient()
     const { data, error } = await supabase

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { VISIBLE_PACKING_PEOPLE } from '@/lib/packing/people';
 import { createClient as createAuthClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { tripRangeFromDays } from '@/lib/trip-range';
@@ -60,7 +61,7 @@ export async function GET(
       supabase.from('hotels').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
       supabase.from('transportation').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
       supabase.from('restaurants').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
-      supabase.from('packing').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
+      supabase.from('packing').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null).in('person', [...VISIBLE_PACKING_PEOPLE]),
       supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', id).eq('status', 'open').is('deleted_at', null),
       supabase.from('checklist').select('*', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
       supabase.from('checklist').select('id, task, group_name').eq('trip_id', id).eq('action_required', true).neq('status', 'completed').is('deleted_at', null).order('sort_order'),

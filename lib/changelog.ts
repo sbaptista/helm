@@ -6,6 +6,109 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0043',
+    date: '2026-11-06',
+    changes: [
+      'Clear Data now explains plainly that it empties the trip and keeps the trip itself. Download & discard saves a backup first; Discard data empties it without one.',
+    ],
+  },
+  {
+    version: 'v00.04.0042',
+    date: '2026-11-06',
+    changes: [
+      'Archive is gone. It deleted a trip\'s data but left an empty trip, so it was Delete under another name, and a restored trip came back empty. Trips now go Draft → Upcoming → Active → Done, and Done keeps everything. Delete is the only way to remove a trip.',
+      'A trip archived before this has no data left: its ⋯ menu offers only Delete, and its status can\'t be changed. The dashboard\'s Archived filter appears only while such a trip exists.',
+      'Clear Data stays, for emptying a trip to start over (Download & discard, or Discard data).',
+    ],
+  },
+  {
+    version: 'v00.04.0041',
+    date: '2026-11-06',
+    changes: [
+      'Fixed: on the dashboard, a trip card\'s ⋯ menu opened underneath the cards in the next row, so items like Archive couldn\'t be tapped. The open menu now stays on top.',
+    ],
+  },
+  {
+    version: 'v00.04.0040',
+    date: '2026-11-06',
+    changes: [
+      'Fixed: Archive, Clear Data and Delete left Checklist, Packing, their groups and Key Info groups behind, and a failure part-way could leave a half-deleted trip. Each now removes everything in one step: all of it, or nothing.',
+      'Archive, Clear Data and Delete now also remove the trip\'s events from Google Calendar. If Google can\'t be reached, nothing is deleted and Helm asks whether to go ahead anyway.',
+      'Clear Data now offers Download & discard (a backup of all the trip\'s data as one file, then delete) and Discard data. Its "Archive trip — keep all data" option, which actually deleted everything, is gone; Archive is on the trip card menu.',
+      'Archive, Clear Data and Delete say so when you\'re offline instead of failing.',
+      'Behind the scenes: Checklist, Packing and several other tables are now indexed by trip, so loading those sections doesn\'t read every row in the table.',
+    ],
+  },
+  {
+    version: 'v00.04.0039',
+    date: '2026-11-06',
+    changes: [
+      'Security: every trip route now checks that you\'re signed in and a member of that trip. Before, anyone who knew a trip\'s id could read any section\'s list (itinerary, flights, hotels, transfers, restaurants, checklist, packing, Key Info), read or change the trip, delete it or clear its data, add or delete hotels, and read or clear its Logs. Changing, deleting, archiving or clearing a trip needs an advisor on that trip. Nothing changes for you when you\'re signed in.',
+      'Security: saving a hotel can no longer change which trip it belongs to or its Calendar sync details.',
+    ],
+  },
+  {
+    version: 'v00.04.0038',
+    date: '2026-11-06',
+    changes: [
+      'Cathy is hidden, since her packing list isn\'t used: Packing shows only Stan\'s list, without the Stan / Cathy tabs, and Copy to Trip and Move / Copy no longer ask whose list. The Overview\'s Packing Items count, Print and Search leave her items out. Nothing of hers is deleted, so she can be shown again later.',
+      'Fixed: Print included packing items that had been deleted.',
+    ],
+  },
+  {
+    version: 'v00.04.0037',
+    date: '2026-11-05',
+    changes: [
+      'Re-importing a booking now picks up its changes. On the review page, flights, hotels, transfers and restaurants already on the trip appear under "Bookings already on this trip": each changed field shows old → new with Accept or Skip (plus Accept all, Skip all, and Add as a new booking instead). Bookings with no changes aren\'t added again. If a booking matches two on the trip, you choose which one it updates.',
+      'Changes you don\'t accept or skip are skipped, and the Confirm button says how many. A field the document leaves empty never clears what\'s on the trip. Accepted changes are saved like an edit: the Calendar event updates on the next sync, and other devices pick up the change.',
+      'An itinerary item or Key Info item that\'s already on the trip exactly (same day, title and time; same label and value) isn\'t added again.',
+      'Fixed: on the review page, Fix and Edit on a flag were recorded but not applied, so the original value was saved. The fixed or edited value is now what\'s imported.',
+      'Fixed: imported transfer and restaurant times were saved without their timezone, so they could show at the wrong hour. They\'re now read in the place\'s timezone, as flights already were.',
+    ],
+  },
+  {
+    version: 'v00.04.0036',
+    date: '2026-11-05',
+    changes: [
+      'Import Document no longer asks "Re-import Document … may add to or overwrite existing trip data" after a trip has had an import. Imports only add (nothing is overwritten), so Import always opens the file picker, and you can import each booking document in turn.',
+    ],
+  },
+  {
+    version: 'v00.04.0035',
+    date: '2026-11-05',
+    changes: [
+      'Fixed: Import Document stopped with "column section_counts of relation import_jobs does not exist" (nothing was saved). The import record now keeps its counts and flag resolutions where the table expects them. If that record ever can\'t be written, the import itself is still saved and the problem goes to Logs.',
+    ],
+  },
+  {
+    version: 'v00.04.0034',
+    date: '2026-11-05',
+    changes: [
+      'Fixed: Import Document stopped with "column flag of relation key_info does not exist" (nothing was saved). Imported Key Info items now go into Key Info groups named after their category (matched by name, created when missing), and urgent items are marked Attention Required.',
+    ],
+  },
+  {
+    version: 'v00.04.0033',
+    date: '2026-11-05',
+    changes: [
+      'Fixed: Import Document said "Failed to read text from this file" for every PDF. The PDF reader now runs as installed instead of being bundled into the app, so it can find the files it needs.',
+    ],
+  },
+  {
+    version: 'v00.04.0032',
+    date: '2026-11-05',
+    changes: [
+      'Fixed: Import Document failed at Packing and Checklist, which still pointed at tables Helm no longer uses, leaving a half-imported trip. Packing items now go to Stan\'s list under matching categories and sub-groups, and checklist items go into matching groups; items already on the list are skipped.',
+      'An import is now saved all at once: if anything fails, nothing is saved, and the review page keeps the preview so you can try again. Imported days on a date that already has a day reuse that day.',
+      'Import Document now explains AI problems: when the AI service has run out of credits ("Add credit in the Anthropic console"), is busy, isn\'t set up, or the document is too long. Try Again is offered only when it can help, and each problem is written to Logs.',
+      'If the connection drops during an import it says "Connection lost". On the review page, Confirm Import is disabled offline with "Reconnect to save this import"; the preview is kept until you\'re back online.',
+      'Word (.docx) documents are now read properly, and longer documents are sent whole instead of being cut off.',
+      'Import now uses Claude Sonnet 5.5 (was Sonnet 4.6), which costs less per document.',
+      'Security: importing and saving an import now require you to be signed in as an advisor on that trip.',
+      'Behind the scenes (development only): the DEV panel has an Import AI Error switch (Credits / Busy / No key) to test those messages without calling the AI service.',
+    ],
+  },
+  {
     version: 'v00.04.0031',
     date: '2026-11-05',
     changes: [

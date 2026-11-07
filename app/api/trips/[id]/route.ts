@@ -1,4 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
+import { requireTripMember } from '@/lib/auth/trip-access';
+import { logger } from '@/lib/logger';
+import { calendarUnreachableResponse, clearTripCalendar } from '@/lib/trips/clear-trip';
 import { TRIP_STATUSES } from '@/types/trips';
 
 function getSupabase() {
@@ -18,6 +21,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
+  const access = await requireTripMember(id);
+  if ('response' in access) return access.response;
 
   let supabase;
   try {
@@ -39,6 +44,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
+  const access = await requireTripMember(id, { role: 'advisor' });
+  if ('response' in access) return access.response;
 
   let body: Record<string, unknown>;
   try {
@@ -69,6 +76,16 @@ export async function PATCH(
     return Response.json({ error: (e as Error).message }, { status: 500 });
   }
 
+  // A trip archived before Archive was removed has no data left: it can only
+  // be deleted, not edited or given another status.
+  const { data: current, error: currentError } = await supabase
+    .from('trips').select('status').eq('id', id).maybeSingle();
+  if (currentError) return Response.json({ error: currentError.message }, { status: 500 });
+  if (!current) return Response.json({ error: 'Trip not found.' }, { status: 404 });
+  if (current.status === 'archived') {
+    return Response.json({ error: 'This trip was archived and has no data left. It can only be deleted.' }, { status: 409 });
+  }
+
   const { data, error } = await supabase
     .from('trips')
     .update(updates)
@@ -81,44 +98,38 @@ export async function PATCH(
 }
 
 // ─── DELETE /api/trips/[id] ───────────────────────────────────────────────────
-
-const CHILD_TABLES = [
-  'itinerary_rows',
-  'itinerary_days',
-  'flights',
-  'hotels',
-  'transportation',
-  'restaurants',
-  'checklist_items',
-  'packing_items',
-  'key_info',
-  'import_jobs',
-];
+//
+// Removes the trip's Google Calendar events, then deletes the trip in one
+// transaction (clear_trip_data 'delete'; its rows cascade from trips).
+// ?skipCalendar=1 goes ahead when Google can't be reached.
+// docs/archive-route-plan.md
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
+  const access = await requireTripMember(id, { role: 'advisor' });
+  if ('response' in access) return access.response;
 
-  let supabase;
   try {
-    supabase = getSupabase();
-  } catch (e) {
-    return Response.json({ error: (e as Error).message }, { status: 500 });
-  }
-
-  // Delete child rows first (FK order), then the trip itself.
-  for (const table of CHILD_TABLES) {
-    const { error } = await supabase.from(table).delete().eq('trip_id', id);
-    if (error && error.code !== 'PGRST116') {
-      // PGRST116 = table not found — ignore if table doesn't exist yet
-      console.warn(`[delete trip] ${table}: ${error.message}`);
+    const supabase = getSupabase();
+    const skipCalendar = new URL(request.url).searchParams.get('skipCalendar') === '1';
+    if (!skipCalendar) {
+      const calendar = await clearTripCalendar(supabase, id, access.userId);
+      if (calendar === 'failed') return calendarUnreachableResponse();
     }
+
+    const { error } = await supabase.rpc('clear_trip_data', {
+      p_trip_id: id,
+      p_user_id: access.userId,
+      p_mode: 'delete',
+    });
+    if (error) throw new Error(error.message);
+    return Response.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await logger.error('api/trips', 'Trip could not be deleted', { error: message }, id);
+    return Response.json({ error: `The trip wasn't deleted: ${message}` }, { status: 500 });
   }
-
-  const { error } = await supabase.from('trips').delete().eq('id', id);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
-
-  return Response.json({ success: true });
 }

@@ -1,12 +1,21 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import HelmVersionLabel from '@/components/ui/HelmVersionLabel';
 import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
-import { createClient } from '@/lib/supabase/client';
+import { useIsOnline } from '@/hooks/useOnlineStatus';
+import { isOnline as isOnlineNow } from '@/lib/offline/status';
+import {
+  ImportBookingChanges,
+  bookingDecisions,
+  unreviewedCount as countUnreviewed,
+  type CardDecision,
+  type MatchesState,
+} from '@/components/advisor/ImportBookingChanges';
+import { BOOKING_SECTIONS, IMPORT_KEY } from '@/lib/import/match-types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +50,8 @@ interface PreviewPayload {
 // 'keep'   = keep as-is, acknowledged
 // 'deleted'= record removed
 type FlagState = 'pending' | 'fixed' | 'edited' | 'keep' | 'deleted';
+
+const OFFLINE_CONFIRM_MESSAGE = 'Reconnect to save this import.';
 
 // ─── Section config ───────────────────────────────────────────────────────────
 
@@ -96,11 +107,8 @@ const FIELD_TYPES: Record<string, Record<string, FieldType>> = {
     type: { type: 'enum', options: ['included', 'independent'] },
     notes: 'text',
   },
-  checklist_items: {
-    title: 'text', category: 'text',
-    time_horizon: { type: 'enum', options: ['before_trip', 'during_trip', 'after_trip'] },
-  },
-  packing_items: { name: 'text', category: 'text' },
+  checklist_items: { task: 'text', group: 'text', due_date: 'date', notes: 'text' },
+  packing_items: { item: 'text', category: 'text', sub_group: 'text' },
   key_info: { category: 'text', label: 'text', value: 'text', url: 'text' },
 };
 
@@ -140,15 +148,41 @@ function formatFieldValue(value: string, fieldType: FieldType): string {
   return value;
 }
 
+// The preview as it will be saved: Fix and Edit values applied, Delete
+// removed, and each record tagged with a stable key so matches with bookings
+// already on the trip survive the deletions.
 function buildEffectiveResult(
   result: ImportResult,
   flagStates: Record<number, FlagState>,
+  flagEdits: Record<number, string>,
+  noteModeFlags: Record<number, boolean>,
 ): ImportResult {
   const effective = JSON.parse(JSON.stringify(result)) as ImportResult;
 
+  for (const { key } of SECTIONS) {
+    const arr = effective[key];
+    if (Array.isArray(arr)) arr.forEach((record, i) => { (record as Record<string, unknown>)[IMPORT_KEY] = `${key}:${i}`; });
+  }
+
+  // Fix applies the proposed value; Edit applies the typed value (a note is
+  // only a note). Positions still match the flags here, before deletions.
+  (result.flags ?? []).forEach((flag, i) => {
+    const state = flagStates[i];
+    if (state !== 'fixed' && state !== 'edited') return;
+    if (state === 'edited' && noteModeFlags[i]) return;
+    const ref = tryParseFieldRef(flag.field);
+    const fieldName = flag.field.replace(/^\w+\[\d+\]\.?/, '');
+    if (!ref || !fieldName || fieldName.includes('.')) return;
+    const value = state === 'fixed' ? flag.proposed : flagEdits[i];
+    if (value === undefined || value === null) return;
+    const arr = effective[ref.section as keyof ImportResult];
+    if (!Array.isArray(arr) || ref.index >= arr.length || typeof arr[ref.index] !== 'object') return;
+    (arr[ref.index] as Record<string, unknown>)[fieldName] = value;
+  });
+
   // Collect deletions, sort by index descending within each section so splices
   // don't shift subsequent indices.
-  const deletions = result.flags
+  const deletions = (result.flags ?? [])
     .map((flag, i) => ({ ref: tryParseFieldRef(flag.field), state: flagStates[i] }))
     .filter((d): d is { ref: NonNullable<ReturnType<typeof tryParseFieldRef>>; state: FlagState } =>
       d.state === 'deleted' && d.ref !== null,
@@ -596,18 +630,57 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
   // Whether each flag's edit panel is in note mode
   const [noteModeFlags, setNoteModeFlags] = useState<Record<number, boolean>>({});
 
-  const [userId, setUserId] = useState<string | null>(null);
   const toast = useToast();
+  // Confirm writes to the database, so it needs a connection (the preview is
+  // kept in sessionStorage until then). docs/import-fix-plan.md Step 9
+  const online = useIsOnline();
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [confirmSuccess, setConfirmSuccess] = useState<string | null>(null);
   const [confirmCounts, setConfirmCounts] = useState<Record<string, number> | null>(null);
+  const [confirmUpdated, setConfirmUpdated] = useState<Record<string, number> | null>(null);
+
+  // Bookings in the document that are already on the trip
+  // (docs/reimport-updates-plan.md). Checked again when flag decisions change
+  // the preview.
+  const effectiveResult = useMemo(
+    () => buildEffectiveResult(result, flagStates, flagEdits, noteModeFlags),
+    [result, flagStates, flagEdits, noteModeFlags],
+  );
+  const bookingPreview = useMemo(
+    () => JSON.stringify(Object.fromEntries(BOOKING_SECTIONS.map((s) => [s, effectiveResult[s] ?? []]))),
+    [effectiveResult],
+  );
+  const hasBookings = BOOKING_SECTIONS.some((s) => (effectiveResult[s]?.length ?? 0) > 0);
+  const [matchesState, setMatchesState] = useState<MatchesState>({ status: 'idle' });
+  const [matchesRetry, setMatchesRetry] = useState(0);
+  const [cardDecisions, setCardDecisions] = useState<Record<string, CardDecision>>({});
 
   useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-    });
-  }, []);
+    if (!hasBookings || !online) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setMatchesState({ status: 'loading' });
+      try {
+        const res = await fetch(`/api/trips/${tripId}/import/matches`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ result: JSON.parse(bookingPreview) }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (!cancelled) setMatchesState({ status: 'ready', matches: Array.isArray(json.matches) ? json.matches : [] });
+      } catch {
+        if (!cancelled) setMatchesState({ status: 'failed' });
+      }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [bookingPreview, hasBookings, online, tripId, matchesRetry]);
+
+  const matches = matchesState.status === 'ready' ? matchesState.matches : [];
+  const unreviewedChanges = countUnreviewed(matches, cardDecisions);
+  // Confirm waits for the check, so a booking already on the trip isn't added twice.
+  const matchesPending = hasBookings && online && (matchesState.status === 'idle' || matchesState.status === 'loading');
 
   // Unresolved = still 'pending'
   const unresolvedCount = flags.filter((_, i) => flagStates[i] === 'pending').length;
@@ -644,11 +717,13 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
   };
 
   const handleConfirm = async () => {
+    if (!isOnlineNow()) {
+      setConfirmError(OFFLINE_CONFIRM_MESSAGE);
+      return;
+    }
     setConfirming(true);
     setConfirmError(null);
     try {
-      const effectiveResult = buildEffectiveResult(result, flagStates);
-
       const flagResolutions = flags.map((flag, i) => {
         const state = flagStates[i];
         const originalValue = (() => {
@@ -672,11 +747,22 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
         };
       });
 
-      const res = await fetch('/api/trips/import/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tripId, userId, result: effectiveResult, flagResolutions }),
-      });
+      let res: Response;
+      try {
+        res = await fetch('/api/trips/import/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tripId,
+            result: effectiveResult,
+            flagResolutions,
+            bookingDecisions: bookingDecisions(matches, cardDecisions),
+          }),
+        });
+      } catch {
+        // The import is saved in one transaction, so a dropped request saved nothing.
+        throw new Error(`${OFFLINE_CONFIRM_MESSAGE} Nothing was imported.`);
+      }
 
       let json: Record<string, unknown> = {};
       try { json = await res.json(); } catch {}
@@ -690,13 +776,16 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
       }
 
       sessionStorage.removeItem('helm_import_preview');
-      sessionStorage.setItem(`helm_import_done_${tripId}`, '1');
 
       const totalSections = typeof json.totalSections === 'number' ? json.totalSections : '?';
       const counts = (json.counts as Record<string, number>) ?? {};
+      const updated = (json.updated as Record<string, number>) ?? {};
       setConfirmCounts(counts);
+      setConfirmUpdated(updated);
       setConfirming(false);
-      const msg = `Import complete — ${totalSections} section${totalSections === 1 ? '' : 's'} imported.`;
+      const updatedTotal = Object.values(updated).reduce((a, b) => a + b, 0);
+      const msg = `Import complete — ${totalSections} section${totalSections === 1 ? '' : 's'} imported`
+        + (updatedTotal > 0 ? `, ${updatedTotal} booking${updatedTotal === 1 ? '' : 's'} updated.` : '.');
       setConfirmSuccess(msg);
       toast.success(msg);
     } catch (err) {
@@ -761,6 +850,21 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
                   <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: idx < arr.length - 1 ? '1px solid var(--border2)' : 'none' }}>
                     <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text2)' }}>{label}</span>
                     <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--navy)' }}>{confirmCounts[key]}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Bookings updated */}
+            {confirmUpdated && Object.values(confirmUpdated).some((n) => n > 0) && (
+              <div style={{ background: 'var(--bg2)', borderRadius: 'var(--r-xl)', border: '1px solid var(--border2)', boxShadow: 'var(--shadow)', padding: '20px 24px' }}>
+                <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '12px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: '12px' }}>
+                  Bookings Updated
+                </p>
+                {SECTIONS.filter(({ key }) => (confirmUpdated[key] ?? 0) > 0).map(({ key, label }, idx, arr) => (
+                  <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: idx < arr.length - 1 ? '1px solid var(--border2)' : 'none' }}>
+                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text2)' }}>{label}</span>
+                    <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--navy)' }}>{confirmUpdated[key]}</span>
                   </div>
                 ))}
               </div>
@@ -891,6 +995,14 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
               </div>
             )}
 
+            {/* Bookings already on the trip */}
+            <ImportBookingChanges
+              state={matchesState}
+              decisions={cardDecisions}
+              onChange={(key, card) => setCardDecisions((prev) => ({ ...prev, [key]: card }))}
+              onRetry={() => setMatchesRetry((n) => n + 1)}
+            />
+
             {/* Section cards */}
             {SECTIONS.map(({ key, label }) => (
               <SectionCard key={key} label={label} items={result[key] ?? []} />
@@ -992,16 +1104,24 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
             >
               Cancel
             </button>
+            {!online && !confirmError && (
+              <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--text2)', flex: 1, margin: 0, lineHeight: 1.5 }}>
+                {OFFLINE_CONFIRM_MESSAGE}
+              </p>
+            )}
             <Button
               variant="primary"
               onClick={handleConfirm}
               loading={confirming}
+              disabled={!online || matchesPending}
               style={{ minWidth: '200px' }}
             >
-              {unresolvedCount > 0
+              {(unresolvedCount > 0
                 ? `Confirm with ${unresolvedCount} unresolved ${unresolvedCount === 1 ? 'flag' : 'flags'}`
-                : 'Confirm Import'
-              }
+                : 'Confirm Import')
+                + (unreviewedChanges > 0
+                  ? ` (${unreviewedChanges} ${unreviewedChanges === 1 ? 'change' : 'changes'} not reviewed will be skipped)`
+                  : '')}
             </Button>
           </>
         )}

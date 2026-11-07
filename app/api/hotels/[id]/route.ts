@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
 import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
 import { fillMissingTimezones, placeQuery } from '@/lib/geo/timezone-lookup'
+import { requireRecordMember } from '@/lib/auth/trip-access'
+
+// Never set from a request: identity, trip, timestamps and Calendar sync state.
+const PROTECTED_FIELDS = ['id', 'trip_id', 'created_at', 'updated_at', 'deleted_at', 'gcal_dirty', 'gcal_checkin_event_id', 'gcal_checkout_event_id']
 
 function serverClient() {
   return createClient(
@@ -13,30 +15,17 @@ function serverClient() {
   )
 }
 
-async function getAuthUserId(): Promise<string | null> {
-  if (process.env.BYPASS_AUTH_USER_ID) {
-    return process.env.BYPASS_AUTH_USER_ID;
-  }
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  )
-  const { data: { user } } = await supabase.auth.getUser()
-  return user?.id ?? null
-}
-
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
   try {
-    const userId = await getAuthUserId()
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const supabase = serverClient()
+    const access = await requireRecordMember('hotels', id, { supabase })
+    if ('response' in access) return access.response
     const body = await request.json()
+    for (const field of PROTECTED_FIELDS) delete body[field]
     // A form save sends timezone; an empty one is looked up from the place.
     if ('timezone' in body) await fillMissingTimezones(body, [{ timezone: 'timezone', query: placeQuery(body) }])
     const { data: existing } = await supabase
@@ -75,6 +64,8 @@ export async function DELETE(
   const { id } = await params
   try {
     const supabase = serverClient()
+    const access = await requireRecordMember('hotels', id, { supabase })
+    if ('response' in access) return access.response
     const { data: hotel } = await supabase
       .from('hotels')
       .select('gcal_checkin_event_id, gcal_checkout_event_id')

@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { Suspense } from 'react';
+import { VISIBLE_PACKING_PEOPLE } from '@/lib/packing/people';
 import { redirect } from 'next/navigation';
 import { getDataClient } from '@/lib/supabase/data-client';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
@@ -50,13 +51,6 @@ export default async function TripDetailPage({
     .eq('id', id)
     .single();
 
-  const { data: importJob } = await supabase
-    .from('import_jobs')
-    .select('id')
-    .eq('trip_id', id)
-    .eq('status', 'completed')
-    .maybeSingle();
-
   const serviceClient = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
@@ -69,7 +63,7 @@ export default async function TripDetailPage({
     serviceClient.from('restaurants').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('itinerary_rows').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('checklist').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
-    serviceClient.from('packing').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null),
+    serviceClient.from('packing').select('id', { count: 'exact', head: true }).eq('trip_id', id).is('deleted_at', null).in('person', [...VISIBLE_PACKING_PEOPLE]),
     serviceClient.from('key_info').select('id, label, value').eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('itinerary_days').select('id, day_date, title').eq('trip_id', id).is('deleted_at', null).order('day_date', { ascending: true, nullsFirst: false }).order('sort_order'),
   ]);
@@ -106,8 +100,6 @@ export default async function TripDetailPage({
   return (
     <TripDetailView
       trip={trip}
-      hasImport={!!importJob}
-      hasSectionData={sectionChecks.some((r) => (r.count ?? 0) > 0)}
       overviewContent={<OverviewSection tripId={id} trip={{ title: trip.title, status: trip.status }} sectionCounts={{
         flights: sectionChecks[0].count ?? 0,
         hotels: sectionChecks[1].count ?? 0,

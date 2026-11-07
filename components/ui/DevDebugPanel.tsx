@@ -5,9 +5,15 @@ import ReactDOM from 'react-dom';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { PersistentMessage } from '@/components/ui/PersistentMessage';
 import { isSimulatedOffline, setSimulatedOffline } from '@/lib/offline/status';
+import { DEV_IMPORT_ERROR_KEY, DEV_IMPORT_ERROR_CODES } from '@/lib/import/errors';
 
 const VARIANT_KEY = 'helm-auth-variant';
 const UPDATE_SIM_KEY = 'helm-dev-simulate-update';
+const IMPORT_AI_ERROR_LABELS: Record<(typeof DEV_IMPORT_ERROR_CODES)[number], string> = {
+  ai_credits: 'Credits',
+  ai_busy: 'Busy',
+  ai_not_configured: 'No key',
+};
 
 function DevDebugPanelInner() {
   const toast = useToast();
@@ -17,6 +23,8 @@ function DevDebugPanelInner() {
   const [authVariant, setAuthVariant] = useState<'a' | 'b'>('a');
   const [simulateUpdate, setSimulateUpdate] = useState(false);
   const [simulateOffline, setSimulateOffline] = useState(false);
+  // Import Document fails as the AI service would (docs/import-fix-plan.md Step 8).
+  const [importAiError, setImportAiError] = useState<string>('');
   const [tzResults, setTzResults] = useState<string[] | null>(null);
 
   useEffect(() => {
@@ -24,6 +32,7 @@ function DevDebugPanelInner() {
     if (stored === 'b') setAuthVariant('b');
     setSimulateUpdate(localStorage.getItem(UPDATE_SIM_KEY) === 'true');
     setSimulateOffline(isSimulatedOffline());
+    try { setImportAiError(localStorage.getItem(DEV_IMPORT_ERROR_KEY) ?? ''); } catch {}
   }, []);
 
   async function triggerError() {
@@ -208,6 +217,51 @@ function DevDebugPanelInner() {
                   {line}
                 </span>
               ))}
+            </div>
+
+            {/* Import AI error simulation */}
+            <div style={{
+              borderTop: '1px solid var(--border2)',
+              paddingTop: '8px',
+              marginTop: '2px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+            }}>
+              <span style={{
+                fontFamily: "'Lato', sans-serif",
+                fontSize: '10px',
+                fontWeight: 700,
+                color: 'var(--text3)',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}>
+                Import AI Error
+              </span>
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                {([['', 'Off'], ...DEV_IMPORT_ERROR_CODES.map((c) => [c, IMPORT_AI_ERROR_LABELS[c]])] as [string, string][]).map(([code, label]) => (
+                  <button
+                    key={code || 'off'}
+                    type="button"
+                    onClick={() => {
+                      try {
+                        if (code) localStorage.setItem(DEV_IMPORT_ERROR_KEY, code);
+                        else localStorage.removeItem(DEV_IMPORT_ERROR_KEY);
+                      } catch {}
+                      setImportAiError(code);
+                    }}
+                    style={{
+                      ...btnStyle,
+                      textAlign: 'center',
+                      flex: 1,
+                      background: importAiError === code ? 'var(--action)' : 'var(--bg2)',
+                      color: importAiError === code ? 'var(--action-text)' : 'var(--text)',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Update simulation */}

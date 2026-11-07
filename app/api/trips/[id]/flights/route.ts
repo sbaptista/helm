@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { requireTripMember } from '@/lib/auth/trip-access';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
@@ -32,6 +33,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
+  const access = await requireTripMember(id);
+  if ('response' in access) return access.response;
   try {
     let supabase;
     try { supabase = serviceClient(); } catch (e) {

@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { Trip, TripStatus } from '@/types/trips';
 import { useOfflineWarmup } from '@/hooks/useOfflineWarmup';
 import { useIsOnline } from '@/hooks/useOnlineStatus';
+import { CALENDAR_UNREACHABLE } from '@/lib/trips/clear-codes';
 
 type FilterValue = 'all' | TripStatus;
 
@@ -193,9 +194,14 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Clear state
-  const [clearAction, setClearAction] = useState<'archive' | 'download_clear' | 'discard' | null>(null);
+  const [clearAction, setClearAction] = useState<'download_discard' | 'discard' | null>(null);
   const [clearConfirming, setClearConfirming] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
+
+  // Google Calendar couldn't be reached while clearing or deleting:
+  // offer to go ahead and leave the trip's events (docs/archive-route-plan.md, D3).
+  const [calendarRetry, setCalendarRetry] = useState<{ kind: 'clear' | 'delete'; trip: Trip } | null>(null);
+  const [calendarRetrying, setCalendarRetrying] = useState(false);
 
   const filtered = filter === 'all' ? trips : trips.filter((t) => t.status === filter);
 
@@ -247,24 +253,6 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
     setPrintOpen(true);
   }
 
-  async function handleArchive(trip: Trip) {
-    try {
-      const res = await fetch(`/api/trips/${trip.id}/clear`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'archive' }),
-      });
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error ?? 'Failed to archive.');
-      }
-      toast.show('Trip archived', 'neutral');
-      router.refresh();
-    } catch (err) {
-      toast.show(err instanceof Error ? err.message : 'Something went wrong.', 'neutral');
-    }
-  }
-
   async function handleStatusChange(trip: Trip, status: TripStatus) {
     try {
       const res = await fetch(`/api/trips/${trip.id}`, {
@@ -282,13 +270,20 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
     }
   }
 
-  async function handleDelete() {
+  async function handleDelete(skipCalendar = false) {
     if (!selectedTrip) return;
+    if (!isOnline) { setDeleteError('This needs a connection. You\'re offline.'); return; }
     setDeleteConfirming(true);
     setDeleteError(null);
     try {
-      const res = await fetch(`/api/trips/${selectedTrip.id}`, { method: 'DELETE' });
-      const json = await res.json();
+      const res = await fetch(`/api/trips/${selectedTrip.id}${skipCalendar ? '?skipCalendar=1' : ''}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 409 && json.code === CALENDAR_UNREACHABLE) {
+        setDeleteOpen(false);
+        setDeleteConfirming(false);
+        setCalendarRetry({ kind: 'delete', trip: selectedTrip });
+        return;
+      }
       if (!res.ok) throw new Error(json.error ?? 'Failed to delete.');
       setDeleteOpen(false);
       setDeleteConfirming(false);
@@ -299,25 +294,34 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
     }
   }
 
-  async function handleClear() {
+  async function handleClear(skipCalendar = false) {
     if (!selectedTrip || !clearAction) return;
+    if (!isOnline) { setClearError('This needs a connection. You\'re offline.'); return; }
     setClearConfirming(true);
     setClearError(null);
     try {
       const res = await fetch(`/api/trips/${selectedTrip.id}/clear`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: clearAction }),
+        body: JSON.stringify({ action: clearAction, skipCalendar }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 409 && json.code === CALENDAR_UNREACHABLE) {
+        setClearOpen(false);
+        setClearConfirming(false);
+        setCalendarRetry({ kind: 'clear', trip: selectedTrip });
+        return;
+      }
       if (!res.ok) throw new Error(json.error ?? 'Failed to clear.');
 
-      if (clearAction === 'download_clear' && json.importJob) {
-        const blob = new Blob([JSON.stringify(json.importJob, null, 2)], { type: 'application/json' });
+      // Download & discard: every section's data as one JSON file (D2).
+      if (clearAction === 'download_discard' && json.backup) {
+        const blob = new Blob([JSON.stringify(json.backup, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
+        const slug = (selectedTrip.title || 'trip').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         a.href = url;
-        a.download = `import-${selectedTrip.id}.json`;
+        a.download = `helm-backup-${slug}-${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
       }
@@ -548,7 +552,8 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
               flexWrap: 'wrap',
             }}
           >
-            {FILTERS.map((f) => (
+            {/* Archived only while a trip still has that status (Archive was removed 2026-11-06). */}
+            {FILTERS.filter((f) => f.value !== 'archived' || trips.some((t) => t.status === 'archived')).map((f) => (
               <FilterPill
                 key={f.value}
                 label={f.label}
@@ -589,7 +594,6 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
                 onCopy={() => openCopy(trip)}
                 onPrint={() => openPrint(trip)}
                 onDelete={() => openDelete(trip)}
-                onArchive={() => handleArchive(trip)}
                 onClear={() => openClear(trip)}
                 onStatusChange={(status) => handleStatusChange(trip, status)}
               />
@@ -690,7 +694,7 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
         </ModalBody>
         <ModalFooter>
           <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleteConfirming}>Cancel</Button>
-          <Button variant="danger" onClick={handleDelete} disabled={deleteConfirming}>
+          <Button variant="danger" onClick={() => handleDelete()} disabled={deleteConfirming}>
             {deleteConfirming ? 'Deleting…' : 'Delete trip'}
           </Button>
         </ModalFooter>
@@ -701,13 +705,12 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
         <ModalHeader title="Clear Trip Data" onClose={() => { if (!clearConfirming) setClearOpen(false); }} />
         <ModalBody>
           <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text2)', marginBottom: '16px', lineHeight: 1.6 }}>
-            Choose what to do with the imported trip data:
+            Empty <strong>{selectedTrip?.title}</strong>: its itinerary, bookings, checklist, packing and Key Info are removed, along with its events in Google Calendar. The trip itself stays, so you can fill it again.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {([
-              { value: 'archive', label: 'Archive trip', description: 'Mark the trip as archived and keep all data.' },
-              { value: 'download_clear', label: 'Download & clear', description: 'Download a JSON backup of the import, then delete all imported data.' },
-              { value: 'discard', label: 'Discard data', description: 'Permanently delete all imported data with no backup.' },
+              { value: 'download_discard', label: 'Download & discard', description: 'Save a backup of everything in the trip as one file, then empty the trip.' },
+              { value: 'discard', label: 'Discard data', description: 'Empty the trip without a backup. This can\'t be undone.' },
             ] as const).map(({ value, label, description }) => (
               <button
                 key={value}
@@ -718,6 +721,7 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
                   alignItems: 'flex-start',
                   gap: '3px',
                   padding: '14px 16px',
+                  minHeight: '44px',
                   borderRadius: 'var(--r)',
                   border: `2px solid ${clearAction === value ? 'var(--navy)' : 'var(--border2)'}`,
                   background: clearAction === value ? 'rgba(10,30,60,0.04)' : 'var(--bg)',
@@ -739,11 +743,41 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
         <ModalFooter>
           <Button variant="ghost" onClick={() => setClearOpen(false)} disabled={clearConfirming}>Cancel</Button>
           <Button
-            variant={clearAction === 'discard' ? 'danger' : 'primary'}
-            onClick={handleClear}
+            variant="danger"
+            onClick={() => handleClear()}
             disabled={clearConfirming || !clearAction}
           >
             {clearConfirming ? 'Working…' : 'Confirm'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Google Calendar unreachable: go ahead anyway? */}
+      <Modal open={calendarRetry !== null} onClose={() => { if (!calendarRetrying) setCalendarRetry(null); }}>
+        <ModalHeader title="Google Calendar Not Reachable" onClose={() => { if (!calendarRetrying) setCalendarRetry(null); }} />
+        <ModalBody>
+          <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '15px', color: 'var(--text)', lineHeight: 1.6 }}>
+            Helm couldn&apos;t remove the events for <strong>{calendarRetry?.trip.title}</strong> from Google Calendar,
+            so nothing has been deleted yet. You can try again later, or go ahead and leave its events in Google Calendar.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setCalendarRetry(null)} disabled={calendarRetrying}>Cancel</Button>
+          <Button
+            variant="danger"
+            disabled={calendarRetrying}
+            onClick={async () => {
+              if (!calendarRetry) return;
+              const { kind, trip } = calendarRetry;
+              setCalendarRetrying(true);
+              setSelectedTrip(trip);
+              if (kind === 'clear') await handleClear(true);
+              else await handleDelete(true);
+              setCalendarRetrying(false);
+              setCalendarRetry(null);
+            }}
+          >
+            {calendarRetrying ? 'Working…' : calendarRetry?.kind === 'clear' ? 'Discard anyway' : 'Delete anyway'}
           </Button>
         </ModalFooter>
       </Modal>

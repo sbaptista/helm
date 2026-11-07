@@ -1,4 +1,5 @@
 import { getDataClient } from '@/lib/supabase/data-client';
+import { VISIBLE_PACKING_PEOPLE } from '@/lib/packing/people';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { PrintStyles } from '@/components/advisor/print/PrintStyles';
@@ -61,7 +62,7 @@ export default async function TripPrintPage({
     serviceClient.from('restaurants').select('*').eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('key_info').select('*').eq('trip_id', id).is('deleted_at', null).order('sort_order'),
     serviceClient.from('checklist_items').select('*').eq('trip_id', id).eq('is_completed', false),
-    serviceClient.from('packing').select('*').eq('trip_id', id),
+    serviceClient.from('packing').select('*').eq('trip_id', id).is('deleted_at', null).in('person', [...VISIBLE_PACKING_PEOPLE]),
   ]);
 
   if (!trip) return <div>Trip not found</div>;

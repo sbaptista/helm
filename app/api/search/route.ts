@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { VISIBLE_PACKING_PEOPLE } from '@/lib/packing/people';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
@@ -271,7 +272,8 @@ export async function GET(request: NextRequest): Promise<Response> {
         .from('packing')
         .select('*, packing_groups(name), packing_subgroups(name)')
         .in('trip_id', tripIds)
-        .is('deleted_at', null);
+        .is('deleted_at', null)
+        .in('person', [...VISIBLE_PACKING_PEOPLE]);
       for (const r of (data ?? []) as Record<string, unknown>[]) {
         const groupName = (r.packing_groups as { name?: string } | null)?.name ?? '';
         const subgroupName = (r.packing_subgroups as { name?: string } | null)?.name ?? '';

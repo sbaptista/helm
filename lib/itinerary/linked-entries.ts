@@ -218,6 +218,13 @@ function entriesForSource(section: LinkedItinerarySection, row: Record<string, u
   }
 }
 
+// The dates a travel record needs an itinerary day for, worked out before it is
+// saved (the document import saves everything in one transaction).
+export function linkedDayDates(section: LinkedItinerarySection, row: Record<string, unknown>): string[] {
+  if (row.show_in_itinerary !== true) return []
+  return [...new Set(entriesForSource(section, row).map(entry => entry.day_date).filter(Boolean))]
+}
+
 // A trip has one itinerary day per date and its dates come from those days.
 // When a record shown in the Itinerary lands on a date with no day, insert a
 // neutral one: title "[Inserted day]" and no day type, because whichever
