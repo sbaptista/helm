@@ -20,7 +20,7 @@ interface PacketSections {
   flights: boolean;
   transport: boolean;
   restaurants: boolean;
-  todo: boolean;
+  checklist: boolean;
   packing: boolean;
   detail: 'summary' | 'full';
 }
@@ -28,15 +28,15 @@ interface PacketSections {
 const PRESETS: Record<'travel' | 'itinerary' | 'full', PacketSections> = {
   travel: {
     overview: true, itinerary: true, keyinfo: true, hotels: true, flights: true,
-    transport: true, restaurants: true, todo: false, packing: false, detail: 'summary',
+    transport: true, restaurants: true, checklist: false, packing: false, detail: 'summary',
   },
   itinerary: {
     overview: false, itinerary: true, keyinfo: false, hotels: false, flights: false,
-    transport: false, restaurants: false, todo: false, packing: false, detail: 'full',
+    transport: false, restaurants: false, checklist: false, packing: false, detail: 'full',
   },
   full: {
     overview: true, itinerary: true, keyinfo: true, hotels: true, flights: true,
-    transport: true, restaurants: true, todo: true, packing: true, detail: 'full',
+    transport: true, restaurants: true, checklist: true, packing: true, detail: 'full',
   },
 };
 
@@ -71,6 +71,15 @@ export function PrintExportModal({
   const handlePreset = (name: 'travel' | 'itinerary' | 'full') => {
     setSections(PRESETS[name]);
     setActivePreset(name);
+  };
+
+  // Unticks every section (keeps the itinerary detail level).
+  const clearSections = () => {
+    setSections(prev => ({
+      overview: false, itinerary: false, keyinfo: false, hotels: false, flights: false,
+      transport: false, restaurants: false, checklist: false, packing: false, detail: prev.detail,
+    }));
+    setActivePreset(null);
   };
 
   const toggleSection = (key: keyof PacketSections) => {
@@ -122,7 +131,17 @@ export function PrintExportModal({
                 </button>
               ))}
             </div>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gold-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Sections</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gold-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sections</div>
+              <button
+                type="button"
+                onClick={clearSections}
+                disabled={!Object.values(sections).some(value => value === true)}
+                style={{ minHeight: '44px', padding: '0 12px', fontSize: '13px', fontWeight: 600, color: 'var(--gold-text)', background: 'none', border: 'none', cursor: 'pointer', opacity: Object.values(sections).some(value => value === true) ? 1 : 0.4 }}
+              >
+                Clear selections
+              </button>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               {Object.keys(sections).filter(key => key !== 'detail').map(key => (
                 <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', cursor: 'pointer' }}>

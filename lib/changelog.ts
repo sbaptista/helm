@@ -6,6 +6,28 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0046',
+    date: '2026-11-06',
+    changes: [
+      'Print dialog: a Clear selections button unticks every packet section, so you can tick just the ones you want.',
+      'Print dialog: the section called "Todo" is now "Checklist", matching the trip\'s Checklist page.',
+    ],
+  },
+  {
+    version: 'v00.04.0045',
+    date: '2026-11-06',
+    changes: [
+      'Printed packet: the front page no longer repeats the large Helm wheel, name and motto; it shows the trip name, destination and dates. The Helm header at the top of every page is a little larger instead.',
+    ],
+  },
+  {
+    version: 'v00.04.0044',
+    date: '2026-11-06',
+    changes: [
+      'Fixed: the printed packet\'s Outstanding Tasks section never appeared. It was reading an old, empty list. It now prints every open checklist task under its group heading, in the same order as the Checklist page, with "No Group" last and the due date where a task has one.',
+    ],
+  },
+  {
     version: 'v00.04.0043',
     date: '2026-11-06',
     changes: [

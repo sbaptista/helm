@@ -80,17 +80,17 @@ export function PrintStyles() {
         padding-bottom: 5pt;
         margin-bottom: 14pt;
       }
-      .print-brand-mark { display: flex; align-items: center; gap: 6pt; }
+      .print-brand-mark { display: flex; align-items: center; gap: 8pt; }
       .print-brand-name {
         font-family: 'Cormorant Garamond', serif;
-        font-size: 15pt;
+        font-size: 19pt;
         font-weight: 700;
         color: #0D1E35;
         letter-spacing: 0.04em;
       }
       .print-brand-motto {
         font-family: 'Cormorant Garamond', serif;
-        font-size: 12pt;
+        font-size: 15pt;
         font-style: italic;
         color: #6E4C10;
       }

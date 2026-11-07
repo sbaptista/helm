@@ -51,6 +51,7 @@ export default async function TripPrintPage({
     { data: restaurants, error: restaurantsError },
     { data: keyInfo, error: keyInfoError },
     { data: checklist },
+    { data: checklistGroups },
     { data: packing },
   ] = await Promise.all([
     supabase.from('trips').select('*').eq('id', id).single(),
@@ -61,7 +62,9 @@ export default async function TripPrintPage({
     serviceClient.from('transportation').select('*').eq('trip_id', id).is('deleted_at', null).order('departure_time'),
     serviceClient.from('restaurants').select('*').eq('trip_id', id).is('deleted_at', null),
     serviceClient.from('key_info').select('*').eq('trip_id', id).is('deleted_at', null).order('sort_order'),
-    serviceClient.from('checklist_items').select('*').eq('trip_id', id).eq('is_completed', false),
+    // Same order as the Checklist page: groups by sort_order, newest item first.
+    serviceClient.from('checklist').select('*').eq('trip_id', id).is('deleted_at', null).or('status.is.null,status.neq.completed').order('item_number', { ascending: false }),
+    serviceClient.from('checklist_groups').select('name, sort_order').eq('trip_id', id).order('sort_order'),
     serviceClient.from('packing').select('*').eq('trip_id', id).is('deleted_at', null).in('person', [...VISIBLE_PACKING_PEOPLE]),
   ]);
 
@@ -132,6 +135,10 @@ export default async function TripPrintPage({
   }
 
   const showSection = (key: string) => sp[key] === '1';
+  const checklistByGroup = groupChecklist(
+    (checklist ?? []) as ChecklistRow[],
+    (checklistGroups ?? []) as Array<{ name: string }>,
+  );
   const itinFull = sp.detail === 'full';
   const MOTTO = 'Your trips, beautifully organized';
 
@@ -147,7 +154,7 @@ export default async function TripPrintPage({
             <td>
               <div className="print-brand">
                 <span className="print-brand-mark">
-                  <HelmWheel size="20pt" weight={1.6} />
+                  <HelmWheel size="26pt" weight={1.6} />
                   <span className="print-brand-name">Helm</span>
                 </span>
                 <span className="print-brand-motto">{MOTTO}</span>
@@ -161,14 +168,12 @@ export default async function TripPrintPage({
 
       {/* Title Page */}
       <section className="print-section" style={{ height: '8.5in', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-        <div style={{ marginBottom: '20pt' }}><HelmWheel size="1.6in" /></div>
-        <div style={{ fontSize: '10pt', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-text)', marginBottom: '4pt' }}>Helm</div>
-        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '14pt', fontStyle: 'italic', color: 'var(--navy)', marginBottom: '20pt' }}>{MOTTO}</div>
         <h1 style={{ fontSize: '42pt' }}>{stripEmojiForPrint(trip.title)}</h1>
         <div style={{ fontSize: '18pt', fontStyle: 'italic', color: 'var(--navy)', marginBottom: '8pt' }}>{trip.destination}</div>
         <div style={{ fontSize: '14pt', fontWeight: 700, color: 'var(--gold-text)' }}>
           {formatPrintDateRange(tripRange.start_date ?? '', tripRange.end_date ?? '') || 'No dates set'}
-        </div>      </section>
+        </div>
+      </section>
 
       {/* Overview */}
       {showSection('overview') && (
@@ -341,14 +346,22 @@ export default async function TripPrintPage({
       )}
 
       {/* Checklist */}
-      {showSection('todo') && checklist && checklist.length > 0 && (
+      {showSection('checklist') && checklist && checklist.length > 0 && (
         <section className="print-section">
           <h2>Outstanding Tasks</h2>
           <div style={{ columns: 2, columnGap: '24pt' }}>
-            {checklist.map((item: ChecklistRow) => (
-              <div key={item.id} style={{ display: 'flex', gap: '8pt', marginBottom: '6pt', fontSize: '10pt', breakInside: 'avoid' }}>
-                <div style={{ width: '12pt', height: '12pt', border: '1pt solid #DDD', flexShrink: 0 }}></div>
-                <span>{item.title}</span>
+            {checklistByGroup.map(([groupName, items]) => (
+              <div key={groupName ?? 'no-group'} style={{ marginBottom: '10pt' }}>
+                <h3 style={{ fontSize: '10.5pt', fontWeight: 600, margin: '0 0 4pt', breakAfter: 'avoid' }}>{groupName ?? 'No Group'}</h3>
+                {items.map((item) => (
+                  <div key={item.id} style={{ display: 'flex', gap: '8pt', marginBottom: '6pt', fontSize: '10pt', breakInside: 'avoid' }}>
+                    <div style={{ width: '12pt', height: '12pt', border: '1pt solid #DDD', flexShrink: 0 }}></div>
+                    <span>
+                      {item.task ?? item.title}
+                      {item.due_date && <span style={{ color: '#666' }}> · due {formatDueDate(item.due_date)}</span>}
+                    </span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -397,4 +410,29 @@ export default async function TripPrintPage({
       ` }} />
     </div>
   );
+}
+
+// Open checklist items under their group headings, in the Checklist page's
+// group order; groups missing from checklist_groups follow by name, and
+// "No Group" (null) comes last.
+function groupChecklist(items: ChecklistRow[], groups: Array<{ name: string }>): Array<[string | null, ChecklistRow[]]> {
+  const byGroup = new Map<string | null, ChecklistRow[]>();
+  for (const item of items) {
+    const key = item.group_name || null;
+    if (!byGroup.has(key)) byGroup.set(key, []);
+    byGroup.get(key)!.push(item);
+  }
+  const known = groups.map(g => g.name).filter(name => byGroup.has(name));
+  const others = [...byGroup.keys()]
+    .filter((name): name is string => name !== null && !known.includes(name))
+    .sort((a, b) => a.localeCompare(b));
+  const order: Array<string | null> = [...known, ...others, ...(byGroup.has(null) ? [null] : [])];
+  return order.map(name => [name, byGroup.get(name)!]);
+}
+
+// '2026-10-12' → 'Oct 12, 2026' (a plain date: no timezone conversion).
+function formatDueDate(date: string): string {
+  const [y, m, d] = date.slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return date;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
