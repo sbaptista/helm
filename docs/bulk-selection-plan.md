@@ -1,6 +1,12 @@
 # Bulk selection on every list page (task A5)
 
-2026-11-06 — Claude Code (Opus 5.5). **Plan only — nothing is built until Stan approves.**
+2026-11-06 — Claude Code (Opus 5.5). **D1–D7 accepted by Stan 2026-11-06.**
+
+**Progress (release 1):** v00.04.0047 — shared pieces (`app/api/trips/[id]/bulk/[section]/route.ts` for all six sections, `hooks/useSelection.ts`, `components/ui/BulkSelection.tsx`, `.select-bar` in `globals.css`) and Flights. Flights tested by Stan 2026-11-06; 0048 centred the bar's count. v00.04.0049 — Hotels, Restaurants, Transportation, Key Info (Move to Group), Itinerary (hand-made rows, day checkboxes, Move to Day) and Checklist Calendar ✓/✗, all through `useListBulk` in `BulkSelection.tsx`. Tested by Stan 2026-11-06. v00.04.0050 — **Clear** button in every selection bar (Stan: no way to deselect the current picks except Select All, then Deselect All). Tested by Stan 2026-11-06.
+
+**Progress (release 2):** v00.04.0051 — migration `supabase/migrations/202611060002_copy_records.sql` (`copy_records`, **not yet applied**; parsed with the PostgreSQL parser; columns taken from `copy_trip`, `copy_checklist`, `copy_packing_list`), `app/api/trips/[id]/copy-records/route.ts` (advisor; passes the linked dates of travel records shown in the Itinerary), `useCopyToTrip` in `BulkSelection.tsx`; Copy to Trip in Actions… on the six pages and in the Checklist and Packing selection bars. Not tested. v00.04.0052: Itinerary Select is on whenever the trip has entries; bookings say which page changes them, and a trip with only bookings shows a note in the bar (Stan, 2026-11-07: "inserted rows" wouldn't make sense to most people). **v00.04.0053: Itinerary selection removed entirely** (Stan, 2026-11-07: copying packing lists, checklists, restaurants and hotels has a clear use; itineraries much less so). The Itinerary page has no Select, Move to Day or Copy to Trip; `itinerary-rows` is gone from both routes. The applied `copy_records` keeps its unreachable `itinerary_rows` branch.
+
+**As built, differs from the plan:** Copied Itinerary rows on a date the other trip lacks get an "[Inserted day]" (the convention travel records already use), not a copy of the source day. Itinerary Move to Day moves only All Day and Time TBD rows. A timed row's `start_time` is a full date and time, so changing its day alone would leave the time on the old date; those rows are left in place and the sheet and message say so.
 
 ## 1. Where things stand
 

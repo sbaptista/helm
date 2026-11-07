@@ -6,6 +6,84 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0056',
+    date: '2026-11-07',
+    changes: [
+      'Checklist and Packing: the offline "* Copy to Trip needs a connection." line is now orange text on the page background, instead of white text on an orange band.',
+    ],
+  },
+  {
+    version: 'v00.04.0055',
+    date: '2026-11-07',
+    changes: [
+      'Checklist and Packing: offline, one orange line under the toolbar and selection bar reads "* Copy to Trip needs a connection." (on Packing while selecting: "* Move, Copy and Copy to Trip need a connection."), in place of the small grey notes.',
+    ],
+  },
+  {
+    version: 'v00.04.0054',
+    date: '2026-11-07',
+    changes: [
+      'Offline, the Checklist selection bar now says "Copy to Trip needs a connection." under its buttons (it was only a hover tip, which iPad and iPhone never show). In the Actions sheet, the notes under each action are larger and darker, and the offline one reads "Copy to Trip needs a connection."',
+    ],
+  },
+  {
+    version: 'v00.04.0053',
+    date: '2026-11-07',
+    changes: [
+      'Itinerary: Select is removed, along with its Move to Day and Copy to Trip. Selecting and Copy to Trip stay on Flights, Hotels, Restaurants, Transportation, Key Info, Checklist and Packing.',
+    ],
+  },
+  {
+    version: 'v00.04.0052',
+    date: '2026-11-07',
+    changes: [
+      'Itinerary: Select now works on any trip with entries, not only one with entries you added. While selecting, tapping a booking (a flight, hotel, restaurant or transfer) says which page to change it on, and on a trip with only bookings the bar explains: "Only entries you added here can be selected. Bookings are changed on their own pages."',
+    ],
+  },
+  {
+    version: 'v00.04.0051',
+    date: '2026-11-06',
+    changes: [
+      'Copy to Trip for selected records, on Flights, Hotels, Restaurants, Transportation, Itinerary, Key Info (in Actions…), Checklist and Packing (in the selection bar). Pick another of your trips; the copies keep their details, with Google Calendar off.',
+      'Anything the other trip already has is skipped (for example the same flight number at the same time, or the same hotel and check-in date), and the message says how many. Groups, categories and sub-groups are matched by name and created when missing; hotels bring their nearby dining.',
+      'Itinerary rows go onto the other trip\'s day with the same date, and a day is added when that date has none, as are the days copied flights, hotels, restaurants and transfers need to appear in its Itinerary. Checklist copies start Open with no due date; packing copies start unpacked.',
+      'Copy to Trip needs a connection. The whole copy saves together: if anything fails, nothing is copied.',
+    ],
+  },
+  {
+    version: 'v00.04.0050',
+    date: '2026-11-06',
+    changes: [
+      'Selection bar: a Clear button deselects everything you have picked, without having to Select All and then Deselect All. It appears whenever some (but not all) items are selected, on every page with Select, including Packing and Checklist.',
+    ],
+  },
+  {
+    version: 'v00.04.0049',
+    date: '2026-11-06',
+    changes: [
+      'Select now works on Hotels, Restaurants, Transportation, Key Info and the Itinerary, the same way as on Flights: tap Select, pick items (or Select All), then Actions….',
+      'Hotels, Restaurants and Transportation: Attention Required on or off, Show in or Remove from Itinerary, Add to or Remove from Google Calendar, and Delete. Records without the date Calendar needs are skipped, and the message says how many.',
+      'Key Info: Attention Required, Show in or Remove from Overview, Move to Group…, and Delete. Each group heading has a checkbox that selects its items.',
+      'Itinerary: your own rows can be selected (flights, hotels and other linked entries are changed on their own pages and are dimmed while selecting). Each day has a checkbox for its rows. Actions: Attention Required, Google Calendar, Move to Day…, and Delete. Move to Day moves All Day and Time TBD rows; a row with a time keeps its date, because the time carries the date.',
+      'Checklist: the selection bar gains Calendar ✓ and Calendar ✗. Items without a due date are skipped when adding to Calendar.',
+    ],
+  },
+  {
+    version: 'v00.04.0048',
+    date: '2026-11-06',
+    changes: [
+      'Selection bar: the "N selected" count now sits centred with space on both sides, instead of pressed against Select All.',
+    ],
+  },
+  {
+    version: 'v00.04.0047',
+    date: '2026-11-06',
+    changes: [
+      'Flights: tap Select to pick several flights (tap a flight or its checkbox; Select All picks every flight). Actions… offers Attention Required on or off, Show in or Remove from Itinerary, Add to or Remove from Google Calendar, and Delete. Flights without both dates are skipped when adding to Calendar, and the message says how many.',
+      'Bulk changes save in one request and also work offline (they wait and send when the connection returns). The same Select button and Actions sheet will follow on Hotels, Restaurants, Transportation, Key Info and Itinerary.',
+    ],
+  },
+  {
     version: 'v00.04.0046',
     date: '2026-11-06',
     changes: [

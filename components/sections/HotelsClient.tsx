@@ -17,6 +17,8 @@ import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
 import { TimezoneField } from '@/components/ui/TimezoneField'
 import { placeQuery } from '@/lib/geo/place-query'
 import { useRouter } from '@/lib/offline/router'
+import { SelectBox } from '@/components/ui/SelectionControls'
+import { selectedRowStyle, useListBulk } from '@/components/ui/BulkSelection'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -385,6 +387,16 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
+  // ─── Selection and bulk actions (docs/bulk-selection-plan.md) ───────────────
+
+  const { selection, bar, selectButton, overlays } = useListBulk<Hotel>({
+    records: hotels, setRecords: setHotels, tripId, section: 'hotels', collection: 'hotels',
+    itemUrl: (id) => `/api/hotels/${id}`, noun: { one: 'hotel', many: 'hotels' },
+    flags: ['action_required', 'show_in_itinerary', 'gcal_include'],
+    calendarReady: (h) => !!h.check_in_date,
+    calendarNeeds: 'a check-in date',
+  })
+
   const sheet = (
     <>
       {/* Add / Edit Bottom Sheet */}
@@ -722,11 +734,18 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
         }}>
           Hotels
         </h2>
-        <Button variant="primary" size="sm" onClick={openAdd}>
-          <Plus size={16} />
-          Add Hotel
-        </Button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {selectButton}
+          {!selection.selectMode && (
+            <Button variant="primary" size="sm" onClick={openAdd}>
+              <Plus size={16} />
+              Add Hotel
+            </Button>
+          )}
+        </div>
       </div>
+
+      {bar}
 
       {/* Warn banner */}
       {warnCount > 0 && (
@@ -763,11 +782,18 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
             >
               {/* Hotel card — tap to edit */}
               <div
-                onClick={() => openEdit(hotel)}
+                onClick={() => (selection.selectMode ? selection.toggle([hotel]) : openEdit(hotel))}
+                aria-pressed={selection.selectMode ? selection.isSelected(hotel.id) : undefined}
                 className="section-row"
+                style={selectedRowStyle(selection.isSelected(hotel.id))}
               >
                 {/* Name + badges */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                  {selection.selectMode && (
+                    <span style={{ margin: '-10px 0 -10px -10px' }}>
+                      <SelectBox state={selection.isSelected(hotel.id) ? 'all' : 'none'} onToggle={() => selection.toggle([hotel])} label={`Select ${hotel.name}`} />
+                    </span>
+                  )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-medium)', color: 'var(--text)' }}>
@@ -892,6 +918,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
       </div>
 
       {sheet}
+      {overlays}
     </div>
   )
 }

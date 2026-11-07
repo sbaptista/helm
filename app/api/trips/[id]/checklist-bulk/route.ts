@@ -12,7 +12,7 @@ const MAX_IDS = 1000
 const HAS_CALENDAR = 'gcal_include.eq.true,gcal_due_event_id.not.is.null,gcal_warning_event_id.not.is.null'
 const HAS_EVENTS = 'gcal_due_event_id.not.is.null,gcal_warning_event_id.not.is.null'
 
-type ChecklistBulkFields = { status?: 'open' | 'completed'; action_required?: boolean; group_name?: string | null }
+type ChecklistBulkFields = { status?: 'open' | 'completed'; action_required?: boolean; group_name?: string | null; gcal_include?: boolean }
 
 interface ChecklistBulkBody {
   action?: unknown
@@ -33,13 +33,14 @@ function getServiceClient() {
   return createServiceClient(url, key)
 }
 
-// Only status, Attention Required and group can be set in bulk.
+// Only status, Attention Required, group and Google Calendar can be set in bulk.
 function parseFields(value: unknown): ChecklistBulkFields | null {
   if (!value || typeof value !== 'object') return null
   const raw = value as Record<string, unknown>
   const fields: ChecklistBulkFields = {}
   if (raw.status === 'open' || raw.status === 'completed') fields.status = raw.status
   if (typeof raw.action_required === 'boolean') fields.action_required = raw.action_required
+  if (typeof raw.gcal_include === 'boolean') fields.gcal_include = raw.gcal_include
   if ('group_name' in raw && (raw.group_name === null || typeof raw.group_name === 'string')) {
     fields.group_name = typeof raw.group_name === 'string' && raw.group_name.trim() ? raw.group_name.trim() : null
   }
@@ -79,18 +80,24 @@ export async function POST(
       .maybeSingle()
     if (!member) return Response.json({ error: 'Forbidden.' }, { status: 403 })
 
+    // Turning Calendar on only applies to items with a due date (as in the form).
+    const turningCalendarOn = fields?.gcal_include === true
+
     // Mark Calendar rows first, so the main statement can return the final rows.
     // trip_id in every filter keeps the change inside this trip whatever ids are sent.
-    const { error: dirtyError } = await supabase
+    let dirty = supabase
       .from('checklist')
       .update({ gcal_dirty: true })
       .eq('trip_id', tripId)
       .in('id', ids)
       .is('deleted_at', null)
-      .or(action === 'delete' ? HAS_EVENTS : HAS_CALENDAR)
+    dirty = turningCalendarOn
+      ? dirty.not('due_date', 'is', null)
+      : dirty.or(action === 'delete' ? HAS_EVENTS : HAS_CALENDAR)
+    const { error: dirtyError } = await dirty
     if (dirtyError) throw new Error(dirtyError.message)
 
-    const { data, error } = await supabase
+    let change = supabase
       .from('checklist')
       .update(action === 'delete'
         ? { deleted_at: new Date().toISOString(), gcal_include: false }
@@ -98,7 +105,8 @@ export async function POST(
       .eq('trip_id', tripId)
       .in('id', ids)
       .is('deleted_at', null)
-      .select()
+    if (turningCalendarOn) change = change.not('due_date', 'is', null)
+    const { data, error } = await change.select()
     if (error) throw new Error(error.message)
 
     return Response.json(action === 'delete'

@@ -16,6 +16,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useIsOnline } from '@/hooks/useOnlineStatus'
 import { SelectBox, ShowHideButton, plural, type SelectionState } from '@/components/ui/SelectionControls'
 import { VISIBLE_PACKING_PEOPLE, type PackingPerson } from '@/lib/packing/people'
+import { useCopyToTrip } from '@/components/ui/BulkSelection'
 
 type Person = PackingPerson
 type CopyPeople = Person | 'both'
@@ -145,6 +146,8 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
 
   // Copy to Trip Sheet (online only; docs/copy-packing-list-plan.md)
   const isOnline = useIsOnline()
+  // Copy selected items to another trip (docs/bulk-selection-plan.md, D5).
+  const copyToTrip = useCopyToTrip({ tripId, section: 'packing', noun: { one: 'item', many: 'items' } })
   const [copySheetOpen, setCopySheetOpen] = useState(false)
   const [copyTargets, setCopyTargets] = useState<CopyTarget[] | null>(null)
   const [copyTargetId, setCopyTargetId] = useState('')
@@ -1070,7 +1073,6 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
             size="sm"
             onClick={openCopySheet}
             disabled={!isOnline}
-            title={isOnline ? undefined : 'Copying needs a connection'}
           >
             Copy to Trip…
           </Button>
@@ -1162,6 +1164,9 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
               <span aria-live="polite" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text2)' }}>
                 {selectedItems.length} selected
               </span>
+              {selectedItems.length > 0 && selectionStateOf(personItems) !== 'all' && (
+                <Button variant="ghost" size="sm" onClick={clearSelection} disabled={bulkBusy} aria-label="Clear selection">Clear</Button>
+              )}
             </div>
             {confirmBulkDelete ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -1179,15 +1184,17 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
                 <Button variant="secondary" size="sm" onClick={() => bulkSet('packed', false)} disabled={bulkBusy || selectedItems.length === 0}>Packed ✗</Button>
                 <Button variant="secondary" size="sm" onClick={() => openMoveItems('move')} disabled={bulkBusy || selectedItems.length === 0 || !isOnline}>Move…</Button>
                 <Button variant="secondary" size="sm" onClick={() => openMoveItems('copy')} disabled={bulkBusy || selectedItems.length === 0 || !isOnline}>Copy…</Button>
+                <Button variant="secondary" size="sm" onClick={() => copyToTrip.start(selectedItems.map(i => i.id))} disabled={bulkBusy || copyToTrip.busy || selectedItems.length === 0 || !isOnline}>Copy to Trip…</Button>
                 <Button variant="danger" size="sm" onClick={() => setConfirmBulkDelete(true)} disabled={bulkBusy || selectedItems.length === 0}>Delete…</Button>
               </div>
             )}
-            {!isOnline && (
-              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)' }}>
-                Move and Copy need a connection.
-              </span>
-            )}
           </div>
+        )}
+        {/* One offline note for both Copy to Trip buttons (toolbar and selection bar). */}
+        {!isOnline && (
+          <p role="status" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--action)' }}>
+            {selectMode ? '* Move, Copy and Copy to Trip need a connection.' : '* Copy to Trip needs a connection.'}
+          </p>
         )}
       </div>
 
@@ -1485,6 +1492,7 @@ export default function PackingClient({ initialItems, initialGroups, initialSubg
       </ResponsiveSheet>
 
       <BusyOverlay open={busy !== null} message={busy?.message ?? ''} detail={busy?.detail} />
+      {copyToTrip.sheet}
 
       {/* Copy to Trip Sheet */}
       <ResponsiveSheet

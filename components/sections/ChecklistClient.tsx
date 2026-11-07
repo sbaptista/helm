@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
 import { TabNavigationContext, useTabNavigation } from '@/components/advisor/TripDetailView'
+import { useCopyToTrip } from '@/components/ui/BulkSelection'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,7 +61,7 @@ interface CopyTarget {
   status: string
 }
 
-type BulkFields = Partial<Pick<ChecklistItem, 'status' | 'action_required' | 'group_name'>>
+type BulkFields = Partial<Pick<ChecklistItem, 'status' | 'action_required' | 'group_name' | 'gcal_include'>>
 
 // Show / hide key for items with no group; real groups use their id.
 const NO_GROUP_KEY = 'no-group'
@@ -143,6 +144,8 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
 
   // Packing improvements brought to Checklist (docs/checklist-packing-parity-plan.md)
   const isOnline = useIsOnline()
+  // Copy selected items to another trip (docs/bulk-selection-plan.md, D5).
+  const copyToTrip = useCopyToTrip({ tripId, section: 'checklist', noun: { one: 'item', many: 'items' } })
   // Multi-select
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -554,9 +557,18 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
   async function bulkUpdate(fields: BulkFields, done: string) {
     const differs = (r: ChecklistItem) =>
       (Object.keys(fields) as (keyof BulkFields)[]).some(k => (r[k] ?? null) !== (fields[k] ?? null))
-    const targets = selectedItems.filter(differs)
+    let targets = selectedItems.filter(differs)
+    // Calendar needs a due date, as in the item's form.
+    let skipped = 0
+    if (fields.gcal_include === true) {
+      const ready = targets.filter(r => !!r.due_date)
+      skipped = targets.length - ready.length
+      targets = ready
+    }
     if (targets.length === 0) {
-      toast.show(`${selectedItems.length === 1 ? 'That item is' : 'All selected items are'} already ${done}`, 'neutral')
+      toast.show(skipped
+        ? `${plural(skipped, 'item')} skipped — needs a due date`
+        : `${selectedItems.length === 1 ? 'That item is' : 'All selected items are'} already ${done}`, 'neutral')
       return false
     }
     const before = new Map(targets.map(r => [r.id, r]))
@@ -580,7 +592,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
       setRecords(prev => prev.map(r => failedIds.has(r.id) ? before.get(r.id) ?? r : r))
       toast.show(`${failed.length} of ${plural(targets.length, 'item')} couldn't be saved`, 'error')
     } else {
-      toast.show(`${plural(targets.length, 'item')} ${done}`, 'success')
+      toast.show(`${plural(targets.length, 'item')} ${done}${skipped ? `; ${skipped} skipped — needs a due date` : ''}`, 'success')
     }
     return true
   }
@@ -1019,7 +1031,6 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
             size="sm"
             onClick={openCopySheet}
             disabled={!isOnline || records.length === 0}
-            title={isOnline ? undefined : 'Copying needs a connection'}
           >
             Copy to Trip…
           </Button>
@@ -1122,6 +1133,9 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
               <span aria-live="polite" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text2)' }}>
                 {selectedItems.length} selected{notShownCount > 0 ? ` (${notShownCount} not shown)` : ''}
               </span>
+              {selectedItems.length > 0 && !(selectionStateOf(filtered) === 'all' && notShownCount === 0) && (
+                <Button variant="ghost" size="sm" onClick={clearSelection} disabled={bulkBusy} aria-label="Clear selection">Clear</Button>
+              )}
             </div>
             {confirmBulkDelete ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -1137,11 +1151,20 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
                 <Button variant="secondary" size="sm" onClick={() => bulkUpdate({ status: 'open' }, 'reopened')} disabled={noSelection}>Reopen</Button>
                 <Button variant="secondary" size="sm" onClick={() => bulkUpdate({ action_required: true }, 'marked Attention Required')} disabled={noSelection}>Attention ✓</Button>
                 <Button variant="secondary" size="sm" onClick={() => bulkUpdate({ action_required: false }, 'cleared of Attention Required')} disabled={noSelection}>Attention ✗</Button>
+                <Button variant="secondary" size="sm" onClick={() => bulkUpdate({ gcal_include: true }, 'set to sync with Google Calendar')} disabled={noSelection}>Calendar ✓</Button>
+                <Button variant="secondary" size="sm" onClick={() => bulkUpdate({ gcal_include: false }, 'set to leave Google Calendar')} disabled={noSelection}>Calendar ✗</Button>
                 <Button variant="secondary" size="sm" onClick={openMove} disabled={noSelection}>Move…</Button>
+                <Button variant="secondary" size="sm" onClick={() => copyToTrip.start(selectedItems.map(r => r.id))} disabled={noSelection || copyToTrip.busy || !isOnline}>Copy to Trip…</Button>
                 <Button variant="danger" size="sm" onClick={() => setConfirmBulkDelete(true)} disabled={noSelection}>Delete…</Button>
               </div>
             )}
           </div>
+        )}
+        {/* One offline note for both Copy to Trip buttons (toolbar and selection bar). */}
+        {!isOnline && (
+          <p role="status" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--action)' }}>
+            * Copy to Trip needs a connection.
+          </p>
         )}
       </div>
 
@@ -1589,6 +1612,7 @@ export function ChecklistClient({ tripId, initialItems, initialGroups }: Props) 
       </ResponsiveSheet>
 
       <BusyOverlay open={busy !== null} message={busy?.message ?? ''} detail={busy?.detail} />
+      {copyToTrip.sheet}
     </div>
   )
 }

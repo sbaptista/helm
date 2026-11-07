@@ -15,6 +15,7 @@ import { scrollToFirstError } from '@/lib/form-utils'
 import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
 import { TimezoneField } from '@/components/ui/TimezoneField'
 import { useRouter } from '@/lib/offline/router'
+import { SelectMark, selectedRowStyle, useListBulk } from '@/components/ui/BulkSelection'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -314,6 +315,16 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
       setDeleting(false)
     }
   }
+
+  // ─── Selection and bulk actions (docs/bulk-selection-plan.md) ───────────────
+
+  const { selection, bar, selectButton, overlays } = useListBulk<Transportation>({
+    records, setRecords, tripId, section: 'transportation', collection: 'transportation',
+    itemUrl: (id) => `/api/transportation/${id}`, noun: { one: 'transfer', many: 'transfers' },
+    flags: ['action_required', 'show_in_itinerary', 'gcal_include'],
+    calendarReady: (r) => !!r.departure_time,
+    calendarNeeds: 'a departure date',
+  })
 
   const sheet = (
     <>
@@ -643,11 +654,18 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
         }}>
           Transportation
         </h2>
-        <Button variant="primary" size="sm" onClick={openAdd}>
-          <Plus size={16} />
-          Add Transportation
-        </Button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {selectButton}
+          {!selection.selectMode && (
+            <Button variant="primary" size="sm" onClick={openAdd}>
+              <Plus size={16} />
+              Add Transportation
+            </Button>
+          )}
+        </div>
       </div>
+
+      {bar}
 
       {/* Warn banner */}
       {warnCount > 0 && (
@@ -682,11 +700,14 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
         {records.map(r => (
           <button
             key={r.id}
-            onClick={() => openEdit(r)}
+            onClick={() => (selection.selectMode ? selection.toggle([r]) : openEdit(r))}
+            aria-pressed={selection.selectMode ? selection.isSelected(r.id) : undefined}
             className="section-row"
+            style={selectedRowStyle(selection.isSelected(r.id))}
           >
             {/* Row 1: provider + badges */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {selection.selectMode && <SelectMark checked={selection.isSelected(r.id)} />}
               <span style={{
                 fontFamily: "'Lato', sans-serif",
                 fontSize: 'var(--fs-base)',
@@ -753,6 +774,7 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
       </div>
 
       {sheet}
+      {overlays}
     </div>
   )
 }

@@ -565,6 +565,20 @@ button {
   gap: 10px;
 }
 .pack-controls .pack-tabs { margin-bottom: 0; }
+
+/* Selection bar on the list pages (components/ui/BulkSelection.tsx;
+   docs/bulk-selection-plan.md). Pinned below TripTopBar like .pack-controls. */
+.select-bar {
+  position: sticky;
+  top: var(--trip-bar-bottom, 104px);
+  z-index: 20;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border2);
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .pack-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pack-toolbar-narrow { display: none; flex-wrap: nowrap; }
 @media (max-width: 767px) {

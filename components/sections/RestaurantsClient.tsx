@@ -15,6 +15,7 @@ import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
 import { TimezoneField } from '@/components/ui/TimezoneField'
 import { placeQuery } from '@/lib/geo/place-query'
 import { useRouter } from '@/lib/offline/router'
+import { SelectMark, selectedRowStyle, useListBulk } from '@/components/ui/BulkSelection'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -360,6 +361,16 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
       setDeleting(false)
     }
   }
+
+  // ─── Selection and bulk actions (docs/bulk-selection-plan.md) ───────────────
+
+  const { selection, bar, selectButton, overlays } = useListBulk<Restaurant>({
+    records, setRecords, tripId, section: 'restaurants', collection: 'restaurants',
+    itemUrl: (id) => `/api/restaurants/${id}`, noun: { one: 'restaurant', many: 'restaurants' },
+    flags: ['action_required', 'show_in_itinerary', 'gcal_include'],
+    calendarReady: (r) => !!r.reservation_time,
+    calendarNeeds: 'a reservation date',
+  })
 
   const sheet = (
     <>
@@ -748,11 +759,18 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
         <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
           Restaurants
         </h2>
-        <Button variant="primary" size="sm" onClick={openAdd}>
-          <Plus size={16} />
-          Add Restaurant
-        </Button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {selectButton}
+          {!selection.selectMode && (
+            <Button variant="primary" size="sm" onClick={openAdd}>
+              <Plus size={16} />
+              Add Restaurant
+            </Button>
+          )}
+        </div>
       </div>
+
+      {bar}
 
       {/* Warn banner */}
       {warnCount > 0 && (
@@ -779,10 +797,17 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
       {/* Record list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {records.map(r => (
-          <button key={r.id} onClick={() => openEdit(r)} className="section-row">
+          <button
+            key={r.id}
+            onClick={() => (selection.selectMode ? selection.toggle([r]) : openEdit(r))}
+            aria-pressed={selection.selectMode ? selection.isSelected(r.id) : undefined}
+            className="section-row"
+            style={selectedRowStyle(selection.isSelected(r.id))}
+          >
 
             {/* Header: name + status badge */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+              {selection.selectMode && <SelectMark checked={selection.isSelected(r.id)} />}
               <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-bold)', color: 'var(--navy)', flex: 1, minWidth: 0 }}>
                 {r.name || 'Restaurant'}
               </span>
@@ -952,6 +977,7 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
       </div>
 
       {sheet}
+      {overlays}
     </div>
   )
 }

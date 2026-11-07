@@ -15,8 +15,12 @@ import { scrollToFirstError } from '@/lib/form-utils';
 import { formatZonedDateTime, instantToZonedInput, zonedLocalDateTimeToUtc } from '@/lib/zoned-time';
 import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags';
 import { useRouter } from '@/lib/offline/router';
+import { SelectBox } from '@/components/ui/SelectionControls';
+import { useListBulk } from '@/components/ui/BulkSelection';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+const FLIGHT_NOUN = { one: 'flight', many: 'flights' };
 
 export interface Flight {
   id: string;
@@ -396,6 +400,16 @@ export function FlightsClient({
       toast.show('Could not update. Please try again.', 'error');
     }
   };
+
+  // ─── Selection and bulk actions (docs/bulk-selection-plan.md) ───────────────
+
+  const { selection, bar, selectButton, overlays } = useListBulk<Flight>({
+    records: flights, setRecords: setFlights, tripId, section: 'flights', collection: 'flights',
+    itemUrl: (id) => `/api/flights/${id}`, noun: FLIGHT_NOUN,
+    flags: ['action_required', 'show_in_itinerary', 'gcal_include'],
+    calendarReady: (f) => !!f.departure_time && !!f.arrival_time,
+    calendarNeeds: 'departure and arrival dates',
+  });
 
   const sheet = (
     <>
@@ -883,10 +897,17 @@ export function FlightsClient({
         <h2 style={{ fontSize: 'var(--fs-xl)', fontFamily: 'var(--font-display)', color: 'var(--navy)', fontWeight: 'var(--fw-normal)' }}>
           Flights
         </h2>
-        <Button variant="secondary" size="sm" onClick={openAdd}>
-          Add Flight
-        </Button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {selectButton}
+          {!selection.selectMode && (
+            <Button variant="secondary" size="sm" onClick={openAdd}>
+              Add Flight
+            </Button>
+          )}
+        </div>
       </div>
+
+      {bar}
 
       {/* Warn banner */}
       {warnCount > 0 && (
@@ -921,12 +942,14 @@ export function FlightsClient({
               key={f.id}
               role="button"
               tabIndex={0}
-              onClick={() => openEdit(f)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(f); } }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg3)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg2)'; }}
+              aria-pressed={selection.selectMode ? selection.isSelected(f.id) : undefined}
+              onClick={() => (selection.selectMode ? selection.toggle([f]) : openEdit(f))}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (selection.selectMode) selection.toggle([f]); else openEdit(f); } }}
+              onMouseEnter={(e) => { if (!selection.selectMode) e.currentTarget.style.background = 'var(--bg3)'; }}
+              onMouseLeave={(e) => { if (!selection.selectMode) e.currentTarget.style.background = 'var(--bg2)'; }}
               style={{
-                background: 'var(--bg2)',
+                background: selection.isSelected(f.id) ? 'var(--bg3)' : 'var(--bg2)',
+                outline: selection.isSelected(f.id) ? '2px solid var(--gold)' : 'none',
                 border: '1px solid var(--border2)',
                 borderRadius: 'var(--r-lg)',
                 padding: '20px 24px',
@@ -941,6 +964,11 @@ export function FlightsClient({
             >
               {/* Airline + flight number + cabin + flag */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                {selection.selectMode && (
+                  <span style={{ margin: '-12px 0 -12px -12px' }}>
+                    <SelectBox state={selection.isSelected(f.id) ? 'all' : 'none'} onToggle={() => selection.toggle([f])} label={`Select ${f.airline ?? ''} ${f.flight_number ?? 'flight'}`.trim()} />
+                  </span>
+                )}
                 {f.airline && (
                   <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-bold)', color: 'var(--text)' }}>
                     {f.airline}
@@ -978,6 +1006,7 @@ export function FlightsClient({
                     fontSize: '15px',
                     opacity: f.action_required ? 1 : 0.22,
                     marginLeft: 'auto',
+                    pointerEvents: selection.selectMode ? 'none' : undefined,
                     padding: '4px',
                     lineHeight: 1,
                     minHeight: '44px',
@@ -1079,6 +1108,7 @@ export function FlightsClient({
       )}
 
       {sheet}
+{overlays}
     </div>
   );
 }

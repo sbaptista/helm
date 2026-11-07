@@ -10,6 +10,10 @@ import { Button } from '@/components/ui/Button'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { useToast } from '@/components/ui/Toast'
 import { TabNavigationContext } from '@/components/advisor/TripDetailView'
+import { SelectBox } from '@/components/ui/SelectionControls'
+import { countOf, selectedRowStyle, useListBulk } from '@/components/ui/BulkSelection'
+
+const KEY_INFO_NOUN = { one: 'item', many: 'items' }
 
 export interface KeyInfoGroup {
   id: string
@@ -292,15 +296,59 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
     flexShrink: 0,
   }
 
+  // ─── Selection and bulk actions (docs/bulk-selection-plan.md) ───────────────
+
+  const [moveOpen, setMoveOpen] = useState(false)
+  const [moveTargets, setMoveTargets] = useState<KeyInfoItem[]>([])
+  const [moveGroupId, setMoveGroupId] = useState<string>('')
+
+  const { selection, bulk, bar, selectButton, overlays } = useListBulk<KeyInfoItem>({
+    records: items, setRecords: setItems, tripId, section: 'key-info', collection: 'key-info',
+    itemUrl: (id) => `/api/key-info/${id}`, noun: KEY_INFO_NOUN,
+    flags: ['action_required', 'show_in_overview'],
+    extraActions: (act) => [{
+      label: 'Move to Group…',
+      onClick: () => act(async (selected) => { setMoveTargets(selected); setMoveGroupId(''); setMoveOpen(true) }),
+    }],
+  })
+
+  const moveDestId = moveGroupId === '' ? undefined : moveGroupId === '__none__' ? null : moveGroupId
+  const moveCount = moveDestId === undefined ? 0 : moveTargets.filter(i => i.group_id !== moveDestId).length
+
+  function handleMove() {
+    if (moveDestId === undefined) return
+    const name = moveDestId === null ? 'Uncategorized' : sortedGroups.find(g => g.id === moveDestId)?.name ?? 'the group'
+    setMoveOpen(false)
+    void bulk.update(moveTargets.filter(i => i.group_id !== moveDestId), { group_id: moveDestId }, `moved to ${name}`)
+  }
+
+  function groupHeader(label: string, list: KeyInfoItem[]) {
+    return (
+      <div className="key-info-group-header" style={selection.selectMode ? { display: 'flex', alignItems: 'center' } : undefined}>
+        {selection.selectMode && (
+          <SelectBox state={selection.stateOf(list)} onToggle={() => selection.toggle(list)} label={`Select all in ${label}`} />
+        )}
+        {label}
+      </div>
+    )
+  }
+
   function renderItem(item: KeyInfoItem) {
     return (
       <div
         key={item.id}
         id={`item-${item.id}`}
         className={`key-info-item${highlightedId === item.id ? ' item-highlight' : ''}`}
-        onClick={() => openEditItem(item)}
+        onClick={() => (selection.selectMode ? selection.toggle([item]) : openEditItem(item))}
+        aria-pressed={selection.selectMode ? selection.isSelected(item.id) : undefined}
+        style={selectedRowStyle(selection.isSelected(item.id))}
       >
-        <div className="key-info-item-header">
+        <div className="key-info-item-header" style={selection.selectMode ? { display: 'flex', alignItems: 'center', flexWrap: 'wrap' } : undefined}>
+          {selection.selectMode && (
+            <span style={{ margin: '-10px 0 -10px -10px' }}>
+              <SelectBox state={selection.isSelected(item.id) ? 'all' : 'none'} onToggle={() => selection.toggle([item])} label={`Select ${item.label}`} />
+            </span>
+          )}
           <span className="key-info-label">{item.label}</span>
           {item.show_in_overview && <span className="badge-show-in-overview">IN OVERVIEW</span>}
           {item.action_required && <span className="badge-action-required">ATTENTION REQUIRED</span>}
@@ -328,14 +376,21 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
           Key Info
         </h2>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Button variant="ghost" size="sm" onClick={() => setGroupSheetOpen(true)}>
-            Manage Groups
-          </Button>
-          <Button variant="primary" size="sm" onClick={openAddItem}>
-            <Plus size={16} /> Add Item
-          </Button>
+          {selectButton}
+          {!selection.selectMode && (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setGroupSheetOpen(true)}>
+                Manage Groups
+              </Button>
+              <Button variant="primary" size="sm" onClick={openAddItem}>
+                <Plus size={16} /> Add Item
+              </Button>
+            </>
+          )}
         </div>
       </div>
+
+      {bar}
 
       <div className="key-info-list">
         {sortedGroups.map(group => {
@@ -343,7 +398,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
           if (itemsArr.length === 0) return null
           return (
             <div key={group.id} className="key-info-group">
-              <div className="key-info-group-header">{group.name}</div>
+              {groupHeader(group.name, itemsArr)}
               {itemsArr.map(item => renderItem(item))}
             </div>
           )
@@ -355,7 +410,7 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
           if (itemsArr.length === 0) return null
           return (
             <div className="key-info-group">
-              <div className="key-info-group-header">Uncategorized</div>
+              {groupHeader('Uncategorized', itemsArr)}
               {itemsArr.map(item => renderItem(item))}
             </div>
           )
@@ -525,6 +580,34 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
           </div>
         </div>
       </ResponsiveSheet>
+
+      {/* Move selected items. Kept mounted (open toggles), like the other sheets. */}
+      <ResponsiveSheet
+        open={moveOpen}
+        onClose={() => setMoveOpen(false)}
+        title={`Move ${countOf(moveTargets.length, KEY_INFO_NOUN)}`}
+        primaryAction={{ label: 'Move', onClick: handleMove, disabled: moveCount === 0 || bulk.busy }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
+          <FormField label="To group">
+            <select
+              value={moveGroupId}
+              onChange={e => setMoveGroupId(e.target.value)}
+              style={{ ...inputStyle(), cursor: 'pointer' }}
+            >
+              <option value="" disabled>Choose a group…</option>
+              {sortedGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              <option value="__none__">Uncategorized</option>
+            </select>
+          </FormField>
+          {moveDestId !== undefined && moveCount === 0 && (
+            <p role="status" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--red)' }}>
+              {moveTargets.length === 1 ? 'That item is' : 'All selected items are'} already there.
+            </p>
+          )}
+        </div>
+      </ResponsiveSheet>
+      {overlays}
     </div>
   )
 }
