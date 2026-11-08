@@ -24,3 +24,29 @@ export function placeQuery(row: {
   if (!row.city?.trim()) return ''
   return join([row.address, row.city, row.province || row.state_province, row.postal_code, row.country])
 }
+
+export interface MapLinkPlace {
+  name?: string | null
+  address?: string | null
+  city?: string | null
+  province?: string | null
+  state_province?: string | null
+  postal_code?: string | null
+  country?: string | null
+}
+
+/** A street address and a city: enough to find the place on a map. */
+export function hasMapAddress(row: MapLinkPlace): boolean {
+  return !!row.address?.trim() && !!row.city?.trim()
+}
+
+/**
+ * The automatic Maps URL (docs/links-and-map-tiles-plan.md §2): a Google Maps
+ * search for the name and full address, or null without a street address and
+ * city. Shared by the forms and the server, so both build the same link.
+ */
+export function buildMapsUrl(row: MapLinkPlace): string | null {
+  if (!hasMapAddress(row)) return null
+  const query = join([row.name, row.address, row.city, row.province || row.state_province, row.postal_code, row.country])
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+}

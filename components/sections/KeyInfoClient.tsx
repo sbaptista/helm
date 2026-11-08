@@ -1,5 +1,8 @@
 'use client'
 
+import { UrlField } from '@/components/ui/UrlField'
+import { LinkifiedText, LinksFound } from '@/components/ui/LinkifiedText'
+import { isWellFormedUrl } from '@/lib/links'
 import { useState, useMemo, useCallback, useEffect, useContext } from 'react'
 import { apiFetch } from '@/lib/offline/api-fetch'
 import { useOfflineList } from '@/hooks/useOfflineList'
@@ -353,10 +356,10 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
           {item.show_in_overview && <span className="badge-show-in-overview">IN OVERVIEW</span>}
           {item.action_required && <span className="badge-action-required">ATTENTION REQUIRED</span>}
         </div>
-        <div className="key-info-value line-clamp-3">{item.value}</div>
-        {item.url && (
+        {item.value && <div className="key-info-value line-clamp-3"><LinkifiedText text={item.value} /></div>}
+        {item.url && (isWellFormedUrl(item.url) ? (
           <a
-            href={item.url}
+            href={item.url.trim()}
             target="_blank"
             rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
@@ -364,7 +367,9 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
           >
             {item.url_label || item.url}
           </a>
-        )}
+        ) : (
+          <span style={{ display: 'inline-block', marginTop: '4px', fontSize: 'var(--fs-sm)', color: 'var(--text3)', wordBreak: 'break-all' }}>{item.url_label || item.url}</span>
+        ))}
       </div>
     )
   }
@@ -464,17 +469,20 @@ export function KeyInfoClient({ initialItems, initialGroups, tripId }: Props) {
               rows={4}
               style={{ ...inputStyle(), resize: 'vertical' }}
             />
+            <LinksFound text={itemValue} />
           </FormField>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <FormField label="URL">
-              <input
-                type="text"
-                value={itemUrl}
-                onChange={e => setItemUrl(e.target.value)}
-                placeholder="https://..."
-                style={inputStyle()}
-              />
+              <UrlField url={itemUrl}>
+                <input
+                  type="url"
+                  value={itemUrl}
+                  onChange={e => setItemUrl(e.target.value)}
+                  placeholder="https://..."
+                  style={inputStyle()}
+                />
+              </UrlField>
             </FormField>
             <FormField label="URL Label">
               <input

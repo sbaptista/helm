@@ -7,13 +7,19 @@ import { TabNavigationContext, useTabNavigation } from '@/components/advisor/Tri
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
+import { UrlField } from '@/components/ui/UrlField'
+import { MapLinkField } from '@/components/ui/MapLinkField'
+import { ExternalLink, LinkRow } from '@/components/ui/ExternalLink'
+import { MapTile } from '@/components/ui/MapTile'
+import { LinkifiedText, LinksFound } from '@/components/ui/LinkifiedText'
+import { isWellFormedUrl } from '@/lib/links'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { useToast } from '@/components/ui/Toast'
 import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
 import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
 import { TimezoneField } from '@/components/ui/TimezoneField'
-import { placeQuery } from '@/lib/geo/place-query'
+import { buildMapsUrl, placeQuery } from '@/lib/geo/place-query'
 import { useRouter } from '@/lib/offline/router'
 import { SelectMark, selectedRowStyle, useListBulk } from '@/components/ui/BulkSelection'
 
@@ -36,6 +42,9 @@ export type Restaurant = {
   website_url: string | null
   booking_url: string | null
   maps_url: string | null
+  maps_url_auto?: boolean
+  map_lat?: number | null
+  map_lng?: number | null
   notes: string | null
   included: boolean
   action_required: boolean
@@ -87,6 +96,7 @@ const EMPTY_FORM = {
   website_url: '',
   booking_url: '',
   maps_url: '',
+  maps_url_auto: true,
   notes: '',
   included: false,
   action_required: false,
@@ -152,6 +162,8 @@ function recordToForm(r: Restaurant) {
     website_url:          r.website_url          ?? '',
     booking_url:          r.booking_url          ?? '',
     maps_url:             r.maps_url             ?? '',
+    // Before the switch existed, a record with a Maps URL kept its own.
+    maps_url_auto:        r.maps_url_auto ?? !r.maps_url,
     notes:                r.notes                ?? '',
     included:             r.included,
     action_required:      r.action_required,
@@ -298,7 +310,8 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
         email:               form.email.trim() || null,
         website_url:         form.website_url.trim() || null,
         booking_url:         form.booking_url.trim() || null,
-        maps_url:            form.maps_url.trim() || null,
+        maps_url_auto:       form.maps_url_auto,
+        maps_url:            form.maps_url_auto ? buildMapsUrl(form) : (form.maps_url.trim() || null),
         notes:               form.notes.trim() || null,
         included:            form.included,
         action_required:     form.action_required,
@@ -520,24 +533,24 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
           </FormField>
 
           <FormField label="Website">
-            <input
-              type="url"
-              value={form.website_url}
-              onChange={e => setField('website_url', e.target.value)}
-              placeholder="https://..."
-              style={inputStyle()}
-            />
+            <UrlField url={form.website_url}>
+              <input
+                type="url"
+                value={form.website_url}
+                onChange={e => setField('website_url', e.target.value)}
+                placeholder="https://..."
+                style={inputStyle()}
+              />
+            </UrlField>
           </FormField>
 
-          <FormField label="Maps URL">
-            <input
-              type="url"
-              value={form.maps_url}
-              onChange={e => setField('maps_url', e.target.value)}
-              placeholder="e.g. https://maps.google.com/..."
-              style={inputStyle()}
-            />
-          </FormField>
+          <MapLinkField
+            auto={form.maps_url_auto}
+            onAutoChange={v => setField('maps_url_auto', v)}
+            url={form.maps_url}
+            onUrlChange={v => setField('maps_url', v)}
+            place={form}
+          />
 
           {/* ── Group: Reservation ── */}
           <GroupHeader label="Reservation" />
@@ -629,13 +642,15 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
           </div>
 
           <FormField label="Booking URL">
-            <input
-              type="url"
-              value={form.booking_url}
-              onChange={e => setField('booking_url', e.target.value)}
-              placeholder="https://..."
-              style={inputStyle()}
-            />
+            <UrlField url={form.booking_url}>
+              <input
+                type="url"
+                value={form.booking_url}
+                onChange={e => setField('booking_url', e.target.value)}
+                placeholder="https://..."
+                style={inputStyle()}
+              />
+            </UrlField>
           </FormField>
 
           {/* ── Group: Notes ── */}
@@ -649,6 +664,7 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
               rows={3}
               style={{ ...inputStyle(), resize: 'vertical' }}
             />
+            <LinksFound text={form.notes} />
           </FormField>
 
           {/* ── Group: Flags ── */}
@@ -797,9 +813,16 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
       {/* Record list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {records.map(r => (
-          <button
+          <div
             key={r.id}
+            role="button"
+            tabIndex={0}
             onClick={() => (selection.selectMode ? selection.toggle([r]) : openEdit(r))}
+            onKeyDown={e => {
+              if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+              e.preventDefault()
+              if (selection.selectMode) selection.toggle([r]); else openEdit(r)
+            }}
             aria-pressed={selection.selectMode ? selection.isSelected(r.id) : undefined}
             className="section-row"
             style={selectedRowStyle(selection.isSelected(r.id))}
@@ -881,44 +904,15 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
               </span>
             )}
 
-            {/* Website link */}
-            {r.website_url && (
-              <a
-                href={r.website_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}
-              >
-                🔗 Website ↗
-              </a>
+            {/* Website, map and booking links */}
+            {(isWellFormedUrl(r.website_url) || isWellFormedUrl(r.maps_url) || isWellFormedUrl(r.booking_url)) && (
+              <LinkRow>
+                <ExternalLink href={r.website_url}>🔗 Website ↗</ExternalLink>
+                <ExternalLink href={r.maps_url}>📍 Map ↗</ExternalLink>
+                <ExternalLink href={r.booking_url}>📋 View Booking ↗</ExternalLink>
+              </LinkRow>
             )}
-
-            {/* Maps link */}
-            {r.maps_url && (
-              <a
-                href={r.maps_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block' }}
-              >
-                📍 Map ↗
-              </a>
-            )}
-
-            {/* Booking link */}
-            {r.booking_url && (
-              <a
-                href={r.booking_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', display: 'inline-block' }}
-              >
-                📋 View Booking ↗
-              </a>
-            )}
+            <MapTile table="restaurants" id={r.id} name={r.display_label || r.name} url={r.maps_url} lat={r.map_lat} lng={r.map_lng} />
 
             {/* Notes (3-line clamp) */}
             {r.notes && (
@@ -933,7 +927,7 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
                 WebkitBoxOrient: 'vertical',
                 margin: 0,
               }}>
-                {r.notes}
+                <LinkifiedText text={r.notes} />
               </p>
             )}
 
@@ -972,7 +966,7 @@ export function RestaurantsClient({ tripId, initialRestaurants, formOnlyRecordId
               </div>
             )}
 
-          </button>
+          </div>
         ))}
       </div>
 

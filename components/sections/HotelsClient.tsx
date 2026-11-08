@@ -1,6 +1,7 @@
 // components/sections/HotelsClient.tsx
 'use client'
 
+import { LinkifiedText, LinksFound } from '@/components/ui/LinkifiedText'
 import { useState, useCallback, useContext, useEffect } from 'react'
 import { apiFetch } from '@/lib/offline/api-fetch'
 import { useOfflineList } from '@/hooks/useOfflineList'
@@ -8,6 +9,11 @@ import { TabNavigationContext, useTabNavigation } from '@/components/advisor/Tri
 import { ChevronDown, ChevronUp, ExternalLink, Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
+import { UrlField } from '@/components/ui/UrlField'
+import { MapLinkField } from '@/components/ui/MapLinkField'
+import { ExternalLink as WebLink, LinkRow } from '@/components/ui/ExternalLink'
+import { MapTile } from '@/components/ui/MapTile'
+import { isWellFormedUrl } from '@/lib/links'
 import { FormField } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
@@ -15,7 +21,7 @@ import WarnBadge from '@/components/ui/WarnBadge'
 import { scrollToFirstError } from '@/lib/form-utils'
 import { ItineraryTimingFlags } from '@/components/ui/ItineraryTimingFlags'
 import { TimezoneField } from '@/components/ui/TimezoneField'
-import { placeQuery } from '@/lib/geo/place-query'
+import { buildMapsUrl, placeQuery } from '@/lib/geo/place-query'
 import { useRouter } from '@/lib/offline/router'
 import { SelectBox } from '@/components/ui/SelectionControls'
 import { selectedRowStyle, useListBulk } from '@/components/ui/BulkSelection'
@@ -47,6 +53,9 @@ type Hotel = {
   country?: string | null
   timezone?: string | null
   maps_url: string | null
+  maps_url_auto?: boolean
+  map_lat?: number | null
+  map_lng?: number | null
   check_in_is_all_day: boolean
   check_in_is_approx: boolean
   check_out_is_all_day: boolean
@@ -97,6 +106,7 @@ const EMPTY_FORM = {
   country: '',
   timezone: '',
   maps_url: '',
+  maps_url_auto: true,
   check_in_is_all_day: false,
   check_in_is_approx: false,
   check_out_is_all_day: false,
@@ -285,6 +295,8 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
       country: hotel.country ?? '',
       timezone: hotel.timezone ?? '',
       maps_url: hotel.maps_url ?? '',
+      // Before the switch existed, a record with a Maps URL kept its own.
+      maps_url_auto: hotel.maps_url_auto ?? !hotel.maps_url,
       check_in_is_all_day: hotel.check_in_is_all_day ?? false,
       check_in_is_approx: hotel.check_in_is_approx ?? false,
       check_out_is_all_day: hotel.check_out_is_all_day ?? false,
@@ -332,7 +344,8 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
         country: form.country.trim() || null,
         // Empty: the server looks it up from the place.
         timezone: form.timezone || null,
-        maps_url: form.maps_url.trim() || null,
+        maps_url_auto: form.maps_url_auto,
+        maps_url: form.maps_url_auto ? buildMapsUrl(form) : (form.maps_url.trim() || null),
         check_in_is_all_day: form.check_in_is_all_day,
         check_in_is_approx: form.check_in_is_all_day ? false : form.check_in_is_approx,
         check_out_is_all_day: form.check_out_is_all_day,
@@ -490,15 +503,14 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
             suggested={hotels.map(h => h.timezone ?? '')}
           />
 
-          <FormField label="Maps URL">
-            <input
-              type="url"
-              value={form.maps_url}
-              onChange={e => setField('maps_url', e.target.value)}
-              placeholder="e.g. https://maps.google.com/..."
-              style={inputStyle}
-            />
-          </FormField>
+          <MapLinkField
+            auto={form.maps_url_auto}
+            onAutoChange={v => setField('maps_url_auto', v)}
+            url={form.maps_url}
+            onUrlChange={v => setField('maps_url', v)}
+            place={form}
+            style={inputStyle}
+          />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <FormField label="Check-in Date">
@@ -578,13 +590,15 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
               />
             </FormField>
             <FormField label="Website">
-              <input
-                type="url"
-                value={form.website_url}
-                onChange={e => setField('website_url', e.target.value)}
-                placeholder="https://..."
-                style={inputStyle}
-              />
+              <UrlField url={form.website_url}>
+                <input
+                  type="url"
+                  value={form.website_url}
+                  onChange={e => setField('website_url', e.target.value)}
+                  placeholder="https://..."
+                  style={inputStyle}
+                />
+              </UrlField>
             </FormField>
           </div>
 
@@ -596,6 +610,7 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
               rows={3}
               style={{ ...inputStyle, resize: 'vertical' }}
             />
+            <LinksFound text={form.notes} />
           </FormField>
 
           {/* Action Required */}
@@ -823,17 +838,20 @@ export function HotelsClient({ tripId, initialHotels, nearbyDining, formOnlyReco
                       </p>
                     )}
 
-                    {/* Maps link */}
-                    {hotel.maps_url && (
-                      <a
-                        href={hotel.maps_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        style={{ fontSize: 'var(--fs-xs)', color: 'var(--gold-text)', marginTop: '2px', display: 'inline-block' }}
-                      >
-                        View on Maps ↗
-                      </a>
+                    {/* Map and website links */}
+                    {(isWellFormedUrl(hotel.maps_url) || isWellFormedUrl(hotel.website_url)) && (
+                      <LinkRow>
+                        <WebLink href={hotel.maps_url}>📍 Map ↗</WebLink>
+                        <WebLink href={hotel.website_url}>🔗 Website ↗</WebLink>
+                      </LinkRow>
+                    )}
+                    <MapTile table="hotels" id={hotel.id} name={hotel.name} url={hotel.maps_url} lat={hotel.map_lat} lng={hotel.map_lng} />
+
+                    {/* Notes */}
+                    {hotel.notes && (
+                      <p className="line-clamp-3" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', lineHeight: 1.5, margin: '4px 0 0' }}>
+                        <LinkifiedText text={hotel.notes} />
+                      </p>
                     )}
 
                     {/* Check-in / Check-out */}

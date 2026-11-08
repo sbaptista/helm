@@ -26,6 +26,7 @@ function DevDebugPanelInner() {
   // Import Document fails as the AI service would (docs/import-fix-plan.md Step 8).
   const [importAiError, setImportAiError] = useState<string>('');
   const [tzResults, setTzResults] = useState<string[] | null>(null);
+  const [mapFill, setMapFill] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(VARIANT_KEY);
@@ -62,6 +63,21 @@ function DevDebugPanelInner() {
       }
     }
     setTzResults(lines);
+  }
+
+  // Map tile locations for records saved before version 3
+  // (docs/links-and-map-tiles-plan.md §3).
+  async function fillMapLocations() {
+    setMapFill('Filling…');
+    try {
+      const res = await fetch('/api/dev/fill-map-locations', { method: 'POST' });
+      const json = await res.json();
+      setMapFill(res.ok
+        ? [`Checked ${json.checked}: ${json.found} located${json.linked ? `, ${json.linked} links created` : ''}${json.failed ? `, ${json.failed} not saved` : ''}`, ...(json.notFound ?? [])].join('\n')
+        : `✗ ${json.error ?? res.status}`);
+    } catch (err) {
+      setMapFill(`✗ ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   const btnStyle: React.CSSProperties = {
@@ -217,6 +233,14 @@ function DevDebugPanelInner() {
                   {line}
                 </span>
               ))}
+              <button type="button" style={btnStyle} onClick={fillMapLocations}>
+                Fill map locations
+              </button>
+              {mapFill && (
+                <span style={{ fontFamily: "'Lato', sans-serif", fontSize: '11px', color: 'var(--text2)', maxWidth: '260px', overflowWrap: 'anywhere', whiteSpace: 'pre-line' }}>
+                  {mapFill}
+                </span>
+              )}
             </div>
 
             {/* Import AI error simulation */}

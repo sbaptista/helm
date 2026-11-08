@@ -1,5 +1,6 @@
 'use client';
 
+import { LinkifiedText, LinksFound } from '@/components/ui/LinkifiedText'
 import React, { useState, useContext, useEffect } from 'react';
 import { apiFetch } from '@/lib/offline/api-fetch';
 import { useOfflineList } from '@/hooks/useOfflineList';
@@ -793,6 +794,7 @@ export function FlightsClient({
               style={{ ...fieldStyle('notes'), minHeight: '80px', resize: 'vertical' }}
               placeholder="Optional notes…"
             />
+            <LinksFound text={form.notes} />
           </FormField>
 
           {/* Delete — edit mode only */}
@@ -1099,7 +1101,7 @@ export function FlightsClient({
               {/* Notes */}
               {f.notes && (
                 <p className="line-clamp-3" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', lineHeight: 1.5, marginTop: '2px' }}>
-                  {f.notes}
+                  <LinkifiedText text={f.notes} />
                 </p>
               )}
             </div>

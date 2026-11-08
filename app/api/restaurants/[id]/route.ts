@@ -5,6 +5,7 @@ import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
 import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
 import { fillMissingTimezones, placeQuery } from '@/lib/geo/timezone-lookup'
+import { applyMapLink } from '@/lib/geo/map-link'
 
 function serviceClient() {
   return createClient(
@@ -55,6 +56,7 @@ export async function PATCH(
     const body = await req.json()
     // A form save sends timezone; an empty one is looked up from the place.
     if ('timezone' in body) await fillMissingTimezones(body, [{ timezone: 'timezone', query: placeQuery(body) }])
+    await applyMapLink(supabase, 'restaurants', id, body)
     const {
       name, cuisine, city, address, reservation_time, party_size, style,
       confirmation_number, phone, website_url, notes, included, action_required,
@@ -62,7 +64,7 @@ export async function PATCH(
       display_label, reservation_status, confirmed, booking_source, maps_url,
       action_note, state_province, postal_code, email, booking_url,
       reservation_is_all_day, reservation_is_approx,
-      show_in_itinerary, timezone, country,
+      show_in_itinerary, timezone, country, maps_url_auto, map_lat, map_lng,
     } = body
     const nextInclude = 'gcal_include' in body ? gcal_include === true : record.gcal_include === true
     const gcalDirty = nextInclude || record.gcal_include === true || !!record.gcal_event_id
@@ -76,7 +78,7 @@ export async function PATCH(
         display_label, reservation_status, confirmed, booking_source, maps_url,
         action_note, state_province, postal_code, email, booking_url,
         reservation_is_all_day, reservation_is_approx,
-        show_in_itinerary, timezone, country,
+        show_in_itinerary, timezone, country, maps_url_auto, map_lat, map_lng,
       })
       .eq('id', id)
       .select()

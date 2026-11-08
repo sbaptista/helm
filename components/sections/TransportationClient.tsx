@@ -1,5 +1,6 @@
 'use client'
 
+import { LinkifiedText, LinksFound } from '@/components/ui/LinkifiedText'
 import { useState, useCallback, useContext, useEffect } from 'react'
 import { apiFetch } from '@/lib/offline/api-fetch'
 import { useOfflineList } from '@/hooks/useOfflineList'
@@ -7,6 +8,9 @@ import { TabNavigationContext, useTabNavigation } from '@/components/advisor/Tri
 import { Plus } from 'lucide-react'
 import { ResponsiveSheet } from '@/components/ui/ResponsiveSheet'
 import { Button } from '@/components/ui/Button'
+import { UrlField } from '@/components/ui/UrlField'
+import { ExternalLink, LinkRow } from '@/components/ui/ExternalLink'
+import { isWellFormedUrl } from '@/lib/links'
 import { FormField, inputStyle } from '@/components/ui/FormField'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
@@ -484,13 +488,15 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
               />
             </FormField>
             <FormField label="Website">
-              <input
-                type="url"
-                value={form.website_url}
-                onChange={e => setField('website_url', e.target.value)}
-                placeholder="https://..."
-                style={inputStyle()}
-              />
+              <UrlField url={form.website_url}>
+                <input
+                  type="url"
+                  value={form.website_url}
+                  onChange={e => setField('website_url', e.target.value)}
+                  placeholder="https://..."
+                  style={inputStyle()}
+                />
+              </UrlField>
             </FormField>
           </div>
 
@@ -515,6 +521,7 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
               rows={3}
               style={{ ...inputStyle(), resize: 'vertical' }}
             />
+            <LinksFound text={form.notes} />
           </FormField>
 
           {/* Included toggle */}
@@ -698,9 +705,16 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
       {/* Record list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {records.map(r => (
-          <button
+          <div
             key={r.id}
+            role="button"
+            tabIndex={0}
             onClick={() => (selection.selectMode ? selection.toggle([r]) : openEdit(r))}
+            onKeyDown={e => {
+              if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+              e.preventDefault()
+              if (selection.selectMode) selection.toggle([r]); else openEdit(r)
+            }}
             aria-pressed={selection.selectMode ? selection.isSelected(r.id) : undefined}
             className="section-row"
             style={selectedRowStyle(selection.isSelected(r.id))}
@@ -769,7 +783,21 @@ export function TransportationClient({ tripId, initialTransportations, formOnlyR
                 {r.cost}
               </span>
             )}
-          </button>
+
+            {/* Notes */}
+            {r.notes && (
+              <p className="line-clamp-3" style={{ fontFamily: "'Lato', sans-serif", fontSize: 'var(--fs-sm)', color: 'var(--text3)', lineHeight: 1.5, margin: '4px 0 0' }}>
+                <LinkifiedText text={r.notes} />
+              </p>
+            )}
+
+            {/* Website link */}
+            {isWellFormedUrl(r.website_url) && (
+              <LinkRow>
+                <ExternalLink href={r.website_url}>🔗 Website ↗</ExternalLink>
+              </LinkRow>
+            )}
+          </div>
         ))}
       </div>
 

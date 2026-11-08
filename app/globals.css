@@ -386,6 +386,19 @@ button {
 }
 .key-info-label { font-weight: 600; font-size: var(--fs-sm); color: var(--text); }
 .key-info-value { font-size: var(--fs-sm); color: var(--text2); line-height: 1.5; }
+/* Links in content (docs/links-and-map-tiles-plan.md §1): always gold and
+   underlined, so a link looks like one on every page. */
+.text-link,
+.text-link:visited {
+  color: var(--gold-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.text-link:hover { text-decoration-thickness: 2px; }
+
 .key-info-link {
   display: inline-block;
   margin-top: 4px;

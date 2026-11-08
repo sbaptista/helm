@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 import { logger } from '@/lib/logger'
 import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
 import { fillMissingTimezones, placeQuery } from '@/lib/geo/timezone-lookup'
+import { applyMapLink } from '@/lib/geo/map-link'
 
 function serviceClient() {
   return createClient(
@@ -74,13 +75,14 @@ export async function POST(
 
     const body = await req.json()
     await fillMissingTimezones(body, [{ timezone: 'timezone', query: placeQuery(body) }])
+    await applyMapLink(supabase, 'restaurants', null, body)
     const {
       name, cuisine, city, address, reservation_time, party_size, style, type,
       confirmation_number, phone, website_url, notes, included, action_required,
       display_label, reservation_status, confirmed, booking_source, maps_url,
       action_note, state_province, postal_code, email, booking_url,
       reservation_is_all_day, reservation_is_approx,
-      gcal_include, show_in_itinerary, timezone, country,
+      gcal_include, show_in_itinerary, timezone, country, maps_url_auto, map_lat, map_lng,
     } = body
     const { data, error } = await supabase
       .from('restaurants')
@@ -98,6 +100,8 @@ export async function POST(
         show_in_itinerary: show_in_itinerary === true,
         timezone: timezone || null,
         country: country || null,
+        ...(typeof maps_url_auto === 'boolean' ? { maps_url_auto } : {}),
+        ...(map_lat !== undefined ? { map_lat, map_lng } : {}),
       })
       .select()
       .single()

@@ -1,5 +1,6 @@
 'use client'
 
+import { LinkifiedText, LinksFound } from '@/components/ui/LinkifiedText'
 import { useState, useCallback, useMemo, useEffect, useContext, type ComponentProps } from 'react'
 import { apiFetch } from '@/lib/offline/api-fetch'
 import { useOfflineList } from '@/hooks/useOfflineList'
@@ -639,6 +640,11 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
     return map
   }, [rows, linkedEntries, sortedDays])
 
+  function openEntry(row: DisplayItineraryEntry) {
+    if (row.manualRow) openEditRow(row.manualRow)
+    else if (row.linked) setLinkedForm({ section: row.linked.source_section, id: row.linked.source_id })
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
@@ -769,12 +775,16 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
             {expandedDays.has(day.id) && (
               <div style={{ marginTop: '2px', borderLeft: '2px solid var(--border2)', marginLeft: '24px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '10px' }}>
                 {dayRows.map(row => (
-                  <button
+                  <div
                     key={row.id}
                     id={`item-${row.id}`}
-                    onClick={() => {
-                      if (row.manualRow) openEditRow(row.manualRow)
-                      else if (row.linked) setLinkedForm({ section: row.linked.source_section, id: row.linked.source_id })
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openEntry(row)}
+                    onKeyDown={e => {
+                      if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+                      e.preventDefault()
+                      openEntry(row)
                     }}
                     aria-label={row.linked ? `${row.title}. ${LINKED_SOURCE_LABEL[row.linked.source_section]}; opens its edit form` : undefined}
                     className={`section-row${highlightedId === row.id ? ' item-highlight' : ''}`}
@@ -851,7 +861,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
                     )}
                     {row.description && (
                       <p className="line-clamp-3" style={{ fontSize: 'var(--fs-sm)', color: 'var(--text2)', lineHeight: 1.5, marginTop: '6px' }}>
-                        {row.description}
+                        <LinkifiedText text={row.description} />
                       </p>
                     )}
                     {row.location && (
@@ -859,7 +869,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
                         📍 {row.location}
                       </p>
                     )}
-                  </button>
+                  </div>
                 ))}
 
                 <div style={{ marginTop: '8px' }}>
@@ -981,6 +991,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
               rows={3}
               style={{ ...inputStyle(), resize: 'vertical' }}
             />
+            <LinksFound text={dayForm.notes} />
           </FormField>
 
           {/* Delete */}
@@ -1222,6 +1233,7 @@ export default function ItineraryClient({ tripId, initialDays, initialRows, link
               rows={3}
               style={{ ...inputStyle(), resize: 'vertical' }}
             />
+            <LinksFound text={rowForm.description} />
           </FormField>
 
           {/* Included / Provided */}

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
 import { fillMissingTimezones, placeQuery } from '@/lib/geo/timezone-lookup'
+import { applyMapLink } from '@/lib/geo/map-link'
 import { requireRecordMember } from '@/lib/auth/trip-access'
 
 // Never set from a request: identity, trip, timestamps and Calendar sync state.
@@ -28,6 +29,7 @@ export async function PATCH(
     for (const field of PROTECTED_FIELDS) delete body[field]
     // A form save sends timezone; an empty one is looked up from the place.
     if ('timezone' in body) await fillMissingTimezones(body, [{ timezone: 'timezone', query: placeQuery(body) }])
+    await applyMapLink(supabase, 'hotels', id, body)
     const { data: existing } = await supabase
       .from('hotels')
       .select('gcal_include, gcal_checkin_event_id, gcal_checkout_event_id')

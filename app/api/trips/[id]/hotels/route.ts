@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { ensureDaysForLinkedRecord } from '@/lib/itinerary/linked-entries'
 import { fillMissingTimezones, placeQuery } from '@/lib/geo/timezone-lookup'
+import { applyMapLink } from '@/lib/geo/map-link'
 
 function serverClient() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!) }
 
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const supabase = serverClient()
     const body = await request.json()
     await fillMissingTimezones(body, [{ timezone: 'timezone', query: placeQuery(body) }])
+    await applyMapLink(supabase, 'hotels', null, body)
     const { data, error } = await supabase.from('hotels').insert({ ...body, trip_id: tripId, gcal_dirty: body.gcal_include === true }).select().single()
     if (error) {
       logger.error('api/hotels', 'Supabase error on POST', { error: error.message, recordId: tripId })

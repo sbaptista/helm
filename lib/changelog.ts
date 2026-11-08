@@ -6,6 +6,51 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0061',
+    date: '2026-11-08',
+    changes: [
+      'Map pictures now appear for places Google pins at the centre of the building rather than at the street entrance (for example Hampton Inn & Suites Alexandria). Matches that are only a street, area or town still get no picture.',
+      'DEV panel: Fill map locations also creates the automatic map link for older records that never had one, and lists each record it couldn\'t place, with the reason.',
+    ],
+  },
+  {
+    version: 'v00.04.0060',
+    date: '2026-11-07',
+    changes: [
+      'Map pictures: Hotel and Restaurant cards show a small map with a pin under the links when Helm knows exactly where the place is. Tap it to open the map link.',
+      'With "Create map link from address" on, the place is found from the street address, and the picture is shown only when Google matches that exact address. With the switch off, the pin comes from your own link (including maps.app.goo.gl short links); a link that only shows an area, with no pin, gets no picture.',
+      'Offline, or if the map can\'t load, the picture is left out and the Map ↗ link still works.',
+      'DEV panel: Fill map locations finds the place for existing records on your trips without saving each one again.',
+    ],
+  },
+  {
+    version: 'v00.04.0059',
+    date: '2026-11-07',
+    changes: [
+      'Hotels and Restaurants: a new "Create map link from address" switch, on for new records. While it\'s on, Helm writes the Maps URL from the name and address (a street address and city are needed) and keeps it up to date when the address changes; the field can\'t be edited.',
+      'Turn the switch off to enter your own map link; it starts from the generated one. Records that already had a Maps URL keep it, with the switch off.',
+    ],
+  },
+  {
+    version: 'v00.04.0058',
+    date: '2026-11-07',
+    changes: [
+      'Notes with web addresses: Hotel and Transportation cards now show their notes (up to three lines), with any web address as a link, like Flights and Restaurants.',
+      'In edit forms, the web addresses typed into Notes (and Itinerary descriptions, day notes and Key Info values) are listed as links just under the box, so you can open them while editing; a link can\'t be tapped inside the text box itself.',
+      'Every link in content is gold and underlined (one shared style, .text-link).',
+    ],
+  },
+  {
+    version: 'v00.04.0057',
+    date: '2026-11-07',
+    changes: [
+      'Links you can tap: Hotels now show Map and Website links on each card, Transportation shows Website, and Restaurants\' Website, Map and Booking links are larger, with room to tap. A link opens in a new tab without opening the edit form.',
+      'Edit forms: every web address field (Website, Maps URL, Booking URL, Key Info URL) has an Open ↗ button beside it once the address is complete.',
+      'Web addresses typed into Flight and Restaurant notes, Key Info values and Itinerary descriptions are now links.',
+      'Only complete web addresses (starting with http:// or https://) become links; anything else stays plain text.',
+    ],
+  },
+  {
     version: 'v00.04.0056',
     date: '2026-11-07',
     changes: [
