@@ -5,7 +5,8 @@
 import { airportQuery, fillMissingTimezones, placeQuery } from '@/lib/geo/timezone-lookup';
 import { formatZonedDateTime, instantToZonedInput, normalizeZonedDateTime } from '@/lib/zoned-time';
 import type { BookingMatch, BookingSection, FieldChange, MatchCandidate } from '@/lib/import/match-types';
-import { IMPORT_KEY } from '@/lib/import/match-types';
+import { IMPORT_KEY, WEBSITE_FROM_PAGE } from '@/lib/import/match-types';
+import { isWellFormedUrl } from '@/lib/links';
 
 export type Row = Record<string, unknown>;
 
@@ -15,6 +16,21 @@ export function str(value: unknown): string | null {
   if (typeof value === 'string') return value.trim() || null;
   if (typeof value === 'number') return String(value);
   return null;
+}
+
+// A record's own website, only when it's a well-formed http(s) link.
+function website(row: Row): string | null {
+  const s = str(row.website_url);
+  return isWellFormedUrl(s) ? s : null;
+}
+
+// The website to propose for a booking already on the trip: an address that
+// only came from the imported page never replaces one it already has.
+function proposedWebsite(imported: Row, existing: Row): string | null {
+  const site = website(imported);
+  if (!site) return null;
+  if (imported[WEBSITE_FROM_PAGE] === true && str(existing.website_url)) return null;
+  return site;
 }
 
 export function importKey(row: Row): string | null {
@@ -123,6 +139,7 @@ export async function prepareInsert(section: BookingSection, row: Row, tripId: s
         check_out_date:      str(row.check_out_date),
         confirmation_number: str(row.confirmation_code),
         phone:               str(row.phone),
+        website_url:         website(row),
         notes:               str(row.notes),
         timezone:            await timezoneFor(placeQuery({ address, city })),
         show_in_itinerary:   true,
@@ -143,6 +160,7 @@ export async function prepareInsert(section: BookingSection, row: Row, tripId: s
         departure_timezone:  departureTimezone,
         arrival_timezone:    arrivalTimezone,
         confirmation_number: str(row.confirmation_code),
+        website_url:         website(row),
         notes:               [str(row.description), str(row.notes)].filter(Boolean).join('\n') || null,
         show_in_itinerary:   true,
       };
@@ -159,6 +177,7 @@ export async function prepareInsert(section: BookingSection, row: Row, tripId: s
         reservation_time:    instant(toLocalDateTime(str(row.date), str(row.time)), timezone),
         confirmation_number: str(row.confirmation_code),
         type:                restaurantType(row.type),
+        website_url:         website(row),
         notes:               str(row.notes),
         timezone,
         show_in_itinerary:   true,
@@ -175,7 +194,50 @@ function restaurantType(value: unknown): string | null {
 
 // ─── Matching (D1) ────────────────────────────────────────────────────────────
 
-export function findCandidates(section: BookingSection, imported: Row, existing: Row[]): Row[] {
+// A website as a matching key: no scheme, "www.", case, trailing "/", query
+// or #part. Empty when it isn't a well-formed link.
+export function siteKey(value: unknown): string {
+  const s = str(value);
+  if (!isWellFormedUrl(s)) return '';
+  try {
+    const url = new URL(s);
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    const path = url.pathname.replace(/\/+$/, '').toLowerCase();
+    return host + path;
+  } catch {
+    return '';
+  }
+}
+
+// Websites that can't identify one place: shared by two or more imported
+// records, or two or more bookings already on the trip (a "best restaurants"
+// page gives every restaurant on it the page's address).
+export function sharedSites(imported: Row[], existing: Row[]): Set<string> {
+  const shared = new Set<string>();
+  for (const rows of [imported, existing]) {
+    const seen = new Set<string>();
+    for (const row of rows) {
+      const key = siteKey(row.website_url);
+      if (!key) continue;
+      if (seen.has(key)) shared.add(key);
+      seen.add(key);
+    }
+  }
+  return shared;
+}
+
+// A restaurant or hotel with no date and no confirmation number (a website, or
+// an unbooked possibility Stan keeps on the trip) matches one already on the
+// trip by name, or by a website only that place has.
+function undatedMatch(imported: Row, existing: Row[], shared: Set<string>): Row[] {
+  const name = textKey(imported.name);
+  const site = siteKey(imported.website_url);
+  const usableSite = site !== '' && !shared.has(site);
+  return existing.filter((r) =>
+    (name !== '' && textKey(r.name) === name) || (usableSite && siteKey(r.website_url) === site));
+}
+
+export function findCandidates(section: BookingSection, imported: Row, existing: Row[], shared: Set<string> = new Set()): Row[] {
   const conf = codeKey(imported.confirmation_code);
   const sameConf = (r: Row) => conf !== '' && codeKey(r.confirmation_number) === conf;
 
@@ -191,6 +253,7 @@ export function findCandidates(section: BookingSection, imported: Row, existing:
     case 'hotels': {
       const name = textKey(imported.name);
       const checkIn = str(imported.check_in_date);
+      if (checkIn === null && conf === '') return undatedMatch(imported, existing, shared);
       return existing.filter((r) =>
         sameConf(r) || (name !== '' && checkIn !== null && textKey(r.name) === name && str(r.check_in_date) === checkIn));
     }
@@ -208,6 +271,7 @@ export function findCandidates(section: BookingSection, imported: Row, existing:
     case 'restaurants': {
       const name = textKey(imported.name);
       const date = str(imported.date);
+      if (date === null && conf === '') return undatedMatch(imported, existing, shared);
       return existing.filter((r) =>
         sameConf(r) || (name !== '' && date !== null && textKey(r.name) === name && localDate(r.reservation_time, r.timezone) === date));
     }
@@ -244,6 +308,7 @@ const FIELDS: Record<BookingSection, FieldSpec[]> = {
     { field: 'check_out_date',      label: 'Check-out',     kind: 'date' },
     { field: 'confirmation_number', label: 'Confirmation',  kind: 'code' },
     { field: 'phone',               label: 'Phone',         kind: 'text' },
+    { field: 'website_url',         label: 'Website',       kind: 'text' },
   ],
   transportation: [
     { field: 'type',                label: 'Type',          kind: 'text' },
@@ -252,6 +317,7 @@ const FIELDS: Record<BookingSection, FieldSpec[]> = {
     { field: 'departure_time',      label: 'Departs',       kind: 'instant', tz: 'departure_timezone' },
     { field: 'arrival_time',        label: 'Arrives',       kind: 'instant', tz: 'arrival_timezone' },
     { field: 'confirmation_number', label: 'Confirmation',  kind: 'code' },
+    { field: 'website_url',         label: 'Website',       kind: 'text' },
   ],
   restaurants: [
     { field: 'name',                label: 'Restaurant',    kind: 'text' },
@@ -260,6 +326,7 @@ const FIELDS: Record<BookingSection, FieldSpec[]> = {
     { field: 'reservation_time',    label: 'Reservation',   kind: 'instant', tz: 'timezone' },
     { field: 'type',                label: 'Type',          kind: 'text' },
     { field: 'confirmation_number', label: 'Confirmation',  kind: 'code' },
+    { field: 'website_url',         label: 'Website',       kind: 'text' },
   ],
 };
 
@@ -308,6 +375,7 @@ export async function proposedValues(section: BookingSection, imported: Row, exi
       set('check_out_date', str(imported.check_out_date));
       set('confirmation_number', str(imported.confirmation_code));
       set('phone', str(imported.phone));
+      set('website_url', proposedWebsite(imported, existing));
       set('timezone', timezone);
       break;
     }
@@ -326,6 +394,7 @@ export async function proposedValues(section: BookingSection, imported: Row, exi
       set('departure_time', instant(imported.departure_time, departureTz));
       set('arrival_time', instant(imported.arrival_time, arrivalTz ?? departureTz));
       set('confirmation_number', str(imported.confirmation_code));
+      set('website_url', proposedWebsite(imported, existing));
       set('departure_timezone', departureTz);
       set('arrival_timezone', arrivalTz);
       break;
@@ -343,6 +412,7 @@ export async function proposedValues(section: BookingSection, imported: Row, exi
       set('city', city);
       set('reservation_time', instant(toLocalDateTime(str(imported.date), str(imported.time)), timezone));
       set('type', restaurantType(imported.type));
+      set('website_url', proposedWebsite(imported, existing));
       set('confirmation_number', str(imported.confirmation_code));
       set('timezone', timezone);
       break;
@@ -445,10 +515,11 @@ export async function matchBookings(
 ): Promise<BookingMatch[]> {
   const matches: BookingMatch[] = [];
   for (const section of Object.keys(existing) as BookingSection[]) {
+    const shared = sharedSites(imported[section] ?? [], existing[section]);
     for (const row of imported[section] ?? []) {
       const key = importKey(row);
       if (!key) continue;
-      const found = findCandidates(section, row, existing[section]);
+      const found = findCandidates(section, row, existing[section], shared);
       if (found.length === 0) continue;
       const candidates: MatchCandidate[] = [];
       for (const candidate of found) {

@@ -15,7 +15,7 @@ import {
   type CardDecision,
   type MatchesState,
 } from '@/components/advisor/ImportBookingChanges';
-import { BOOKING_SECTIONS, IMPORT_KEY } from '@/lib/import/match-types';
+import { BOOKING_SECTIONS, IMPORT_KEY, WEBSITE_FROM_PAGE } from '@/lib/import/match-types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,18 +94,18 @@ const FIELD_TYPES: Record<string, Record<string, FieldType>> = {
   hotels: {
     name: 'text', location: 'text', address: 'text', city: 'text',
     check_in_date: 'date', check_out_date: 'date',
-    confirmation_code: 'text', phone: 'text', notes: 'text',
+    confirmation_code: 'text', phone: 'text', website_url: 'text', notes: 'text',
   },
   transportation: {
     type: 'text', description: 'text', departure_location: 'text',
     arrival_location: 'text', departure_time: 'timestamptz', arrival_time: 'timestamptz',
-    confirmation_code: 'text', notes: 'text',
+    confirmation_code: 'text', website_url: 'text', notes: 'text',
   },
   restaurants: {
     name: 'text', location: 'text', address: 'text', city: 'text',
     date: 'date', time: 'time', confirmation_code: 'text',
     type: { type: 'enum', options: ['included', 'independent'] },
-    notes: 'text',
+    website_url: 'text', notes: 'text',
   },
   checklist_items: { task: 'text', group: 'text', due_date: 'date', notes: 'text' },
   packing_items: { item: 'text', category: 'text', sub_group: 'text' },
@@ -202,13 +202,14 @@ function buildEffectiveResult(
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ItemRow({ item }: { item: Record<string, unknown> }) {
-  const entries = Object.entries(item).filter(([, v]) => v !== null && v !== undefined && v !== '');
+  // Keys starting "__" are Helm's own markers (import key, website from the page).
+  const entries = Object.entries(item).filter(([k, v]) => !k.startsWith('__') && v !== null && v !== undefined && v !== '');
   return (
     <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border2)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
       {entries.map(([k, v]) => (
         <div key={k} style={{ display: 'flex', gap: '8px', fontSize: '13px' }}>
           <span style={{ color: 'var(--text3)', minWidth: '140px', flexShrink: 0, fontFamily: "'Lato', sans-serif", textTransform: 'capitalize' }}>
-            {k.replace(/_/g, ' ')}
+            {k === 'website_url' ? (item[WEBSITE_FROM_PAGE] === true ? 'website (this page)' : 'website') : k.replace(/_/g, ' ')}
           </span>
           <span style={{ color: 'var(--text2)', fontFamily: "'Lato', sans-serif", wordBreak: 'break-word' }}>
             {String(v)}
@@ -798,20 +799,21 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
 
       {/* Header */}
-      <header style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, height: 'calc(64px + var(--sat))', paddingTop: 'var(--sat)', background: 'var(--bg2)', borderBottom: '1px solid var(--border2)', boxShadow: 'var(--shadow)', display: 'flex', alignItems: 'flex-end' }}>
-        <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '0 48px', height: '64px', display: 'flex', alignItems: 'center', gap: '20px' }} className="helm-header-inner">
+      <header style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, height: 'calc(64px + var(--sat))', paddingTop: 'var(--sat)', background: 'var(--bg2)', borderBottom: '1px solid var(--border2)', boxShadow: 'var(--shadow)', display: 'flex', alignItems: 'flex-end', overflow: 'hidden' }}>
+        <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '0 48px', height: '64px', display: 'flex', alignItems: 'center', gap: '20px', minWidth: 0, overflow: 'hidden' }} className="helm-header-inner">
           <button
             onClick={() => router.push(`/advisor/trips/${tripId}`)}
             aria-label="Back to trip"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontFamily: "'Lato', sans-serif", fontSize: '14px', padding: '4px 0', flexShrink: 0 }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontFamily: "'Lato', sans-serif", fontSize: '14px', padding: '4px 0', minHeight: '44px', minWidth: 0, flexShrink: 1 }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
               <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            {payload.tripTitle}
+            {/* A long trip name shortens with "…" so the page never scrolls sideways. */}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{payload.tripTitle}</span>
           </button>
-          <span aria-hidden="true" style={{ color: 'var(--border)', fontSize: '18px', lineHeight: 1, userSelect: 'none' }}>/</span>
-          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', fontWeight: 400, color: 'var(--navy)', letterSpacing: '3px', textTransform: 'uppercase', userSelect: 'none' }}>Helm</span>
+          <span aria-hidden="true" style={{ color: 'var(--border)', fontSize: '18px', lineHeight: 1, userSelect: 'none', flexShrink: 0 }}>/</span>
+          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', fontWeight: 400, color: 'var(--navy)', letterSpacing: '3px', textTransform: 'uppercase', userSelect: 'none', flexShrink: 0 }}>Helm</span>
         </div>
         <style>{`
           @media (max-width: 1023px) { .helm-header-inner { padding: 0 24px !important; } }
@@ -820,7 +822,7 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
       </header>
 
       {/* Main */}
-      <main style={{ paddingTop: 'calc(64px + var(--sat) + 40px)', paddingBottom: 'calc(80px + var(--sab))', maxWidth: '800px', margin: '0 auto', paddingLeft: '48px', paddingRight: '48px', display: 'flex', flexDirection: 'column', gap: '16px' }} className="helm-review-main">
+      <main style={{ paddingTop: 'calc(64px + var(--sat) + 40px)', paddingBottom: 'calc(80px + var(--sab))', maxWidth: '800px', margin: '0 auto', paddingLeft: '48px', paddingRight: '48px', display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0, overflowWrap: 'anywhere' }} className="helm-review-main">
         <style>{`
           @media (max-width: 1023px) { .helm-review-main { padding-left: 24px !important; padding-right: 24px !important; } }
           @media (max-width: 767px)  { .helm-review-main { padding-left: 16px !important; padding-right: 16px !important; } }
@@ -1028,13 +1030,13 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
 
       {/* Sticky confirm bar */}
       <div
-        style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg2)', borderTop: '1px solid var(--border2)', boxShadow: '0 -4px 16px rgba(13,30,53,0.08)', padding: '16px 48px', paddingBottom: 'calc(16px + var(--sab))', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '16px', zIndex: 90 }}
+        style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg2)', borderTop: '1px solid var(--border2)', boxShadow: '0 -4px 16px rgba(13,30,53,0.08)', padding: '16px 48px', paddingBottom: 'calc(16px + var(--sab))', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: '12px 16px', zIndex: 90 }}
         className="helm-confirm-bar"
       >
         <style>{`
           @media (max-width: 767px) {
             .helm-confirm-bar { padding-left: 16px !important; padding-right: 16px !important; }
-            .helm-confirm-bar > * { flex: 1; }
+            .helm-confirm-bar > * { flex: 1 1 auto; }
           }
         `}</style>
         {confirmSuccess ? (
@@ -1114,7 +1116,9 @@ function ReviewInner({ tripId, payload }: { tripId: string; payload: PreviewPayl
               onClick={handleConfirm}
               loading={confirming}
               disabled={!online || matchesPending}
-              style={{ minWidth: '200px' }}
+              // The label wraps instead of pushing the button off the right
+              // edge when the window is narrow or zoomed in.
+              style={{ minWidth: 'min(200px, 100%)', maxWidth: '100%', whiteSpace: 'normal', lineHeight: 1.3, height: 'auto', minHeight: '44px', textAlign: 'center' }}
             >
               {(unresolvedCount > 0
                 ? `Confirm with ${unresolvedCount} unresolved ${unresolvedCount === 1 ? 'flag' : 'flags'}`

@@ -11,6 +11,7 @@ import {
   type Row,
 } from '@/lib/import/bookings';
 import { BOOKING_SECTIONS, type BookingDecision, type BookingSection } from '@/lib/import/match-types';
+import { applyMapLink, type MapTable } from '@/lib/geo/map-link';
 
 // Saves a reviewed import in one transaction (import_trip_document,
 // supabase/migrations/202611050002_import_trip_document.sql). Everything is prepared here first
@@ -47,6 +48,26 @@ const LINKED_SECTION: Record<BookingSection, LinkedItinerarySection> = {
 };
 
 class ImportProblem extends Error {}
+
+// Hotels and restaurants get their automatic map link and map location as a
+// form save gives them (docs/import-from-web-page-plan.md, Addendum 2), so
+// the map picture shows without opening and saving the record. A failed
+// lookup leaves the location empty rather than failing the import.
+async function withMapLink(
+  supabase: ReturnType<typeof tripServiceClient>,
+  section: BookingSection,
+  id: string | null,
+  fields: Row,
+): Promise<void> {
+  if (section !== 'hotels' && section !== 'restaurants') return;
+  try {
+    await applyMapLink(supabase, section as MapTable, id, fields);
+  } catch (error) {
+    await logger.error('api/import/confirm', 'Map location lookup failed during import', {
+      section, error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
 
 // ─── Payload ──────────────────────────────────────────────────────────────────
 
@@ -112,12 +133,14 @@ async function buildPayload(
         const proposed = await proposedValues(section, row, existing);
         const fields = acceptedValues(section, existing, proposed, decision.fields ?? []);
         if (Object.keys(fields).length === 0) continue;
+        await withMapLink(supabase, section, decision.id, fields);
         updates.push({ section, id: decision.id, fields });
         for (const date of linkedDayDates(LINKED_SECTION[section], { ...existing, ...fields })) linkedDates.add(date);
         continue;
       }
 
       const insert = await prepareInsert(section, row, tripId);
+      await withMapLink(supabase, section, null, insert);
       inserts[section].push(insert);
       for (const date of linkedDayDates(LINKED_SECTION[section], insert)) linkedDates.add(date);
     }

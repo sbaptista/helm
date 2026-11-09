@@ -6,6 +6,33 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0068',
+    date: '2026-11-08',
+    changes: [
+      'Import review fits narrow and zoomed-in windows: the trip name shortens and the Confirm button wraps instead of slipping off the right edge.',
+      'Re-importing a restaurant or hotel with no date or confirmation number (a website, or a possibility you haven\'t booked) now finds the one already on the trip by name or website and offers updates, instead of adding a duplicate.',
+      'Imported hotels and restaurants get their map link and map picture straight away, without opening and saving them.',
+    ],
+  },
+  {
+    version: 'v00.04.0067',
+    date: '2026-11-08',
+    changes: [
+      'Imports now keep Website links for hotels, restaurants and transfers when the document shows them (they used to end up in Notes, or nowhere).',
+      'Importing from a web page: a hotel, restaurant or transfer the page gives no website for gets the page itself as its Website, since that page is usually its own site. The review shows it as "website (this page)". Map links still come from the address.',
+      'Re-importing can update a Website, but the page address never replaces a website a booking already has.',
+    ],
+  },
+  {
+    version: 'v00.04.0066',
+    date: '2026-11-08',
+    changes: [
+      'Import from a web page: the Import window has File and Web page. Paste a page\'s address and Helm reads it like a document, then shows the same review before anything is saved. A link straight to a PDF works too.',
+      'Pages that need you to sign in, or that only show their content in a browser, can\'t be read this way; save them as PDF and import the file. Helm says which it was.',
+      'For safety, Helm only opens public web addresses, never your home network or the computer it runs on.',
+    ],
+  },
+  {
     version: 'v00.04.0065',
     date: '2026-11-08',
     changes: [

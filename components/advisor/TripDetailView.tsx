@@ -21,6 +21,9 @@ import type { Trip } from '@/types/trips';
 import { useOfflineWarmup } from '@/hooks/useOfflineWarmup';
 import { useIsOnline } from '@/hooks/useOnlineStatus';
 import { isOnline as isOnlineNow } from '@/lib/offline/status';
+import { isWellFormedUrl } from '@/lib/links';
+import { WEBSITE_FROM_PAGE, WEBSITE_SECTIONS } from '@/lib/import/match-types';
+import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import {
   DEV_IMPORT_ERROR_KEY,
   IMPORT_ERROR_MESSAGES,
@@ -205,6 +208,13 @@ function TripDetailViewInner({
   const [totalChars, setTotalChars] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Import from a file or a web page (docs/import-from-web-page-plan.md).
+  const [importSource, setImportSource] = useState<'file' | 'url'>('file');
+  const [pageUrl, setPageUrl] = useState('');
+  const [pageUrlTouched, setPageUrlTouched] = useState(false);
+  const pageUrlValid = isWellFormedUrl(pageUrl);
+  const pageUrlError = pageUrlTouched && !pageUrlValid;
+  const canImport = importSource === 'file' ? !!selectedFile : pageUrlValid;
 
   // Title and destination as this device knows them: an edit made offline
   // shows before it syncs (docs/edit-trip-in-trip-plan.md).
@@ -257,13 +267,16 @@ const handleImportClose = () => {
     if (importPhase !== 'idle') toast.show('Import cancelled', 'neutral');
     setImportOpen(false);
     setSelectedFile(null);
+    setPageUrl('');
+    setPageUrlTouched(false);
     setImportPhase('idle');
     setImportError(null);
     setImportProgress(0);
   };
 
   const handleImport = async () => {
-    if (!selectedFile) return;
+    const fromPage = importSource === 'url';
+    if (fromPage ? !isWellFormedUrl(pageUrl) : !selectedFile) return;
     setImportPhase('reading');
     setImportError(null);
     setImportProgress(0);
@@ -272,20 +285,24 @@ const handleImportClose = () => {
     // Read the file once: byte count for the progress bar and a fresh Blob for
     // the upload. Reading the original File twice can exhaust its internal stream,
     // causing the API to receive an empty body.
-    let uploadBlob: Blob = selectedFile;
-    try {
-      const buffer = await selectedFile.arrayBuffer();
-      setTotalChars(buffer.byteLength);
-      uploadBlob = new Blob([buffer], { type: selectedFile.type });
-    } catch {
-      setTotalChars(selectedFile.size);
+    let uploadBlob: Blob | null = null;
+    if (!fromPage && selectedFile) {
+      uploadBlob = selectedFile;
+      try {
+        const buffer = await selectedFile.arrayBuffer();
+        setTotalChars(buffer.byteLength);
+        uploadBlob = new Blob([buffer], { type: selectedFile.type });
+      } catch {
+        setTotalChars(selectedFile.size);
+      }
     }
 
     try {
       if (!isOnlineNow()) throw new ImportFailure('connection');
 
       const form = new FormData();
-      form.append('file', uploadBlob, selectedFile.name);
+      if (fromPage) form.append('url', pageUrl.trim());
+      else if (uploadBlob && selectedFile) form.append('file', uploadBlob, selectedFile.name);
       form.append('tripId', trip.id);
       form.append('departureDate', trip.start_date ?? '');
       form.append('returnDate', trip.end_date ?? '');
@@ -315,6 +332,12 @@ const handleImportClose = () => {
         } catch {}
         if (isImportErrorCode(code)) throw new ImportFailure(code, errorMsg);
         throw new Error(errorMsg);
+      }
+
+      // A web page's size is only known once the server has read it.
+      if (fromPage) {
+        const inputChars = Number(res.headers.get('X-Import-Input-Chars'));
+        if (Number.isFinite(inputChars) && inputChars > 0) setTotalChars(inputChars);
       }
 
       // Read the streaming response body and accumulate chunks.
@@ -366,6 +389,24 @@ const handleImportClose = () => {
         throw new Error(
           `AI returned invalid JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
         );
+      }
+
+      // A web page often is the hotel's, restaurant's or operator's own site:
+      // records the page gave no website get the page's address (marked, so
+      // it never replaces a website a booking already has).
+      if (fromPage && parsed && typeof parsed === 'object') {
+        const pageLink = pageUrl.trim();
+        for (const section of WEBSITE_SECTIONS) {
+          const rows = (parsed as Record<string, unknown>)[section];
+          if (!Array.isArray(rows)) continue;
+          for (const row of rows) {
+            if (!row || typeof row !== 'object') continue;
+            const r = row as Record<string, unknown>;
+            if (isWellFormedUrl(typeof r.website_url === 'string' ? r.website_url : null)) continue;
+            r.website_url = pageLink;
+            r[WEBSITE_FROM_PAGE] = true;
+          }
+        }
       }
 
       sessionStorage.setItem(
@@ -601,7 +642,81 @@ const handleImportClose = () => {
             }}
           />
 
-          {importPhase === 'idle' ? (
+          {importPhase === 'idle' && (
+            /* File or Web page */
+            <div
+              role="radiogroup"
+              aria-label="Import from"
+              style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}
+            >
+              {([['file', 'File'], ['url', 'Web page']] as const).map(([value, label]) => {
+                const active = importSource === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => { setImportSource(value); setImportError(null); }}
+                    style={{
+                      flex: 1,
+                      minHeight: '44px',
+                      borderRadius: 'var(--r)',
+                      border: `1px solid ${active ? 'var(--gold)' : 'var(--border2)'}`,
+                      background: active ? 'var(--gold)' : 'var(--bg)',
+                      color: active ? 'var(--cream)' : 'var(--text2)',
+                      fontFamily: "'Lato', sans-serif",
+                      fontSize: '15px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {importPhase === 'idle' && importSource === 'url' ? (
+            /* Web page address */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label
+                htmlFor="import-page-url"
+                style={{ fontFamily: "'Lato', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--text2)', letterSpacing: '0.04em', textTransform: 'uppercase' }}
+              >
+                Web page address
+              </label>
+              <input
+                id="import-page-url"
+                type="url"
+                inputMode="url"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="https://example.com/your-itinerary"
+                value={pageUrl}
+                aria-invalid={pageUrlError}
+                aria-describedby="import-page-url-note"
+                onChange={(e) => setPageUrl(e.target.value)}
+                onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle(pageUrlError))}
+                onBlur={(e) => {
+                  setPageUrlTouched(true);
+                  Object.assign(e.currentTarget.style, inputStyle(!isWellFormedUrl(e.currentTarget.value)));
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && pageUrlValid) void handleImport(); }}
+                style={inputStyle(pageUrlError)}
+              />
+              {pageUrlError && (
+                <p role="alert" style={{ margin: 0, fontFamily: "'Lato', sans-serif", fontSize: '13px', color: 'var(--red)' }}>
+                  Enter a full web address starting with https://
+                </p>
+              )}
+              <p id="import-page-url-note" style={{ margin: 0, fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text2)', lineHeight: 1.5 }}>
+                Works with pages that open without signing in. For a page behind a login, save it as PDF and import the file.
+              </p>
+            </div>
+          ) : importPhase === 'idle' ? (
             /* Drop zone */
             <div
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -720,7 +835,7 @@ const handleImportClose = () => {
               {/* Status text */}
               <p style={{ fontFamily: "'Lato', sans-serif", fontSize: '14px', color: 'var(--text2)', margin: 0 }}>
                 {importPhase === 'reading'
-                  ? 'Reading document…'
+                  ? (importSource === 'url' ? 'Opening the page…' : 'Reading document…')
                   : importPhase === 'parsing'
                   ? 'Finalizing…'
                   : importPhase === 'navigating'
@@ -742,7 +857,7 @@ const handleImportClose = () => {
               Try Again
             </Button>
           )}
-          {importPhase === 'idle' && selectedFile && (
+          {importPhase === 'idle' && canImport && (
             <Button variant="primary" onClick={handleImport}>
               Import
             </Button>

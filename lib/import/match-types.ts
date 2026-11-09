@@ -10,6 +10,13 @@ export const BOOKING_SECTIONS: readonly BookingSection[] = ['flights', 'hotels',
 // decisions survive flag deletions that shift array positions.
 export const IMPORT_KEY = '__import_key';
 
+// Web page imports (docs/import-from-web-page-plan.md, Website links): a
+// hotel, restaurant or transfer whose website is the imported page itself,
+// because the page gave none. Such an address never replaces a website a
+// booking already has.
+export const WEBSITE_FROM_PAGE = '__website_from_page';
+export const WEBSITE_SECTIONS = ['hotels', 'transportation', 'restaurants'] as const;
+
 export interface FieldChange {
   field:   string;
   label:   string;

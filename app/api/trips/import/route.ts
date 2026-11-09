@@ -7,6 +7,7 @@ import {
   IMPORT_STREAM_ERROR_MARKER,
   type ImportErrorCode,
 } from '@/lib/import/errors';
+import { fetchPage, PAGE_ERROR_STATUS, PageFetchError } from '@/lib/import/fetch-page';
 
 // Node, not Edge: pdf-parse and mammoth need Node APIs. The response streams,
 // so a long document isn't cut off by a request timeout.
@@ -18,7 +19,7 @@ const MAX_INPUT_CHARS = 200000;
 
 const SYSTEM_PROMPT = `You are a travel itinerary parser for Helm, a travel advisor platform.
 
-You will receive the text of a travel document and the trip's departure and return dates. Your task is to map its contents to the Helm schema and return ONLY a valid JSON object — no explanation, no markdown, no code fences.
+You will receive the text of a travel document and the trip's departure and return dates. The text may come from a web page: ignore site navigation, menus, cookie notices, advertising and footers, and use only the trip's details. Your task is to map its contents to the Helm schema and return ONLY a valid JSON object — no explanation, no markdown, no code fences.
 
 The JSON object must have these top-level keys, each containing an array:
 
@@ -26,9 +27,10 @@ The JSON object must have these top-level keys, each containing an array:
 - itinerary_rows: { day_number, time, end_time, title, description, location, type } — type is one of: activity, meal, transport, accommodation, other
   Do NOT put flights, hotel check-ins or check-outs, restaurant reservations or transfers in itinerary_rows. Put them only in flights, hotels, restaurants and transportation; Helm lists those in the itinerary itself.
 - flights: { flight_number, airline, departure_airport, arrival_airport, departure_time, arrival_time, confirmation_code, notes }
-- hotels: { name, location, address, city, check_in_date, check_out_date, confirmation_code, phone, notes }
-- transportation: { type, description, departure_location, arrival_location, departure_time, arrival_time, confirmation_code, notes }
-- restaurants: { name, location, address, city, date, time, confirmation_code, type, notes } — type is one of: included, independent
+- hotels: { name, location, address, city, check_in_date, check_out_date, confirmation_code, phone, website_url, notes }
+- transportation: { type, description, departure_location, arrival_location, departure_time, arrival_time, confirmation_code, website_url, notes }
+- restaurants: { name, location, address, city, date, time, confirmation_code, type, website_url, notes } — type is one of: included, independent
+  website_url (hotels, transportation, restaurants): the place's or operator's own website, a full https:// address, only when the document shows it. Never invent or guess one, and never use a map link. Put a record's website here, not in notes.
 - checklist_items: { task, group, due_date, notes } — task is the thing to do; group is a short heading such as "Documents" or "Before departure" (optional); due_date only when the document gives one
 - packing_items: { item, category, sub_group } — item is what to pack; category is a heading such as "Clothing" or "Documents"; sub_group is optional
 - key_info: { category, label, value, url, is_urgent }
@@ -93,8 +95,11 @@ const STATUS_FOR_CODE: Record<ImportErrorCode, number> = {
 // ─── Text extraction ──────────────────────────────────────────────────────────
 
 async function extractText(file: File): Promise<string | Response> {
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const name = file.name.toLowerCase();
+  return extractFromBuffer(Buffer.from(await file.arrayBuffer()), file.name);
+}
+
+async function extractFromBuffer(buffer: Buffer, fileName: string): Promise<string | Response> {
+  const name = fileName.toLowerCase();
   try {
     if (name.endsWith('.pdf')) {
       const { PDFParse } = await import('pdf-parse');
@@ -116,9 +121,36 @@ async function extractText(file: File): Promise<string | Response> {
     );
   } catch (error) {
     await logger.error('api/import', 'Failed to extract text from file', {
-      error: error instanceof Error ? error.message : String(error), fileName: file.name,
+      error: error instanceof Error ? error.message : String(error), fileName,
     });
     return Response.json({ error: 'Failed to read text from this file.' }, { status: 422 });
+  }
+}
+
+// ─── Web page ─────────────────────────────────────────────────────────────────
+
+// Import from a web page (docs/import-from-web-page-plan.md). Expected
+// refusals (bad or private address, 404, sign-in, too large) are answered
+// with their message and not logged; anything else is logged with the host
+// only, since a full link can carry tokens.
+async function extractFromUrl(link: string, tripId: string): Promise<{ text: string } | Response> {
+  try {
+    const page = await fetchPage(link);
+    if (page.kind === 'pdf') {
+      const text = await extractFromBuffer(page.data, 'page.pdf');
+      return text instanceof Response ? text : { text };
+    }
+    return { text: `Source: web page ${page.finalUrl}\n\n${page.text}` };
+  } catch (error) {
+    if (error instanceof PageFetchError) {
+      return Response.json({ error: error.message, pageError: error.code }, { status: PAGE_ERROR_STATUS[error.code] });
+    }
+    let host: string | null = null;
+    try { host = new URL(link).hostname; } catch {}
+    await logger.error('api/import', 'Failed to read web page', {
+      error: error instanceof Error ? error.message : String(error), host,
+    }, tripId);
+    return Response.json({ error: 'Helm couldn\'t open this page. Check the address and try again.' }, { status: 422 });
   }
 }
 
@@ -133,12 +165,15 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const file = formData.get('file');
+  const pageUrl = formData.get('url');
   const tripId = formData.get('tripId');
   const departureDate = formData.get('departureDate');
   const returnDate = formData.get('returnDate');
 
-  if (!(file instanceof File)) {
-    return Response.json({ error: 'No file provided.' }, { status: 400 });
+  const hasFile = file instanceof File;
+  const hasUrl = typeof pageUrl === 'string' && pageUrl.trim() !== '';
+  if (hasFile === hasUrl) {
+    return Response.json({ error: 'Choose a file or enter a web page address.' }, { status: 400 });
   }
   if (typeof tripId !== 'string' || !tripId) {
     return Response.json({ error: 'tripId is required.' }, { status: 400 });
@@ -159,10 +194,18 @@ export async function POST(request: Request): Promise<Response> {
     return errorResponse(code, STATUS_FOR_CODE[code]);
   }
 
-  const extracted = await extractText(file);
-  if (extracted instanceof Response) return extracted;
+  let extracted: string;
+  if (hasUrl) {
+    const page = await extractFromUrl(pageUrl as string, tripId);
+    if (page instanceof Response) return page;
+    extracted = page.text;
+  } else {
+    const text = await extractText(file as File);
+    if (text instanceof Response) return text;
+    extracted = text;
+  }
   if (!extracted.trim()) {
-    return Response.json({ error: 'No readable text found in the file.' }, { status: 422 });
+    return Response.json({ error: hasUrl ? 'No readable text found on this page.' : 'No readable text found in the file.' }, { status: 422 });
   }
   // Too long to send whole: say so rather than import part of it.
   if (extracted.length > MAX_INPUT_CHARS) {
@@ -241,6 +284,11 @@ export async function POST(request: Request): Promise<Response> {
   });
 
   return new Response(body, {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      // The text sent to Claude: a web page has no size the browser knows, so
+      // its progress bar uses this.
+      'X-Import-Input-Chars': String(extracted.length),
+    },
   });
 }
