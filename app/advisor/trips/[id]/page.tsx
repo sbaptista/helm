@@ -43,11 +43,11 @@ export default async function TripDetailPage({
   const user = BYPASS
     ? { id: BYPASS }
     : (await supabase.auth.getUser()).data.user
-  if (!user) redirect('/auth/login');
+  if (!user) redirect('/auth/session-ended');
 
   const { data: row } = await supabase
     .from('trips')
-    .select('id, title, destination, status, created_at')
+    .select('id, title, destination, status, created_at, show_map_pictures')
     .eq('id', id)
     .single();
 
@@ -95,6 +95,7 @@ export default async function TripDetailPage({
     status:         row.status as TripStatus,
     created_at:     row.created_at as string,
     traveler_count: 0,
+    show_map_pictures: row.show_map_pictures !== false,
   };
 
   return (

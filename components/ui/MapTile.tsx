@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { createContext, useContext, useState } from 'react'
 import { isWellFormedUrl } from '@/lib/links'
 import { useIsOnline } from '@/hooks/useOnlineStatus'
 
@@ -9,6 +9,12 @@ import { useIsOnline } from '@/hooks/useOnlineStatus'
 // location the server confirmed and a well-formed link; if the image can't
 // load (offline, Google refuses), the tile is left out and the Map ↗ link
 // remains.
+// The trip's Map pictures setting (docs/map-pictures-choice-plan.md), provided
+// by TripDetailView. Off hides the picture only: the Map ↗ link, automatic map
+// links and stored locations stay, and no map-tile request is made.
+const MapPicturesContext = createContext(true)
+export const MapPicturesProvider = MapPicturesContext.Provider
+
 export function MapTile({ table, id, name, url, lat, lng }: {
   table: 'hotels' | 'restaurants'
   id: string
@@ -18,9 +24,10 @@ export function MapTile({ table, id, name, url, lat, lng }: {
   lng: number | null | undefined
 }) {
   const online = useIsOnline()
+  const show = useContext(MapPicturesContext)
   const at = lat != null && lng != null ? `${lat},${lng}` : null
   const [failedAt, setFailedAt] = useState<string | null>(null)
-  if (!at || !isWellFormedUrl(url) || failedAt === at || !online) return null
+  if (!show || !at || !isWellFormedUrl(url) || failedAt === at || !online) return null
   return (
     <a
       href={url.trim()}

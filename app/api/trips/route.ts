@@ -6,6 +6,7 @@ interface CreateTripBody {
   title?: unknown
   destination?: unknown
   description?: unknown
+  show_map_pictures?: unknown
 }
 
 function requiredString(value: unknown): string | null {
@@ -40,6 +41,8 @@ export async function POST(request: Request): Promise<Response> {
   const title = requiredString(body.title)
   const destination = requiredString(body.destination)
   const description = optionalString(body.description)
+  // Asked in New Trip; on unless the person turned it off.
+  const showMapPictures = body.show_map_pictures !== false
 
   if (!title) return Response.json({ error: 'Trip name is required.' }, { status: 400 })
   if (!destination) return Response.json({ error: 'Destination is required.' }, { status: 400 })
@@ -60,6 +63,7 @@ export async function POST(request: Request): Promise<Response> {
       title,
       destination,
       description,
+      show_map_pictures: showMapPictures,
       status: 'draft',
       created_by: userId,
     })

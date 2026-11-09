@@ -24,7 +24,7 @@ async function fetchTrips(userId: string): Promise<Trip[]> {
   // Fetch trip details
   const { data: tripRows, error: tripsError } = await supabase
     .from('trips')
-    .select('id, title, destination, status, created_at')
+    .select('id, title, destination, status, created_at, show_map_pictures')
     .in('id', tripIds)
     .order('created_at', { ascending: false });
 
@@ -69,6 +69,7 @@ async function fetchTrips(userId: string): Promise<Trip[]> {
     status:         t.status as TripStatus,
     created_at:     t.created_at as string,
     traveler_count: travelerCounts[t.id as string] ?? 0,
+    show_map_pictures: t.show_map_pictures !== false,
   }));
 }
 
@@ -79,7 +80,7 @@ export default async function AdvisorDashboardPage() {
   const user = bypassId
     ? { id: bypassId, email: '' }
     : (await supabase.auth.getUser()).data.user;
-  if (!user) redirect('/auth/login');
+  if (!user) redirect('/auth/session-ended');
 
   let trips: Trip[] = [];
   let fetchError: string | null = null;

@@ -16,4 +16,6 @@ export interface Trip {
   status: TripStatus;
   created_at: string;
   traveler_count: number;
+  // Hotel and Restaurant cards show map pictures (docs/map-pictures-choice-plan.md).
+  show_map_pictures: boolean;
 }

@@ -8,6 +8,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { FormField, inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { scrollToFirstError } from '@/lib/form-utils';
+import { MapPicturesSwitch } from '@/components/advisor/MapPicturesSwitch';
 
 interface CreateTripModalProps {
   open: boolean;
@@ -19,6 +20,7 @@ interface FormValues {
   title: string;
   destination: string;
   description: string;
+  show_map_pictures: boolean;
 }
 
 interface FormErrors {
@@ -30,6 +32,7 @@ const EMPTY_FORM: FormValues = {
   title: '',
   destination: '',
   description: '',
+  show_map_pictures: true,
 };
 
 function useInputFocus() {
@@ -173,6 +176,12 @@ export function CreateTripModal({ open, onClose, onSuccess }: CreateTripModalPro
           {...focus.bind('description')}
         />
       </FormField>
+
+      <MapPicturesSwitch
+        checked={values.show_map_pictures}
+        onChange={(next) => setValues((prev) => ({ ...prev, show_map_pictures: next }))}
+        disabled={loading}
+      />
     </div>
   );
 

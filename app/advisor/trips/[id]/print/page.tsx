@@ -32,7 +32,7 @@ export default async function TripPrintPage({
   const user = BYPASS
     ? { id: BYPASS }
     : (await supabase.auth.getUser()).data.user
-  if (!user) redirect('/auth/login');
+  if (!user) redirect('/auth/session-ended');
 
   // Service client for full data access
   const serviceClient = createServiceClient(

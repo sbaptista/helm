@@ -207,7 +207,7 @@ The version is also tracked in HANDOFF.md for quick reference, but `lib/version.
 - **DevDebugPanel**: scrollable (`maxHeight: 70vh`). Auth variant toggle stores in `localStorage`. Never read `localStorage` in `useState` initializer — use `useEffect` to avoid hydration mismatch.
 
 ### Trip ID
-`0e1d98a3-a124-42e1-b68d-498bb60f46be`
+`453c0c22-0010-46a7-9f5c-2eefda35e6cd` (2026 Canadian Rockies Adventure; updated 2026-11-08 — the earlier `0e1d98a3-…` is no longer one of Stan's trips)
 
 ---
 

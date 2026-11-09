@@ -219,7 +219,9 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
 
   async function handleSignOut() {
     const supabase = createClient();
-    await supabase.auth.signOut();
+    // This device only: signing out the browser pane or one phone shouldn't
+    // sign out every other device (the default 'global' scope did).
+    await supabase.auth.signOut({ scope: 'local' });
     window.location.href = '/auth/login';
   }
 
@@ -338,6 +340,22 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
 
   const tripCount = trips.length;
 
+  // ＋ New Trip, Help and Sign Out: one gold style, all on the top row
+  // (2026-11-08). Phones get tighter padding and gaps so they fit.
+  const headerButtonStyle: React.CSSProperties = {
+    fontFamily: "'Lato', sans-serif",
+    fontSize: '13px',
+    fontWeight: 700,
+    color: 'var(--cream)',
+    background: 'var(--gold)',
+    border: '1px solid var(--gold)',
+    borderRadius: 'var(--r)',
+    padding: '8px 16px',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    minHeight: '44px',
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {/* Fixed header */}
@@ -359,6 +377,7 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
         }}
       >
         <div
+          className="helm-header-inner"
           style={{
             width: '100%',
             maxWidth: '1200px',
@@ -384,7 +403,7 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
             Helm
           </span>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div className="helm-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             {userEmail && (
               <span
                 style={{
@@ -397,49 +416,33 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
                 {userEmail}
               </span>
             )}
-            <div className="helm-new-trip-btn">
-              <Button
-                variant="primary"
-                onClick={() => setModalOpen(true)}
-                disabled={!isOnline}
-              >
-                ＋ New Trip
-              </Button>
-            </div>
             <button
-              onClick={() => setWhatsNewOpen(true)}
+              type="button"
+              className="helm-header-btn"
+              onClick={() => setModalOpen(true)}
+              disabled={!isOnline}
               style={{
-                fontFamily: "'Lato', sans-serif",
-                fontSize: '13px',
-                fontWeight: 700,
-                color: 'var(--text3)',
-                background: 'none',
-                border: '1px solid var(--border2)',
-                borderRadius: 'var(--r)',
-                padding: '8px 16px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                minHeight: '44px',
+                ...headerButtonStyle,
+                cursor: isOnline ? 'pointer' : 'not-allowed',
+                opacity: isOnline ? 1 : 0.5,
               }}
+            >
+              ＋ New Trip
+            </button>
+            <button
+              type="button"
+              className="helm-header-btn"
+              onClick={() => setWhatsNewOpen(true)}
+              style={headerButtonStyle}
             >
               Help
             </button>
             {showSignOut && (
               <button
+                type="button"
+                className="helm-header-btn"
                 onClick={handleSignOut}
-                style={{
-                  fontFamily: "'Lato', sans-serif",
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: 'var(--text3)',
-                  background: 'none',
-                  border: '1px solid var(--border2)',
-                  borderRadius: 'var(--r)',
-                  padding: '8px 16px',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  minHeight: '44px',
-                }}
+                style={headerButtonStyle}
               >
                 Sign Out
               </button>
@@ -457,8 +460,10 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
         }
         @media (max-width: 767px) {
           .helm-header-inner { padding: 0 16px !important; }
-          .helm-new-trip-btn { display: none !important; }
+          .helm-header-actions { gap: 8px !important; }
+          .helm-header-btn { padding: 8px 10px !important; }
         }
+        .helm-header-btn:not(:disabled):hover { background: var(--gold2) !important; border-color: var(--gold2) !important; }
         @media (min-width: 768px) {
           .helm-advisor-email { display: block !important; }
         }
@@ -620,46 +625,6 @@ function DashboardViewInner({ trips: serverTrips, userEmail, fetchError, showSig
           }}
         />
       </footer>
-
-      {/* Mobile FAB */}
-      <button
-        aria-label="Create new trip"
-        onClick={() => setModalOpen(true)}
-        disabled={!isOnline}
-        className="helm-fab"
-        style={{
-          position: 'fixed',
-          bottom: `calc(20px + var(--sab))`,
-          right: '20px',
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          background: 'var(--gold)',
-          border: 'none',
-          color: 'var(--cream)',
-          fontSize: '24px',
-          lineHeight: 1,
-          cursor: isOnline ? 'pointer' : 'not-allowed',
-          opacity: isOnline ? 1 : 0.4,
-          display: 'none',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: 'var(--shadow-lg)',
-          zIndex: 90,
-          transition: 'background var(--transition), transform var(--transition)',
-        }}
-      >
-        <style>{`
-          @media (max-width: 767px) {
-            .helm-fab { display: flex !important; }
-          }
-          .helm-fab:hover { background: var(--gold2) !important; transform: scale(1.05); }
-          .helm-fab:active { transform: scale(0.97); }
-        `}</style>
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-          <path d="M11 4v14M4 11h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-        </svg>
-      </button>
 
       {/* Create trip modal */}
       <CreateTripModal

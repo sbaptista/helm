@@ -55,7 +55,7 @@ export async function PATCH(
   }
 
   // Trip dates are not editable: they are derived from the itinerary.
-  const allowed = ['title', 'destination', 'status'];
+  const allowed = ['title', 'destination', 'status', 'show_map_pictures'];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
@@ -67,6 +67,10 @@ export async function PATCH(
 
   if ('status' in updates && !(TRIP_STATUSES as readonly unknown[]).includes(updates.status)) {
     return Response.json({ error: `status must be one of: ${TRIP_STATUSES.join(', ')}.` }, { status: 400 });
+  }
+
+  if ('show_map_pictures' in updates && typeof updates.show_map_pictures !== 'boolean') {
+    return Response.json({ error: 'show_map_pictures must be true or false.' }, { status: 400 });
   }
 
   let supabase;

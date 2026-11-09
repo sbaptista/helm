@@ -6,10 +6,14 @@ import { Button } from '@/components/ui/Button';
 import { inputStyle, inputFocusStyle } from '@/components/ui/FormField';
 import { apiFetch } from '@/lib/offline/api-fetch';
 import { useRouter } from '@/lib/offline/router';
+import { useIsOnline } from '@/hooks/useOnlineStatus';
+import { MapPicturesSwitch } from '@/components/advisor/MapPicturesSwitch';
 
 // Edit Trip: title and destination, from the dashboard or inside the trip
 // (docs/edit-trip-in-trip-plan.md). Saves through apiFetch, so it also works
 // offline: the change waits on the device and is sent when Helm is online.
+// Map pictures (docs/map-pictures-choice-plan.md) is saved separately and
+// needs a connection: offline editing covers only title and destination.
 
 const labelStyle: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: '6px',
@@ -24,12 +28,14 @@ export function EditTripModal({
 }: {
   open: boolean;
   onClose: () => void;
-  trip: { id: string; title: string; destination: string | null } | null;
+  trip: { id: string; title: string; destination: string | null; show_map_pictures?: boolean } | null;
 }) {
   const router = useRouter();
+  const online = useIsOnline();
   const [title, setTitle] = useState('');
   const [destination, setDestination] = useState('');
   const [titleTouched, setTitleTouched] = useState(false);
+  const [mapPictures, setMapPictures] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +44,7 @@ export function EditTripModal({
     if (!open || !trip) return;
     setTitle(trip.title);
     setDestination(trip.destination ?? '');
+    setMapPictures(trip.show_map_pictures !== false);
     setTitleTouched(false);
     setError(null);
   }, [open, trip?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -60,6 +67,15 @@ export function EditTripModal({
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? 'Failed to save.');
+      if (mapPictures !== (trip.show_map_pictures !== false)) {
+        const picRes = await apiFetch(`/api/trips/${trip.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ show_map_pictures: mapPictures }),
+        });
+        const picJson = await picRes.json().catch(() => ({}));
+        if (!picRes.ok) throw new Error(picJson.error ?? 'Title and destination saved; Map pictures wasn\'t changed.');
+      }
       onClose();
       router.refresh(); // does nothing offline; the device copy shows the change
     } catch (err) {
@@ -107,6 +123,12 @@ export function EditTripModal({
               disabled={saving}
             />
           </label>
+          <MapPicturesSwitch
+            checked={mapPictures}
+            onChange={setMapPictures}
+            disabled={saving || !online}
+            note={online ? undefined : 'Connect to the internet to change map pictures.'}
+          />
           {error && (
             <p style={{ fontSize: '13px', color: 'var(--red)', fontFamily: "'Lato', sans-serif" }}>{error}</p>
           )}

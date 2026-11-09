@@ -6,6 +6,38 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0065',
+    date: '2026-11-08',
+    changes: [
+      'Dashboard header: ＋ New Trip, Help and Sign Out are all gold buttons on one row. On iPhone they sit closer together so all three fit next to Helm, and the second row is gone.',
+    ],
+  },
+  {
+    version: 'v00.04.0064',
+    date: '2026-11-08',
+    changes: [
+      'iPhone: ＋ New Trip moves to the header, on its own line under Help and styled like it, so it stays in view while the trips scroll. The button at the bottom right is gone and the version number is back where it was.',
+    ],
+  },
+  {
+    version: 'v00.04.0063',
+    date: '2026-11-08',
+    changes: [
+      'iPhone: New Trip is now a labelled ＋ New Trip button at the bottom right (it was a small round + that was easy to miss).',
+      'Sign Out now signs out only the device you are on. Before, signing out anywhere signed you out of Helm on every device.',
+      'A sign-in that ended on another device is cleared quietly before the login page, so it no longer shows "Invalid Refresh Token" in development.',
+    ],
+  },
+  {
+    version: 'v00.04.0062',
+    date: '2026-11-08',
+    changes: [
+      'Map pictures can be turned off for a trip: a new Map pictures switch in New Trip and Edit Trip. Off hides the small maps on Hotel and Restaurant cards; the Map ↗ links stay.',
+      'Existing trips keep showing map pictures. A copied trip keeps the setting of the trip it was copied from.',
+      'Changing Map pictures needs a connection; offline, Edit Trip still saves the title and destination.',
+    ],
+  },
+  {
     version: 'v00.04.0061',
     date: '2026-11-08',
     changes: [

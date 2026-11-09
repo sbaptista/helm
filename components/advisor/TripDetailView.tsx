@@ -10,6 +10,7 @@ import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { CalendarModal, type GCalState } from '@/components/advisor/CalendarModal';
 import { PrintExportModal } from '@/components/advisor/PrintExportModal';
 import { EditTripModal } from '@/components/advisor/EditTripModal';
+import { MapPicturesProvider } from '@/components/ui/MapTile';
 import { useDeviceTrip } from '@/hooks/useDeviceTrips';
 import { Pencil } from 'lucide-react';
 import { LogsClient } from '@/components/sections/LogsClient';
@@ -383,6 +384,7 @@ const handleImportClose = () => {
 
 
   return (
+    <MapPicturesProvider value={localTrip.show_map_pictures}>
     <TabNavigationContext.Provider value={{
       navigateTo: (tab, itemId) => {
         switchTab(tab as Tab)
@@ -772,6 +774,7 @@ const handleImportClose = () => {
 
     </div>
     </TabNavigationContext.Provider>
+    </MapPicturesProvider>
   );
 }
 
