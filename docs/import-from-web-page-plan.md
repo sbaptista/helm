@@ -246,3 +246,10 @@ finds both Mia's records; a different name with the website
 https://alexandria-va.miasitalian.com/ written as "HTTPS://WWW.Alexandria-VA
 .miasitalian.com?utm=1#top" finds Mia's; two imported places sharing one
 website match nothing; a dated Mia's doesn't match the undated ones.
+
+Item 4 (00.04.0069): Stan's query showed `import_jobs_status_check` allows
+'pending', 'processing', 'review', 'confirmed', 'failed'. Migration
+`202611080004_import_jobs_status.sql` (not applied) recreates
+`import_trip_document` with only its import_jobs status changed from
+'completed' to 'confirmed'. Nothing reads import_jobs.status
+(`clear_trip_data` only deletes the rows).

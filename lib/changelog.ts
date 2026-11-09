@@ -6,6 +6,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0069',
+    date: '2026-11-08',
+    changes: [
+      'Fixed: each import\'s record of what it saved was refused by the database (it used a status the database doesn\'t allow), so Logs showed "Import saved but its import_jobs record could not be written". Bookings were always saved; the record is now kept too.',
+    ],
+  },
+  {
     version: 'v00.04.0068',
     date: '2026-11-08',
     changes: [
