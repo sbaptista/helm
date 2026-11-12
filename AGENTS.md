@@ -79,6 +79,42 @@ Two environments:
 | **Localhost** | `https://localhost:3000` (Mac); `https://stanleys-macbook-pro.local:3000` (iPad, iPhone — Bonjour only, no LAN IP) | working tree | Fast iteration — hot reload, DEV panel, instant feedback. Where AI + Stan build. |
 | **Production** | `https://helm-gilt.vercel.app` | `main` | Live app used by travelers. |
 
+## Local development database (since 2026-11-11)
+
+Localhost uses its own Supabase on the Mac, never production
+(`docs/local-dev-database-plan.md`). The dev server holds only local keys;
+**agents never hold production keys or the production database password.**
+
+- **Runs in** Docker Desktop in the `developer` account (Supabase CLI 2.101.0,
+  an npm devDependency). After a Mac restart: start Docker Desktop, then
+  `cd /Users/developer/Projects/helm && DOCKER_HOST=unix:///Users/developer/.docker/run/docker.sock npx supabase start`.
+  If the sign-in page offers to create an account for a test address, the
+  local database isn't running.
+- **Route:** every client uses `NEXT_PUBLIC_SUPABASE_URL=https://stanleys-macbook-pro.local:3000/sb`;
+  `next.config.ts` rewrites `/sb/*` to `http://127.0.0.1:54321` in development
+  only. The sign-in cookie name comes from that hostname, so the browser and
+  the server must use the same URL.
+- **Test accounts** (sign in by code; the code is in the mail catcher at
+  `http://127.0.0.1:54324`, Mac only, no email leaves the Mac):
+  `stan.test@helm.test`, `agent.test@helm.test`. Test trip: Test Trip —
+  Rockies (`33333333-3333-4333-8333-333333333333`), created by Stan Test.
+  Agent Test's dashboard is empty: production's `trips_select_own` policy
+  shows a trip only to its creator.
+- **Reset to the test data:** `npx supabase db reset` (with `DOCKER_HOST` as
+  above) rebuilds from `supabase/migrations/` and `supabase/seed.sql`.
+- **Migrations:** `supabase/migrations/20261109000000_baseline.sql` is
+  production's schema on 2026-11-09 (never apply it to production); earlier
+  migrations are history in `supabase/migrations-applied/`. New migrations go
+  in `supabase/migrations/`; agents apply and test them locally, then Stan
+  applies them to production.
+- **Network:** the Supabase ports listen on all interfaces (Docker Desktop
+  ignores a 127.0.0.1 binding), so the macOS firewall blocks Docker.app's
+  incoming connections. Don't turn that off.
+- **Supabase CLI binary:** re-signed ad hoc (its upstream signature is
+  invalid, so macOS killed it); `npm ci` undoes this. Re-sign with
+  `codesign --force --sign - node_modules/@supabase/cli-darwin-arm64/bin/supabase`
+  after checking the package against the lockfile.
+
 ## Deployment workflow
 
 Development happens in the Standard `developer` account, whose GitHub token is
@@ -107,8 +143,9 @@ edits default to the `developer` login; an edit that must come from the admin
 account uses a temporary `~/Release` clone and is recorded in `HANDOFF.md`;
 never edit files inside `/Users/developer` with `sudo`. The dev TLS leaf
 (`helm-secrets/tls/helm-dev.pem`, moved from the repo-root `localhost+1.pem` on
-2026-10-22) is issued from the admin account's mkcert CA, which is never copied
-here. Installing or updating anything in `/usr/local/helm-bin` is a manual
+2026-10-22) is issued from the admin account's mkcert CA. Only the CA's public
+certificate is copied here (`helm-secrets/ca/rootCA.pem`, 2026-11-09, passed to
+`next dev --experimental-https-ca`); its private key never is. Installing or updating anything in `/usr/local/helm-bin` is a manual
 admin step (`sudo install` from a reviewed clone).
 
 ---
@@ -202,7 +239,7 @@ The version is also tracked in HANDOFF.md for quick reference, but `lib/version.
 - **Hook declaration order**: computed values that reference state variables must be declared AFTER those `useState` calls — React TDZ will crash at runtime if not.
 - **Service worker**: `public/sw.js` registers via `ServiceWorkerRegistrar` in `layout.tsx`. Cache names are versioned — bump `helm-shell-vN` and `helm-assets-vN` in `sw.js` when deploying changes that require cache busting. Navigation uses **network-first** strategy (not stale-while-revalidate).
 - **OfflineGuard / online status** (00.04.0006): `components/ui/OfflineGuard.tsx` in the root layout runs the only `useOnlineStatus()` poll and provides the result; everything else reads it with `useIsOnline()` — never start another poll. On the dashboard and trip pages it keeps the saved page and shows `OfflinePill`; elsewhere it shows the offline page. Saves go through `apiFetch` (`lib/offline/`), not `fetch`. Details: `docs/offline-editing-plan.md`.
-- **Development secrets**: there is **no `.env.local`** (removed 2026-10-22/23). Secrets live in the passphrase-encrypted store `/Users/developer/Project-secrets/helm-secrets/helm.env.enc`, unlocked by `/usr/local/helm-bin/helm-dev`, which refuses to start while any `.env`, `.env.local`, `.env.development` or `.env.development.local` exists in the repo. Agents never read, decrypt or edit the store; Stan changes a value with `helm-secrets-set <NAME>`. Encryption protects the file at rest only: while the server runs, agent-editable code can reach the decrypted values. Plan: `docs/helm-secrets-encryption-plan.md`. Key rotation is deferred as an accepted risk (2026-10-23).
+- **Development secrets**: there is **no `.env.local`** (removed 2026-10-22/23). Secrets live in the passphrase-encrypted store `/Users/developer/Project-secrets/helm-secrets/helm.env.enc`, unlocked by `/usr/local/helm-bin/helm-dev`, which refuses to start while any `.env`, `.env.local`, `.env.development` or `.env.development.local` exists in the repo. Agents never read, decrypt or edit the store; Stan changes a value with `helm-secrets-set <NAME>`. Encryption protects the file at rest only: while the server runs, agent-editable code can reach the decrypted values. Plan: `docs/helm-secrets-encryption-plan.md`. Since 2026-11-11 the store's Supabase values are the local database's (see "Local development database"), and production's secret key was replaced that day, so the old copy no longer works. The Anthropic, Google Maps and Google sign-in keys are still shared with production (Stan's decision, 2026-11-09).
 - **Auth: page-level `'use client'` + AuthShell** — causes hydration errors. Always split into server `page.tsx` + client `*Form.tsx` for auth pages.
 - **DevDebugPanel**: scrollable (`maxHeight: 70vh`). Auth variant toggle stores in `localStorage`. Never read `localStorage` in `useState` initializer — use `useEffect` to avoid hydration mismatch.
 

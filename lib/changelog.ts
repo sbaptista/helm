@@ -6,6 +6,27 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: 'v00.04.0072',
+    date: '2026-11-10',
+    changes: [
+      'Development only, no change to the app: the dev server now trusts the Mac\'s development certificate when it calls its own /sb route. Next.js replaced the earlier certificate setting with its own --experimental-https-ca option, so the setting now goes there.',
+    ],
+  },
+  {
+    version: 'v00.04.0071',
+    date: '2026-11-10',
+    changes: [
+      'Development only, no change to the app: the dev server now listens on IPv6 as well as IPv4. The Mac\'s Bonjour name resolves to IPv6 first, so the server couldn\'t reach the local test database through its own /sb route, and sign-in and the online check failed.',
+    ],
+  },
+  {
+    version: 'v00.04.0070',
+    date: '2026-11-09',
+    changes: [
+      'Development only, no change to the app: groundwork for a local test database on the Mac, so development and testing no longer touch real trip data. In development, database traffic can now go through the dev server under /sb, so the iPad and iPhone can reach a database running on the Mac. The local database settings turn off services Helm doesn\'t use and allow sign-in from localhost and the Mac\'s Bonjour address. The old database migrations moved to a history folder (production already has them).',
+    ],
+  },
+  {
     version: 'v00.04.0069',
     date: '2026-11-08',
     changes: [
